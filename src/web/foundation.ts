@@ -9,6 +9,7 @@ import { Router, type Request } from "express";
 import { aiUsageSummary, hasOpenAI, providerLabel } from "../ai/provider.js";
 import { conversation, receive, recentMessages, smsReady, smsUpdate, telegramReady, telegramUpdate, whatsappReady, whatsappUpdate } from "../channels/index.js";
 import { pushReady, subscribe } from "../channels/push.js";
+import { routeTelegram } from "../channels/router.js";
 import { config } from "../config.js";
 import { getDb } from "../db.js";
 import { CASES, harnessContext, renderAdversarialReport, runAdversarial } from "../eval/adversarial.js";
@@ -220,7 +221,7 @@ export function foundationRouter(): Router {
   }));
   r.post("/webhooks/telegram", page(async (req, res) => {
     if (config.channels.telegramSecret && req.get("x-telegram-bot-api-secret-token") !== config.channels.telegramSecret) return res.status(403).end();
-    await telegramUpdate(req.body ?? {});
+    await routeTelegram(req.body ?? {}, telegramUpdate);
     res.json({ ok: true });
   }));
   r.get("/webhooks/whatsapp", (req, res) => {
