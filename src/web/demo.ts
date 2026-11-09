@@ -57,6 +57,23 @@ ${biz && p ? html`<div class="card"><h3>Run a scripted customer</h3><p class="sm
     if (owner) signIn(res, owner, req.secure);
     res.redirect(`/demo?ok=${encodeURIComponent("Seeded and planned. You are signed in as the owner.")}`);
   }));
+  /** Demo mode only: clear one customer's calls so Callback may ring them again today (the one-attempt-a-day limit
+   * otherwise blocks a judge beat after any test call). Their money records are untouched; the planner re-checks
+   * consent and calling hours as usual. */
+  r.post("/demo/call-again", page(async (req, res) => {
+    const who = await me(req);
+    if (!config.demoMode) return back(res, "/demo", "Demo mode is off.", true);
+    if (!who || who.role !== "owner") return back(res, "/demo", "Sign in as the owner first.", true);
+    const db = await getDb();
+    const byName = String(req.body.name ?? "").trim();
+    const cust = (await db.query<{ id: string; name: string }>(byName ? "SELECT id, name FROM customers WHERE business_id = $1 AND name LIKE $2 LIMIT 1" : "SELECT id, name FROM customers WHERE business_id = $1 AND id = $2 LIMIT 1", [who.business_id, byName ? `${byName}%` : String(req.body.customer ?? "")])).rows[0];
+    if (!cust) return back(res, "/demo", "No such customer.", true);
+    await db.query("DELETE FROM callbacks WHERE customer_id = $1", [cust.id]);
+    await db.query("DELETE FROM calls WHERE customer_id = $1 AND status <> 'in_progress'", [cust.id]);
+    await planCalls(db, who.business_id, "demo");
+    const call = (await db.query<{ id: string }>("SELECT id FROM calls WHERE customer_id = $1 AND status IN ('planned','blocked') ORDER BY created_at DESC LIMIT 1", [cust.id])).rows[0];
+    back(res, call ? `/calls/${call.id}` : "/today", `${cust.name} can be called again today.`);
+  }));
   /** Demo mode only: a judge signs in as the seeded owner or staff member without seeing a key. */
   r.post("/demo/signin-as", page(async (req, res) => {
     if (!config.demoMode) return back(res, "/demo", "Demo mode is off.", true);

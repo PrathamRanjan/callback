@@ -146,6 +146,10 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect(page.text).toContain("quarantined");
     expect((await owner.post("/demo/persona", { call: callId, persona: "nope" })).location).toMatch(/err=/);
     expect((await anon.post("/demo/persona", { call: callId, persona: "x" })).location).toBe("/login");
+    // Replay a judge beat: Harbour's calls are cleared and a fresh call is planned for today.
+    const again = await owner.post("/demo/call-again", { name: "Harbour" });
+    expect(again.location).toMatch(/^\/calls\/call_.+ok=/);
+    expect((await anon.post("/demo/call-again", { name: "Harbour" })).location).toMatch(/err=/);
     // Reset wipes everything, so a stranger is refused; a judge signs in as the owner with one button (demo mode) and may then reset.
     expect((await anon.post("/demo/reset", { pin: "1" })).location).toMatch(/err=Only/);
     expect((await anon.post("/demo/signin-as", { role: "staff" })).location).toBe("/calls");
