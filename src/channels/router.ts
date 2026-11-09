@@ -12,14 +12,14 @@ export const TG_APPS: Record<string, string> = {
   kept: "Kept", everyday: "Everyday", groundtruth: "Groundtruth", makegood: "MakeGood",
 };
 const HINT: Record<string, string> = {
-  desk: "Send: link owner:<your access key> (owners) or link customer:<your status-page token>.",
+  desk: "To connect this chat, sign in to Desk, open Messages and tap Connect Telegram.",
   callback: "Owners: open Messages in Callback and tap Connect Telegram. Customers: tap Get updates on Telegram on your page.",
   backon: "Open your booking page and tap Connect Telegram, or send your booking reference.",
-  stocksure: "Open StockSure, Settings, Telegram, and send the code shown there.",
-  kept: "Open your subscription page and tap Connect Telegram.",
-  everyday: "Open Everyday, You, Telegram, and send /start with the code shown there.",
-  groundtruth: "Open Groundtruth, Work, Telegram, and send the code shown there.",
-  makegood: "Open your booking page and tap Connect Telegram.",
+  stocksure: "To connect this chat, sign in to StockSure, open Messages and alerts and tap Connect Telegram.",
+  kept: "Shop owners: open Messages and tap Connect Telegram. Members: open your subscription page and tap Connect Telegram.",
+  everyday: "To connect this chat, open Everyday, go to You and tap Connect Telegram.",
+  groundtruth: "To connect this chat, sign in to Groundtruth, open Messages and tap Connect Telegram.",
+  makegood: "Owner and warehouse: open Messages and tap Connect Telegram. Customers: tap Connect Telegram on your booking pass.",
 };
 
 let fetchImpl: typeof fetch = (i, init) => fetch(i, init);
