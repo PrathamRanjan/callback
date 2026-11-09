@@ -163,7 +163,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     } else if ((d.tool === "settle_credit" || d.tool === "settle_refund") && o) {
       const r = await settleCancelledClass(ctxMoney, o, d.tool === "settle_refund" ? "refund" : "credit");
       state.closed = true;
-      toolResult = `${r.choice} of $${(r.cents / 100).toFixed(2)}${r.refundId ? ` (${r.refundId})` : ""}`;
+      toolResult = `${r.choice} of $${(r.cents / 100).toFixed(2)}${r.refundId ? ` (${r.refundId})` : r.choice === "refund" ? " recorded for the owner to pay back by hand (paid outside PayPal)" : ""}`;
       gate = "allowed";
       outcome = outcome ?? (d.tool === "settle_refund" ? "refund" : "credit");
     } else if (d.tool === "schedule_callback" && d.option_id) {

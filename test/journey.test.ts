@@ -127,6 +127,8 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     // Tom chooses a class credit for the class the studio cancelled; a second choice is refused.
     const tomTok = world.seeded.customers.tom.token;
     expect((await anon.get(`/c/${tomTok}`)).text).toContain("Keep it as a class credit");
+    // The seeded class was paid outside PayPal, so the page must not promise a PayPal refund.
+    expect((await anon.get(`/c/${tomTok}`)).text).toContain("You paid for this class outside PayPal");
     expect((await anon.post(`/c/${tomTok}/settle/${world.seeded.obligations.tom_class}`, { choice: "credit" })).location).toMatch(/ok=/);
     expect((await anon.post(`/c/${tomTok}/settle/nope`, { choice: "credit" })).status).toBe(404);
     expect((await anon.post(`/c/${tok}/callback`, { at: slot })).location).toMatch(/err=/);
