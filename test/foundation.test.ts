@@ -80,7 +80,9 @@ describe("foundation routes", () => {
     expect((await world.db.query("SELECT * FROM webhook_events")).rows).toHaveLength(1);
   });
   it("channels: simulator, approval by button, STOP by sms, telegram and whatsapp webhooks", async () => {
-    expect((await owner.get("/ops/channels")).text).toContain("simulated");
+    expect((await owner.get("/ops/channels")).text).toContain("Connect Telegram");
+    const conn = await owner.post("/connect/telegram");
+    expect(conn.location).toMatch(/t\.me\/.+start=callback-/);
     expect(decodeURIComponent((await owner.post("/ops/channels/reply", { address: `owner:${world.seeded.business.id}`, text: "pending?" })).location ?? "")).toMatch(/pending approval/);
     const tg = await anon.postJson("/webhooks/telegram", { message: { chat: { id: 42 }, text: "hello" } });
     expect(tg.json.ok).toBe(true);

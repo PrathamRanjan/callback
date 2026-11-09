@@ -1,3 +1,7 @@
+import { guardCard } from "./safetyui.js";
+import { config } from "../config.js";
+import { icon } from "./icons.js";
+import { landing } from "./landing.js";
 /** Owner pages: home, sign in, Today (the plan), customers, the call policy editor with backtest and scorecard. */
 import { Router } from "express";
 import { fmtLocal } from "../core/time.js";
@@ -8,7 +12,7 @@ import { activePolicy, compilePolicy, listPolicies, savePolicy, type Rules } fro
 import { appendAudit } from "../guard/audit.js";
 import { GtError } from "../lib/util.js";
 import { candidates, planCalls } from "../services/planner.js";
-import { balanceOf, callsOf, customerById, customersOf, eventsOf, logEvent, nowOf, obligationsOf } from "../store.js";
+import { owedToCustomer, balanceOf, callsOf, customerById, customersOf, eventsOf, logEvent, nowOf, obligationsOf } from "../store.js";
 import { act, authed, me, ownerOnly, personByKey, signIn, signOut } from "./auth.js";
 import { back, flashOf, page } from "./common.js";
 import { fmtDate, html, layout, pill, raw } from "./html.js";
@@ -32,18 +36,13 @@ export function ownerRouter(): Router {
   r.get("/", page(async (req, res) => {
     const p = await me(req);
     if (p) return res.redirect("/today");
-    res.send(layout({ title: "Callback", flash: flashOf(req) }, html`
-<section class="hero"><h1>Callback</h1><p class="lead">The voice agent that makes a small business's money calls: tomorrow's deposits, overdue invoices, cancelled classes. It speaks inside the owner's rules; PayPal does the money; every amount comes from the records, never from the conversation.</p>
-<p><a class="btn primary" href="/login">Owner sign in</a> <a class="btn" href="/judge">Judge mode (5 min)</a> <a class="btn" href="/demo">Demo controls</a></p></section>
-<div class="grid3">
-<div class="card"><h3>Who to call</h3><p>The planner reads the records and PayPal: deposits unpaid before tomorrow, invoices past the grace, classes cancelled. Consent, do-not-call and local calling hours are checked in code before anything rings.</p></div>
-<div class="card"><h3>What it may do</h3><p>Text a PayPal link, send an invoice, offer an instalment plan or a discount step the owner's policy allows, book a callback. Anything larger is held for the owner, who approves with a tap or a passkey.</p></div>
-<div class="card"><h3>Proof</h3><p>Every call is a trace: each line, each tool, each gate decision, each PayPal request id. 60 scripted customers and 25 attacks run on demand on the Evals page.</p></div></div>`));
+    await landing(req, res);
   }));
 
   r.get("/login", page(async (req, res) => {
-    res.send(layout({ title: "Sign in", flash: flashOf(req) }, html`<div class="card narrow"><h1>Sign in</h1><p class="muted">Paste the owner or staff key printed by <code>npm run seed</code>, or use the demo page.</p>
-<form method="post" action="/login"><input type="hidden" name="next" value="${typeof req.query.next === "string" ? req.query.next : "/today"}"><label>Access key<input name="key" required autocomplete="off"></label><button class="btn primary" type="submit">Sign in</button></form></div>`));
+    const demo = config.demoMode ? html`<div class="card"><h2>Demo: pick a person</h2><p class="sub muted">No key needed on the demo studio.</p><form method="post" action="/demo/signin-as" class="row"><button class="btn primary" name="role" value="owner" type="submit">${raw(icon("users"))}Maya, the owner</button><button class="btn" name="role" value="staff" type="submit">Jordan, front desk</button></form></div>` : "";
+    res.send(layout({ title: "Sign in", flash: flashOf(req) }, html`<div class="page-head"><div><h1>Sign in</h1><p>Use your access key, or step into the demo studio.</p></div></div>${demo}
+<div class="card"><h2>Access key</h2><form method="post" action="/login" class="stack"><input type="hidden" name="next" value="${typeof req.query.next === "string" ? req.query.next : "/today"}"><label for="key">Owner or staff key</label><input id="key" name="key" required autocomplete="off"><div><button class="btn primary" type="submit">Sign in</button></div></form></div>`));
   }));
   r.post("/login", page(async (req, res) => {
     const p = await personByKey(String(req.body.key ?? ""));
@@ -71,16 +70,23 @@ export function ownerRouter(): Router {
     const pending = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending'")).rows[0].n);
     const custs = new Map((await customersOf(db, p.business_id)).map((c) => [c.id, c]));
     const obls = new Map((await obligationsOf(db, p.business_id)).map((o) => [o.id, o]));
+    const approvals = p.role === "owner" ? (await db.query<any>("SELECT * FROM approvals WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10")).rows.map((a) => ({ ...a, payload: typeof a.payload === "string" ? JSON.parse(a.payload) : a.payload })) : [];
+    const oblOf = (a: any) => (a.payload.entity === "obligation" ? obls.get(a.payload.entityId) : a.payload.entity === "call" ? obls.get(calls.find((c) => c.id === a.payload.entityId)?.obligation_id ?? "") : undefined);
+    const ready = open.filter((c) => c.status === "planned" || c.status === "ringing" || c.status === "in_progress");
+    const blocked = open.filter((c) => c.status === "blocked");
+    const av = (n?: string) => (n ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    const ACTION: Record<string, string> = { charge: "Payment link", invoice: "Invoice", refund: "Refund", discount: "Discount", plan: "Instalment plan", credit: "Class credit" };
     res.send(await ownerPage(req, p, "Today", html`
-<h1>Today</h1><p class="muted">${fmtLocal(now, biz.tz)} in ${biz.tz}. The planner runs every few seconds; this is what it would call now, and what it refuses to.</p>
-<div class="scorecard">${stat("Will call", cands.filter((c) => c.verdict.ok).length)}${stat("Not calling", cands.filter((c) => !c.verdict.ok).length, "consent or hours")}${stat("Open calls", open.length)}${stat("Collected (24 h)", money(collected))}${stat("Held for you", pending, pending ? "see Guard" : "")}</div>
-${p.role === "owner" ? html`<form method="post" action="/today/plan" class="inline"><button class="btn" type="submit">Plan now</button></form>` : ""}
-<div class="card"><h2>Calls</h2><div class="table-wrap"><table><tr><th>Customer</th><th>Purpose</th><th>Why</th><th>Status</th><th>When</th><th></th></tr>
-${open.length ? open.map((c) => { const cu = custs.get(c.customer_id); const o = c.obligation_id ? obls.get(c.obligation_id) : null; return html`<tr><td><a href="/customers/${c.customer_id}">${cu?.name ?? "?"}</a><br><small class="muted">${cu?.tz}</small></td><td>${purposeLabel[c.purpose]}<br><small class="muted">${o?.title ?? ""} ${o ? money(balanceOf(o)) : ""}</small></td><td class="small">${c.reason}</td><td>${pill(c.status)}</td><td class="small">${c.scheduled_at ? fmtLocal(c.scheduled_at, cu?.tz ?? biz.tz) : ""}</td><td><a class="btn small" href="/calls/${c.id}">Open</a></td></tr>`; }) : html`<tr><td colspan="6" class="empty">Nothing to call. Press Plan now or use the Demo page to move the clock.</td></tr>`}
-</table></div></div>
-<div class="card"><h2>Recent outcomes</h2><div class="table-wrap"><table><tr><th>Ended</th><th>Customer</th><th>Purpose</th><th>Outcome</th><th>Collected</th><th>Discount</th><th>Guard refusals</th><th></th></tr>
-${ended.slice(0, 15).map((c) => html`<tr><td class="small">${fmtDate(c.ended_at)}</td><td>${custs.get(c.customer_id)?.name}</td><td>${purposeLabel[c.purpose]}</td><td>${c.outcome ? pill(c.outcome === "do_not_call" ? "declined" : "ended", String(c.outcome).replace(/_/g, " ")) : ""}</td><td>${money(c.collected_cents)}</td><td>${c.discount_cents ? money(c.discount_cents) : "—"}</td><td>${c.breaches ? html`<span class="pill warn">${c.breaches}</span>` : "0"}</td><td><a class="btn small" href="/calls/${c.id}">Transcript</a></td></tr>`)}
-</table></div>${ended.length ? "" : html`<div class="empty">No calls yet.</div>`}</div>`));
+<div class="page-head"><div><h1>Today</h1><p>${fmtLocal(now, biz.tz)} in ${biz.tz.split("/").pop()?.replace(/_/g, " ")}. Who Callback will ring, who it won't and why, and anything waiting for you.</p></div>${p.role === "owner" ? html`<form method="post" action="/today/plan" class="inline"><button class="btn" type="submit">${raw(icon("repeat"))}Re-plan now</button></form>` : ""}</div>
+<div class="kpis"><div class="kpi"><div class="label">Ready to call</div><div class="value">${ready.length}</div><div class="hint">inside calling hours, with consent</div></div><div class="kpi"><div class="label">Not calling</div><div class="value">${blocked.length}</div><div class="hint">reasons below</div></div><div class="kpi"><div class="label">Collected today</div><div class="value">${money(collected)}</div><div class="hint">${today.length} call${today.length === 1 ? "" : "s"} finished</div></div><div class="kpi"><div class="label">Waiting for you</div><div class="value">${pending}</div><div class="hint">${pending ? "approve or decline below" : "nothing held"}</div></div></div>
+${approvals.length ? html`<div class="section-title"><h2>Waiting for you</h2><p>Callback paused these and told the customer you'd decide.</p></div>
+${approvals.map((a) => { const o = oblOf(a); const cu = o ? custs.get(o.customer_id) : undefined; const reasons = [a.payload.reason, ...(a.payload.safety_reasons ?? [])].filter(Boolean); return html`<div id="ap-${a.id}">${guardCard({ level: a.payload.safety_reasons?.length ? "hold" : "caution", reasons }, { approve: `/ops/guard/approvals/${a.id}`, next: "/today", title: `${ACTION[a.action] ?? a.action}${a.payload.cents ? ` of ${money(Number(a.payload.cents))}` : ""}${cu ? ` for ${cu.name}` : ""}`, doText: a.payload.safety_reasons?.length ? "This looks like a scam pattern. Only approve if you've confirmed it with the customer on a number you already have." : "This is above what your call policy lets Callback do alone. Approve it, or decline and Callback will offer what the policy allows." })}</div>`; })}` : ""}
+<div class="section-title"><h2>Ready to call</h2><p>Open a call to start it in the simulator and watch it live.</p></div>
+${ready.length ? html`<div class="rows">${ready.map((c) => { const cu = custs.get(c.customer_id); const o = c.obligation_id ? obls.get(c.obligation_id) : null; return html`<a class="r" href="/calls/${c.id}"><span class="av">${av(cu?.name)}</span><span><div class="t">${cu?.name ?? "?"}</div><div class="s">${purposeLabel[c.purpose]}${o ? html` · ${o.title}` : ""}</div></span><span class="m">${o ? (o.kind === "class_cancel" ? html`<span class="amt">${money(owedToCustomer(o))}</span>owed to them · ` : html`<span class="amt">${money(balanceOf(o))}</span>`) : ""}${c.scheduled_at ? fmtLocal(c.scheduled_at, cu?.tz ?? biz.tz) : ""}</span><span class="act">${pill(c.status)}<span class="btn small primary">${raw(icon("phone"))}Open call</span></span></a>`; })}</div>` : html`<div class="empty">Nobody to call right now.${p.role === "owner" ? " Press Re-plan now, or move the clock on the Demo controls page." : ""}</div>`}
+${blocked.length ? html`<div class="section-title"><h2>Not calling, and why</h2><p>Checked in code before anything rings. These never reach the phone.</p></div>
+<div class="rows">${blocked.map((c) => { const cu = custs.get(c.customer_id); return html`<a class="r" href="/customers/${c.customer_id}"><span class="av muted">${av(cu?.name)}</span><span><div class="t">${cu?.name ?? "?"}</div><div class="s">${c.reason}</div></span><span class="m">${purposeLabel[c.purpose]}</span><span class="act">${pill("blocked", "not calling")}</span></a>`; })}</div>` : ""}
+<div class="section-title"><h2>Finished calls</h2><p>Every call keeps its full transcript and every check it passed.</p></div>
+${ended.length ? html`<div class="rows">${ended.slice(0, 12).map((c) => { const cu = custs.get(c.customer_id); return html`<a class="r" href="/calls/${c.id}"><span class="av">${av(cu?.name)}</span><span><div class="t">${cu?.name ?? "?"}</div><div class="s">${purposeLabel[c.purpose]} · ${c.outcome ? String(c.outcome).replace(/_/g, " ") : "ended"}${c.breaches ? html` · <b>${c.breaches} unsafe request${c.breaches === 1 ? "" : "s"} refused</b>` : ""}</div></span><span class="m"><span class="amt">${money(c.collected_cents)}</span>${fmtDate(c.ended_at)}</span><span class="act"><span class="btn small">Transcript</span></span></a>`; })}</div>` : html`<div class="empty">No finished calls yet.</div>`}`));
   }));
   r.post("/today/plan", act(async (req, res, p) => {
     ownerOnly(p);

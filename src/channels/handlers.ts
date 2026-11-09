@@ -1,12 +1,14 @@
 /**
- * Inbound channel handling: the owner's Approve / Decline buttons from Telegram or WhatsApp, a customer's STOP by SMS
+ * Inbound channel handling: Telegram linking ("/start <code>" from a deep link, or "link owner:<key>" / "link customer:<token>"),
+ * the owner's Approve / Decline buttons from Telegram, a customer's STOP by SMS
  * (revokes consent in code, immediately), and simple status questions from a linked customer.
  */
 import { getDb } from "../db.js";
 import { appendAudit } from "../guard/audit.js";
 import { decideApproval } from "../guard/dryrun.js";
 import { customerByToken, logEvent } from "../store.js";
-import { onInbound } from "./index.js";
+import { link, onInbound } from "./index.js";
+import { personByKey } from "../web/auth.js";
 import { assessMessage } from "../safety/index.js";
 
 export function installChannelHandlers() {
@@ -15,6 +17,30 @@ export function installChannelHandlers() {
     const db = await getDb();
     const text = m.text.trim();
     if (!m.party && m.channel === "simulator" && /^(owner|customer):/.test(m.address)) m = { ...m, party: { party: m.address.split(":")[0], party_id: m.address.slice(m.address.indexOf(":") + 1) } };
+    // Linking a Telegram chat: a one-time owner code from the app, a customer's page token, or the typed forms.
+    const st = /^\/start(?:\s+(\S+))?$/i.exec(text);
+    const typed = /^link\s+(owner|customer):(\S+)$/i.exec(text);
+    if (st || typed) {
+      const code = st ? st[1] ?? "" : "";
+      const token = typed?.[1].toLowerCase() === "customer" ? typed[2] : code.startsWith("cbt_") ? code : null;
+      if (token) {
+        const c = await customerByToken(db, token).catch(() => null);
+        if (!c) return "That link has expired. Open your page from Brightside again and tap “Get updates on Telegram”.";
+        await link(m.channel, m.address, "customer", c.token);
+        return `Hi ${c.name.split(" ")[0]}, you're connected. Send “status” any time. We'll never ask for a card number, a password or a code here.`;
+      }
+      let bizId: string | null = null;
+      if (typed?.[1].toLowerCase() === "owner") bizId = (await personByKey(typed[2]))?.business_id ?? null;
+      else if (code) {
+        const row = (await db.query<{ value: string }>("SELECT value FROM settings WHERE key = $1", [`tglink:${code}`])).rows[0];
+        await db.query("DELETE FROM settings WHERE key = $1", [`tglink:${code}`]);
+        const v = row ? (JSON.parse(row.value) as { business_id: string; exp: number }) : null;
+        bizId = v && v.exp > Date.now() ? v.business_id : null;
+      }
+      if (!bizId) return code || typed ? "That connect link has expired or the key isn't recognised. In Callback, open Messages and tap “Connect Telegram” again." : "Hi, this is Callback. Open Messages in the app and tap “Connect Telegram” to link this chat.";
+      await link(m.channel, m.address, "owner", bizId);
+      return "Connected. When Callback holds a decision for you, it arrives here with Approve and Decline buttons.";
+    }
     // A message claiming to be the owner and asking to change payout or bank details never acts; it is recorded as a hold (SAFETY_ACCESSIBILITY_SPEC §6).
     const scam = assessMessage(text);
     if (scam.ownerImpersonation) {

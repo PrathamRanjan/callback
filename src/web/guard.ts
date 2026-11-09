@@ -1,3 +1,4 @@
+import { nextOf } from "./safetyui.js";
 /** Guard console (roadmap B.6): approvals with passkey countersign, kill switches, autonomy limits, audit chain, provenance. */
 import { Router } from "express";
 import { config } from "../config.js";
@@ -44,6 +45,12 @@ ${approvals.filter((a) => a.status === "pending").length ? approvals.filter((a) 
 <h2>Kill switches</h2><p class="muted small">Checked before every call and every money move.</p><table class="small">${scopes.map((s) => { const k = kills.find((x) => x.scope === s); return html`<tr><td><code>${s}</code></td><td>${k?.engaged ? pill("declined", "engaged") : pill("paid", "off")}</td><td><form method="post" action="/ops/guard/kill" class="inline"><input type="hidden" name="scope" value="${s}"><input type="hidden" name="engaged" value="${k?.engaged ? "0" : "1"}"><input name="reason" placeholder="reason" class="small"><button class="btn small" type="submit">${k?.engaged ? "Release" : "Engage"}</button></form></td></tr>`; })}</table></div></div>
 <div class="card"><h2>Audit chain</h2><p>${chain.ok ? pill("paid", "intact") : pill("declined", `broken at ${chain.broken_at}`)} ${chain.rows} rows · head <code>${chain.head.slice(0, 16)}</code> · provenance: ${prov.map((x: any) => `${x.trust} ${x.n}`).join(", ") || "none yet"}</p><table class="small"><tr><th>Seq</th><th>When</th><th>Kind</th><th>Entity</th><th>Hash</th></tr>${audit.map((a: any) => html`<tr><td>${a.seq}</td><td>${fmtDate(a.at)}</td><td>${a.kind}</td><td>${a.entity} ${String(a.entity_id).slice(0, 14)}</td><td class="mono">${String(a.hash).slice(0, 12)}</td></tr>`)}</table></div>`, { scripts: raw(`<script>${PASSKEY_JS}</script><script src="/static/guard.js" defer></script>`) }));
   }));
+  for (const op of ["approve", "decline"] as const)
+    r.post(`/ops/guard/approvals/:id/${op}`, act(async (req, res, p) => {
+      ownerOnly(p);
+      const out = await decideApproval(String(req.params.id), op === "approve", "click", p.name, p.business_id);
+      back(res, nextOf(req.body.next, "/ops/guard"), out.replayed ? `Already ${out.status}.` : op === "approve" ? "Approved. Callback carries it out on its next turn." : "Declined. Callback will offer what your policy allows.");
+    }));
   r.post("/ops/guard/approvals/:id", act(async (req, res, p) => {
     ownerOnly(p);
     const out = await decideApproval(req.params.id, req.body.op === "approve", "click", p.name, p.business_id);

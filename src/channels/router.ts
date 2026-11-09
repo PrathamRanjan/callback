@@ -13,7 +13,7 @@ export const TG_APPS: Record<string, string> = {
 };
 const HINT: Record<string, string> = {
   desk: "Send: link owner:<your access key> (owners) or link customer:<your status-page token>.",
-  callback: "Send: link owner:<your access key>, or open your customer page for your link.",
+  callback: "Owners: open Messages in Callback and tap Connect Telegram. Customers: tap Get updates on Telegram on your page.",
   backon: "Open your booking page and tap Connect Telegram, or send your booking reference.",
   stocksure: "Open StockSure, Settings, Telegram, and send the code shown there.",
   kept: "Open your subscription page and tap Connect Telegram.",

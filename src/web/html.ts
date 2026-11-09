@@ -1,3 +1,4 @@
+import { renderShell, type Brand, type NavGroup } from "./shell.js";
 /** Minimal safe HTML templating: every interpolated value is escaped unless wrapped in raw(). */
 export class Raw {
   constructor(readonly value: string) {}
@@ -33,42 +34,41 @@ export interface LayoutOpts {
   head?: Raw;
   scripts?: Raw;
   flash?: { ok?: string; err?: string };
+  /** Public landing page: full-width sections. */
+  site?: boolean;
 }
 
+export const BRAND: Brand = {
+  name: "Callback",
+  mark: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M15 3.5a6 6 0 0 1 5.5 5.5"/><path d="M15 7a2.5 2.5 0 0 1 2 2"/></svg>`,
+  description: "Callback: the voice agent that makes a small business's money calls, inside the owner's rules, with PayPal doing the money.",
+  themeColor: "#5b2a86",
+  fonts: "family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600",
+  appFoot: "PayPal sandbox: no real money moves. Callback speaks inside your rules; every amount comes from your records, never from the conversation.",
+  siteLinks: [["/#how", "How it works"], ["/#safety", "Safety"], ["/#try", "Try it"], ["/judge", "Judge tour"]],
+  cta: ["/#try", "Try the demo"],
+  siteFoot: "Callback · built for the PayPal AI Hackathon · PayPal sandbox only, no real money moves.",
+  siteFootLinks: [["/judge", "Judge tour"], ["/llms.txt", "llms.txt"], ["/login", "Sign in with a key"]],
+  staticBase: "/static",
+  legacyCss: ["app.css"],
+};
+
+const NAV_OWNER: NavGroup[] = [
+  { label: "Calls", items: [["/today", "Today", "home"], ["/calls", "Calls", "phone"], ["/customers", "Customers", "users"], ["/ops/guard", "Approvals", "shieldCheck"], ["/ops/money", "Money", "wallet"]] },
+  { label: "Your rules", items: [["/policy", "Call policy", "file"], ["/safety", "Scam protection", "shield"]] },
+  { label: "How it works", items: [["/ops/traces", "Call traces", "layers"], ["/ops/eval", "Test calls", "flask"], ["/ops/channels", "Messages", "message"], ["/ops/evidence", "Evidence", "receipt"], ["/demo", "Demo controls", "gauge"]] },
+];
+const NAV_STAFF: NavGroup[] = [{ label: "Calls", items: [["/today", "Today", "home"], ["/calls", "Calls", "phone"], ["/customers", "Customers", "users"]] }, { label: "Demo", items: [["/demo", "Demo controls", "gauge"]] }];
+
 export function layout(o: LayoutOpts, body: Raw): string {
-  const nav = o.who
-    ? [["/today", "Today"], ["/calls", "Calls"], ["/customers", "Customers"], ["/policy", "Call policy"], ["/ops/guard", "Guard"], ["/safety", "Safety"], ["/ops/money", "Money"], ["/ops/traces", "Runs"], ["/ops/eval", "Evals"], ["/ops/channels", "Channels"], ["/ops/evidence", "Evidence"], ["/demo", "Demo"]]
-        .filter(([href]) => o.who!.role === "owner" || ["/today", "/calls", "/customers", "/demo"].includes(href))
-        .map(([href, label]) => `<a href="${href}">${esc(label)}</a>`)
-        .join("")
-    : o.customer
-      ? ""
-      : `<a href="/login">Sign in</a><a href="/judge">Judge mode</a><a href="/demo">Demo</a>`;
-  const signout = o.who ? `<span class="muted small" title="Business clock">${esc(o.who.clock)}</span><span class="muted small">${esc(o.who.name)} · ${esc(o.who.business)}</span><form method="post" action="/logout" class="inline"><button class="btn small" type="submit">Sign out</button></form>` : "";
-  const flash = o.flash?.ok ? `<div class="banner good" role="status">${esc(o.flash.ok)}</div>` : o.flash?.err ? `<div class="banner bad" role="alert">${esc(o.flash.err)}</div>` : "";
-  const brand = o.customer ? `<span class="brand"><span class="dot">${esc(o.customer.business[0])}</span>${esc(o.customer.business)}</span>` : `<a class="brand" href="/"><span class="dot">C</span>Callback</a>`;
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(o.title)} · ${o.customer ? esc(o.customer.business) : "Callback"}</title>
-<link rel="icon" href="/static/icon.svg">
-<link rel="stylesheet" href="/static/app.css">
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#5b2a86">
-${o.head ? o.head.value : ""}
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="topbar"><div class="wrap">${brand}<nav class="nav" aria-label="Main">${nav}${signout}</nav></div></header>
-<main id="main"><div class="wrap">${flash}${body.value}</div></main>
-<footer><div class="wrap">${o.customer ? `${esc(o.customer.business)} · Payments are handled by PayPal.` : "Callback · PayPal sandbox only: no real money moves. The agent speaks inside the owner's rules; amounts come from the records, never from the conversation."}</div></footer>
-<script src="/static/pwa.js" defer></script>
-<link rel="stylesheet" href="/static/a11y.css"><script src="/static/a11y.js" defer></script>
-${o.scripts ? o.scripts.value : ""}
-</body>
-</html>`;
+  const common = { title: o.title, body: body.value, flash: o.flash, head: `<link rel="manifest" href="/manifest.webmanifest">${o.head?.value ?? ""}`, scripts: `${o.scripts ? o.scripts.value : ""}<script src="/static/pwa.js" defer></script>` };
+  if (o.who) {
+    return renderShell(BRAND, { ...common, mode: "app", nav: o.who.role === "owner" ? NAV_OWNER : NAV_STAFF, homeHref: "/today", workspace: o.who.business, user: { name: o.who.name, sub: `${o.who.role === "owner" ? "Owner" : "Staff"} · ${o.who.clock}`, logout: "/logout", settings: o.who.role === "owner" ? "/ops/channels#phone" : undefined } });
+  }
+  if (o.customer) {
+    return renderShell(BRAND, { ...common, mode: "customer", business: o.customer.business, trust: `${o.customer.business} takes payment only through PayPal. When we call, we say a verify code that matches the one on this page; if the codes differ, hang up. We never ask for a card number, a password or a one-time code.` });
+  }
+  return renderShell(BRAND, { ...common, mode: o.site ? "site" : "plain" });
 }
 
 export const STATE_CLASS: Record<string, string> = {

@@ -39,7 +39,7 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect(today.text).toContain("Not calling");
     expect(today.text).toContain("Noor Haddad");
     expect((await owner.post("/today/plan")).location).toMatch(/ok=/);
-    expect((await owner.get("/calls")).text).toContain("Planned");
+    expect((await owner.get("/calls")).text).toContain("Not calling");
     expect((await owner.get("/calls?status=blocked")).text).toContain("do-not-call");
     expect((await owner.get("/customers")).text).toContain("Harbour Dental");
     const cid = world.seeded.customers.noor.id;
@@ -60,10 +60,10 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
   it("a call page: start in the simulator, say lines, hang up, skip another", async () => {
     const id = await callFor(world.db, world.seeded.obligations.priya_deposit);
     const page = await owner.get(`/calls/${id}`);
-    expect(page.text).toContain("Start in the simulator");
+    expect(page.text).toContain("Start the call");
     expect((await owner.post(`/calls/${id}/place`)).location).toMatch(/ok=/);
     const live = await owner.get(`/calls/${id}`);
-    expect(live.text).toContain("Customer says");
+    expect(live.text).toContain("Speak as");
     expect((await owner.post(`/calls/${id}/say`, { text: "" })).location).toMatch(/err=/);
     expect((await owner.post(`/calls/${id}/say`, { text: "Yes, send me the link" })).location).toMatch(/ok=/);
     const after = await owner.get(`/calls/${id}`);
@@ -124,6 +124,11 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await anon.post(`/c/${tok}/callback`, { at: "junk" })).location).toMatch(/err=/);
     expect((await anon.post(`/c/${tok}/stop`)).location).toMatch(/ok=/);
     expect((await anon.get(`/c/${tok}`)).text).toContain("asked not to be called");
+    // Tom chooses a class credit for the class the studio cancelled; a second choice is refused.
+    const tomTok = world.seeded.customers.tom.token;
+    expect((await anon.get(`/c/${tomTok}`)).text).toContain("Keep it as a class credit");
+    expect((await anon.post(`/c/${tomTok}/settle/${world.seeded.obligations.tom_class}`, { choice: "credit" })).location).toMatch(/ok=/);
+    expect((await anon.post(`/c/${tomTok}/settle/nope`, { choice: "credit" })).status).toBe(404);
     expect((await anon.post(`/c/${tok}/callback`, { at: slot })).location).toMatch(/err=/);
     expect((await anon.get("/c/nope")).status).toBe(404);
   });

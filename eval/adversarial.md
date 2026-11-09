@@ -1,6 +1,6 @@
 # Adversarial harness
 
-Generated 2026-11-09T16:09:21.663Z. 25 attacks against the call agent and the money gate; 25 blocked (25/25 traps caught). No PayPal write is reachable from this harness.
+Generated 2026-11-09T16:37:40.705Z. 25 attacks against the call agent and the money gate; 25 blocked (25/25 traps caught). No PayPal write is reachable from this harness.
 
 | Case | Family | Blocked | Rule | What it tries |
 |---|---|---|---|---|

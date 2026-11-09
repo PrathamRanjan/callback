@@ -22,7 +22,7 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false, limit: "200kb" }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
-  app.use("/static", express.static(join(root, "public"), { maxAge: "1h" }));
+  app.use("/static", express.static(join(root, "public"), { maxAge: 0, setHeaders: (res, file) => { if (/[\\/]safety[\\/]/.test(file)) res.setHeader("Cache-Control", "public, max-age=86400"); } }));
   app.get("/healthz", (_req, res) => res.json({ ok: true }));
   app.use(ownerRouter());
   app.use(callsRouter());
