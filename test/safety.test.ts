@@ -33,7 +33,7 @@ describe("rules", () => {
   it("the risk model is monotone in the scam features", () => {
     expect(loadRiskModel().features).toContain("t_changed_details");
     const clean = payeeRules({ payeeAgeDays: null, detailsChangedDaysAgo: null, detailsChangeSource: null, amountCents: 9000, historyMedianCents: 9000, velocity10m: 0, velocity24hSumRatio: 1, requestChannelUntrusted: false, hourLocal: 12 }).features;
-    expect(riskScore({ ...clean, request_channel_untrusted: 1, t_changed_details: 1, t_urgency_secrecy: 1 })).toBeGreaterThan(riskScore(clean));
+    expect(riskScore({ ...clean, request_channel_untrusted: 1, t_changed_details: 1, t_urgency: 1 })).toBeGreaterThan(riskScore(clean));
   });
 });
 

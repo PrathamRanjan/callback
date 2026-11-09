@@ -44,11 +44,14 @@ export interface TextScan {
   features: Record<string, number>;
 }
 
+const TACTIC_FEATURE: Record<Tactic, string> = { impersonation: "t_impersonation", urgency_secrecy: "t_urgency", changed_details: "t_changed_details", off_platform: "t_off_platform", gift_cards_crypto: "t_gift_crypto", fee_to_release: "t_fee", otp_or_link: "t_otp_link", overpay_refund: "t_overpay", too_good: "t_too_good" };
+
 export function scanText(text: string | null | undefined): TextScan {
   const t = (text ?? "").slice(0, 4000);
   const tactics = Object.fromEntries(TACTICS.map((k) => [k, SEEDS[k].test(t)])) as Record<Tactic, boolean>;
   const fired = TACTICS.filter((k) => tactics[k]);
-  const features = Object.fromEntries(TACTICS.map((k) => [`t_${k}`, tactics[k] ? 1 : 0]));
+  // Feature names match guard-lab/scripts/train_risk.py (the exported forest's vocabulary), not the tactic ids.
+  const features = Object.fromEntries(TACTICS.map((k) => [TACTIC_FEATURE[k], tactics[k] ? 1 : 0]));
   return { tactics, fired, secretsRequested: SECRET_RE.test(t), features };
 }
 
