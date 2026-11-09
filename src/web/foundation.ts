@@ -250,7 +250,7 @@ export function foundationRouter(): Router {
   }));
 
   /* ---------------- PWA (B.8) ---------------- */
-  r.get("/manifest.webmanifest", (_req, res) => res.type("application/manifest+json").json({ name: "Callback", short_name: "Callback", start_url: "/today", display: "standalone", background_color: "#f7f5f0", theme_color: "#5b2a86", icons: [{ src: "/static/icon.svg", sizes: "any", type: "image/svg+xml" }] }));
+  r.get("/manifest.webmanifest", (_req, res) => res.type("application/manifest+json").json({ name: "Callback", short_name: "Callback", start_url: "/today", display: "standalone", background_color: "#f4f1ea", theme_color: "#0e5a53", icons: [{ src: "/static/icon.svg", sizes: "any", type: "image/svg+xml" }] }));
   r.get("/sw.js", (_req, res) => res.type("application/javascript").send(readFileSync(join(root, "public", "sw.js"), "utf8")));
   r.get("/push/public-key", (_req, res) => res.json({ key: config.channels.vapidPublic || null }));
   r.post("/push/subscribe", json(async (req) => {

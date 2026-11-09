@@ -24,7 +24,7 @@ import { listKills } from "../guard/kill.js";
 import { hasPasskey } from "../guard/passkey.js";
 import { activePolicy, compilePolicy, listPolicies } from "../guard/policy.js";
 import { FAULTABLE, paypal, paypalConfigured, WEBHOOK_EVENTS } from "../paypal/index.js";
-import { protectedMode, safetyHolds } from "../safety/index.js";
+import { assessMessage, protectedMode, safetyHolds } from "../safety/index.js";
 import { optionsFor } from "../services/money.js";
 import { candidates } from "../services/planner.js";
 import { balanceOf, bizById, callById, callsOf, customerById, customerByToken, customersOf, eventsOf, firstBiz, nowOf, obligationById, obligationsOf, owedToCustomer, type Obligation } from "../store.js";
@@ -32,6 +32,7 @@ import { loadRun, recentRuns } from "../trace.js";
 import { realtimeReady } from "../voice/realtime.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me, type Me } from "./auth.js";
+import { DEMO_IMPERSONATION } from "./safety.js";
 import { json } from "./common.js";
 import { GtError } from "../lib/util.js";
 
@@ -189,7 +190,7 @@ export function apiRouter(): Router {
       offers: opts ? { discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label, pct: d.pct })), plans: opts.plans.map((x) => ({ id: x.id, label: x.label })), slots: callbackSlots(now, cu.tz, pol.rules).map((s) => ({ id: s.id, label: s.label })) } : null,
       money: { links, invoices, plans: plans.map((x: any) => ({ ...x, option: typeof x.option === "string" ? JSON.parse(x.option) : x.option })), refunds },
       approvals: approvals.map((a) => ({ id: a.id, action: a.action, status: a.status, cents: a.payload?.cents ?? null, reason: a.payload?.reason ?? "", safety_reasons: a.payload?.safety_reasons ?? [] })),
-      trace: trace ? trace.steps.map((s: any) => ({ seq: s.seq, actor: s.actor, tool: s.tool, gate: s.gate, policy: s.policy, args: s.args, result: s.result, pp_request_id: s.pp_request_id, pp_debug_id: s.pp_debug_id, duration_ms: s.duration_ms, at: s.at })) : [],
+      trace: trace ? trace.steps.map((s: any) => ({ seq: s.step ?? s.seq, actor: s.actor, tool: s.tool, gate: s.gate, policy: s.policy, args: s.args, result: s.result, pp_request_id: s.pp_request_id, pp_debug_id: s.pp_debug_id, duration_ms: s.duration_ms, at: s.at })) : [],
       events: events.map((e: any) => ({ at: e.at, type: e.type, summary: e.summary, actor: e.actor })),
       samples: personas().filter((x) => x.purpose === c.purpose).slice(0, 6).flatMap((x) => x.lines.slice(0, 1)),
       voice: { realtime: realtimeReady(), brain: hasOpenAI() ? "model" : "rules" },
@@ -292,7 +293,8 @@ export function apiRouter(): Router {
     const inbound = (await db.query<any>("SELECT channel, address, body, created_at FROM channel_messages WHERE direction = 'in' ORDER BY created_at DESC LIMIT 15")).rows;
     const replaced = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM agent_trace WHERE tool = 'safety.agent_line'")).rows[0]?.n ?? 0);
     const verified = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM calls WHERE state->>'verify_code' IS NOT NULL AND business_id = $1", [p.business_id])).rows[0]?.n ?? 0);
-    return { protected: await protectedMode(p.business_id, db), holds: (await safetyHolds(db)).slice(0, 20), inbound, replaced, verified_calls: verified };
+    const holds = (await safetyHolds(db)).filter((h: any) => h.payload?.businessId === p.business_id || !h.payload?.businessId).slice(0, 20).map((h: any) => ({ id: h.id, action: h.action, status: h.status, cents: Number(h.payload?.cents ?? 0), reasons: h.payload?.safety_reasons ?? [], rule: h.payload?.safety_rule ?? null, created_at: h.created_at }));
+    return { protected: await protectedMode(p.business_id, db), holds, inbound: inbound.map((m: any) => ({ ...m, scan: assessMessage(m.body) })), replaced, verified_calls: verified, demo_message: config.demoMode ? DEMO_IMPERSONATION : null };
   }));
 
   r.get("/api/app/messages", json(async (req) => {
@@ -381,7 +383,7 @@ export function apiRouter(): Router {
 
 /** Serves the built web app for browser page loads. API, webhooks, static files and non-browser clients fall through. */
 export function webApp() {
-  const dist = join(root, "dist", "web");
+  const dist = join(root, "dist", "client");
   let index: string | null = null;
   const SKIP = /^\/(api|webhooks|static|assets|mcp|healthz|llms\.txt|skill\.md|manifest\.webmanifest|sw\.js|push|voice|connect|favicon|fonts|robots\.txt)(\/|$)|^\/c\/[^/]+\/mcp|^\/ops\/eval(\.csv|\/[^/]+\.md)/;
   return (req: Request, res: Response, next: NextFunction) => {
@@ -395,4 +397,4 @@ export function webApp() {
     res.set("Cache-Control", "no-cache").type("html").send(index);
   };
 }
-export const webDist = () => join(root, "dist", "web");
+export const webDist = () => join(root, "dist", "client");

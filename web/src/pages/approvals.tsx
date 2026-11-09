@@ -1,0 +1,184 @@
+import { useState } from "react";
+import { Fingerprint, OctagonX, Power, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ActButton, Empty, ErrorState, PageHead, Panel, Rows, Section, StateChip } from "@/components/app/bits";
+import { ApprovalCard, type Approval } from "@/components/app/approval";
+import { act } from "@/lib/api";
+import { money, moneyLamp, plural, when, word } from "@/lib/format";
+import { passkeysSupported, registerPasskey } from "@/lib/passkey";
+import { useData, useSession, useTitle } from "@/lib/hooks";
+
+interface Limits { auto_charge_max_cents: number; auto_refund_max_cents: number; auto_discount_max_pct: number }
+interface Guard {
+  pending: Approval[]; decided: Approval[]; limits: Limits;
+  autonomy: { current: Limits; suggested: Limits; evidence: string[]; approvals: number; declines: number };
+  passkey: boolean; countersign_cents: number;
+  kills: { scope: string; engaged: boolean; reason: string | null }[];
+  chain: { ok: boolean; rows: number; head: string; broken_at: number | null };
+  audit: { seq: number; at: string; kind: string; entity: string; entity_id: string; hash: string }[];
+}
+const SCOPE: Record<string, string> = {
+  global: "Everything", calls: "All calls", agents: "The AI agent", "action:charge": "Pay links", "action:invoice": "Invoices", "action:plan": "Instalment plans", "action:discount": "Discounts", "action:refund": "Refunds",
+  "purpose:confirm_deposit": "Deposit calls", "purpose:chase_invoice": "Invoice calls", "purpose:cancel_class": "Cancelled-class calls",
+};
+
+function LimitsForm({ g, onDone }: { g: Guard; onDone: () => void }) {
+  const [v, setV] = useState({ charge: String(g.limits.auto_charge_max_cents / 100), refund: String(g.limits.auto_refund_max_cents / 100), discount: String(g.limits.auto_discount_max_pct) });
+  const [busy, setBusy] = useState(false);
+  return (
+    <form
+      className="grid gap-3 sm:grid-cols-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+          toast.success((await act("/ops/guard/limits", v)).message || "Limits saved.");
+          onDone();
+        } catch (x) {
+          toast.error((x as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {([["charge", "Pay links and invoices up to ($)"], ["refund", "Refunds up to ($)"], ["discount", "Discounts up to (%)"]] as const).map(([k, l]) => (
+        <div key={k} className="grid gap-1.5">
+          <Label htmlFor={`lim-${k}`}>{l}</Label>
+          <Input id={`lim-${k}`} inputMode="numeric" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value.replace(/[^0-9]/g, "") })} className="h-11 num" />
+        </div>
+      ))}
+      <div className="sm:col-span-3"><Button type="submit" variant="outline" disabled={busy}>Save limits</Button></div>
+    </form>
+  );
+}
+
+export default function ApprovalsPage() {
+  useTitle("Needs you");
+  const { reload: reloadSession } = useSession();
+  const { data: g, error, loading, reload } = useData<Guard>("/api/app/guard", { poll: 10000 });
+  const refresh = async () => {
+    await reload();
+    await reloadSession();
+  };
+  if (error && !g) return <ErrorState error={error} retry={reload} />;
+  if (loading && !g) return <Rows n={4} />;
+  if (!g) return null;
+  const engaged = g.kills.filter((k) => k.engaged);
+  const a = g.autonomy;
+  const changes = a.suggested.auto_charge_max_cents !== a.current.auto_charge_max_cents || a.suggested.auto_refund_max_cents !== a.current.auto_refund_max_cents || a.suggested.auto_discount_max_pct !== a.current.auto_discount_max_pct;
+  return (
+    <>
+      <PageHead
+        title="Needs you"
+        happened={`${plural(g.decided.length, "decision")} so far. Audit chain ${g.chain.ok ? `verified across ${g.chain.rows} entries` : `broken at entry ${g.chain.broken_at}`}.`}
+        needs={g.pending.length ? `${plural(g.pending.length, "money move")} waiting.` : "Nothing waiting."}
+        next={engaged.length ? `Stopped: ${engaged.map((k) => SCOPE[k.scope] ?? k.scope).join(", ")}.` : `Callback moves up to ${money(g.limits.auto_charge_max_cents)} and refunds up to ${money(g.limits.auto_refund_max_cents)} on its own.`}
+      />
+      <Section id="pending" title="Waiting for you">
+        <div className="space-y-4" data-tour="approvals">
+          {g.pending.length ? g.pending.map((x) => <ApprovalCard key={x.id} a={x} passkey={g.passkey} onDone={refresh} />) : <Empty title="Nothing is waiting">Anything over your limits will stop here, with what moves, to whom, why and how to undo it.</Empty>}
+        </div>
+      </Section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section id="limits" title="What Callback may do alone">
+          <Panel className="p-4">
+            <LimitsForm g={g} onDone={refresh} />
+            {a.evidence.length ? (
+              <div className="mt-4 rounded-[8px] bg-paper p-3 text-sm">
+                <div className="mb-1 flex items-center gap-1.5 font-medium"><Sparkles className="size-4" />Learned from your decisions</div>
+                <ul className="list-disc space-y-1 pl-5 text-ink-2">{a.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
+                {changes ? <ActButton path="/ops/guard/autonomy/adopt" size="sm" variant="outline" className="mt-2" onDone={refresh}>Use the suggested limits</ActButton> : null}
+              </div>
+            ) : null}
+          </Panel>
+        </Section>
+        <Section id="passkey" title="Passkey for big moves">
+          <Panel className="p-4">
+            <p className="text-sm">{g.passkey ? `On. Moves of ${money(g.countersign_cents)} or more need your fingerprint, face or device PIN.` : `Off. Register a passkey so moves of ${money(g.countersign_cents)} or more need more than a click.`}</p>
+            {!g.passkey ? (
+              <Button
+                variant="outline"
+                className="mt-3"
+                disabled={!passkeysSupported()}
+                onClick={async () => {
+                  try {
+                    await registerPasskey();
+                    toast.success("Passkey registered.");
+                    await reload();
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  }
+                }}
+              >
+                <Fingerprint /> Register a passkey
+              </Button>
+            ) : <StateChip s="done">Passkey registered</StateChip>}
+          </Panel>
+        </Section>
+      </div>
+
+      <Section id="kill" title="Stop switches" hint="Stops that kind of move at once, before any PayPal call. Nothing already sent is undone.">
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {g.kills.map((k) => (
+            <li key={k.scope}>
+              <Panel className={`flex items-center gap-3 p-3 ${k.engaged ? "border-off/60 bg-off-soft" : ""}`}>
+                <span className="lamp" data-s={k.engaged ? "off" : "done"} aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{SCOPE[k.scope] ?? k.scope}</div>
+                  <div className="truncate text-xs text-ink-2">{k.engaged ? `Stopped${k.reason ? `: ${k.reason}` : ""}` : "Running"}</div>
+                </div>
+                <ActButton
+                  path="/ops/guard/kill"
+                  fields={{ scope: k.scope, engaged: k.engaged ? "0" : "1", reason: k.engaged ? "" : "stopped by the owner" }}
+                  size="sm"
+                  variant={k.engaged ? "outline" : "ghost"}
+                  icon={k.engaged ? <Power /> : <OctagonX />}
+                  confirmText={k.engaged ? undefined : `Stop ${SCOPE[k.scope] ?? k.scope}?`}
+                  onDone={refresh}
+                >
+                  {k.engaged ? "Start" : "Stop"}
+                </ActButton>
+              </Panel>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section id="decided" title="Decided">
+        {g.decided.length ? (
+          <Panel className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>When</TableHead><TableHead>Move</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Decision</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {g.decided.map((x) => (
+                  <TableRow key={x.id}>
+                    <TableCell className="whitespace-nowrap text-ink-2 num">{when(x.decided_at ?? x.created_at)}</TableCell>
+                    <TableCell>{x.action}</TableCell>
+                    <TableCell>{x.customer?.name}</TableCell>
+                    <TableCell className="text-right num">{money(x.cents)}</TableCell>
+                    <TableCell><StateChip s={moneyLamp(x.status)}>{word(x.status)}{x.method ? ` · ${x.method}` : ""}</StateChip></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Panel>
+        ) : <Empty title="No decisions yet" />}
+      </Section>
+
+      <Section id="audit" title="Audit chain" hint="Every money decision is hash-chained; editing any entry breaks the chain from that point.">
+        <Panel className="p-4">
+          <StateChip s={g.chain.ok ? "done" : "off"}>{g.chain.ok ? `Verified · ${g.chain.rows} entries` : `Broken at ${g.chain.broken_at}`}</StateChip>
+          <p className="mt-2 break-all font-mono text-xs text-ink-2">Head {g.chain.head}</p>
+          <ul className="mt-3 max-h-[320px] space-y-1 overflow-y-auto text-sm">
+            {g.audit.map((x) => <li key={x.seq} className="flex gap-3"><span className="w-10 font-mono text-xs text-ink-2 num">#{x.seq}</span><span className="flex-1">{x.kind.replace(/[._]/g, " ")} · {x.entity}</span><span className="font-mono text-xs text-ink-2">{x.hash}</span></li>)}
+          </ul>
+        </Panel>
+      </Section>
+    </>
+  );
+}

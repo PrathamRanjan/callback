@@ -2,3 +2,6 @@ node_modules
 dist
 data
 .env
+.claude
+test-results
+playwright-report
