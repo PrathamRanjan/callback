@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS calls (
 );
 CREATE INDEX IF NOT EXISTS calls_biz ON calls(business_id, created_at DESC);
 -- One open call per obligation: the worker and a demo reset planning at the same moment must not create two.
+DELETE FROM calls a USING calls b WHERE a.obligation_id = b.obligation_id AND a.id <> b.id AND a.status IN ('planned','blocked') AND b.status IN ('planned','blocked','ringing','in_progress') AND a.created_at > b.created_at;
 CREATE UNIQUE INDEX IF NOT EXISTS calls_one_open_per_obligation ON calls(obligation_id) WHERE status IN ('planned','blocked','ringing','in_progress');
 CREATE TABLE IF NOT EXISTS callbacks (
   id TEXT PRIMARY KEY, business_id TEXT NOT NULL, call_id TEXT NOT NULL REFERENCES calls(id), customer_id TEXT NOT NULL, at TEXT NOT NULL,
