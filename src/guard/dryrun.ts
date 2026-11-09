@@ -98,6 +98,8 @@ export function payloadHash(move: MoneyMove): string {
 export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; q?: Queryable } = {}): Promise<GateDecision> {
   const db = opts.q ?? (await getDb());
   const checks: GateDecision["checks"] = [];
+  // Set by the scam check below; read by hold() so the approval carries the reasons.
+  let safety: Awaited<ReturnType<typeof assessCallMove>> | null = null;
   const deny = (reason: string, policy: string | null = null, decision: GateDecision["decision"] = "denied"): GateDecision => ({ decision, reason, policy, checks });
 
   // 1. Kill switches: global, all agents, this action, this agent.
@@ -124,7 +126,6 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
 
   // 2b. Scam check (SAFETY_ACCESSIBILITY_SPEC §4): the customer's words on the call, a refund to another account,
   // protected mode. Applies to the agent and the worker; a person's own click is not re-judged here.
-  let safety: Awaited<ReturnType<typeof assessCallMove>> | null = null;
   if (!move.personInitiated) {
     safety = await assessCallMove(move, db);
     checks.push({ name: "scam check", ok: safety.level !== "hold", note: safety.summary });
