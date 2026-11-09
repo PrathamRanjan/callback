@@ -195,6 +195,10 @@ CREATE TABLE IF NOT EXISTS guard_settings (
   id TEXT PRIMARY KEY, auto_charge_max_cents INTEGER NOT NULL DEFAULT 30000, auto_refund_max_cents INTEGER NOT NULL DEFAULT 10000,
   auto_discount_max_pct INTEGER NOT NULL DEFAULT 10, updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Why an item exists in the owner's words (a class cancelled because the instructor is ill). The agent may say it; it never invents one.
+ALTER TABLE obligations ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT '';
+-- A cancelled class that came from a booking paid by PayPal points back at it, so the refund goes to that capture.
+ALTER TABLE obligations ADD COLUMN IF NOT EXISTS source_id TEXT;
 `;
 
 let shared: Db | null = null;

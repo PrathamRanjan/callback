@@ -12,6 +12,7 @@ import { activePolicy, compilePolicy, listPolicies, savePolicy, type Rules } fro
 import { appendAudit } from "../guard/audit.js";
 import { GtError } from "../lib/util.js";
 import { candidates, planCalls } from "../services/planner.js";
+import { cancelBooking, createCharge, createCustomer } from "../services/records.js";
 import { owedToCustomer, balanceOf, callsOf, customerById, customersOf, eventsOf, logEvent, nowOf, obligationsOf } from "../store.js";
 import { act, authed, me, ownerOnly, personByKey, signIn, signOut } from "./auth.js";
 import { back, flashOf, page } from "./common.js";
@@ -67,10 +68,10 @@ export function ownerRouter(): Router {
     const ended = calls.filter((c) => c.status === "ended");
     const today = ended.filter((c) => c.ended_at && Date.now() - new Date(c.ended_at).getTime() < 86400_000);
     const collected = today.reduce((s, c) => s + c.collected_cents, 0);
-    const pending = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending'")).rows[0].n);
+    const pending = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1)", [p.business_id])).rows[0].n);
     const custs = new Map((await customersOf(db, p.business_id)).map((c) => [c.id, c]));
     const obls = new Map((await obligationsOf(db, p.business_id)).map((o) => [o.id, o]));
-    const approvals = p.role === "owner" ? (await db.query<any>("SELECT * FROM approvals WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10")).rows.map((a) => ({ ...a, payload: typeof a.payload === "string" ? JSON.parse(a.payload) : a.payload })) : [];
+    const approvals = p.role === "owner" ? (await db.query<any>("SELECT * FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1) ORDER BY created_at DESC LIMIT 10", [p.business_id])).rows.map((a) => ({ ...a, payload: typeof a.payload === "string" ? JSON.parse(a.payload) : a.payload })) : [];
     const oblOf = (a: any) => (a.payload.entity === "obligation" ? obls.get(a.payload.entityId) : a.payload.entity === "call" ? obls.get(calls.find((c) => c.id === a.payload.entityId)?.obligation_id ?? "") : undefined);
     const ready = open.filter((c) => c.status === "planned" || c.status === "ringing" || c.status === "in_progress");
     const blocked = open.filter((c) => c.status === "blocked");
@@ -134,6 +135,30 @@ ${p.role === "owner" ? html`<form method="post" action="/customers/${c.id}/conse
     await appendAudit("consent.granted", "customer", c.id, { by: p.name, source: consent.source });
     await logEvent(db, { businessId: p.business_id, customerId: c.id, type: "consent.granted", summary: `Consent recorded for ${c.name} (${consent.source})`, actor: p.name });
     back(res, `/customers/${c.id}`, "Consent recorded.");
+  }));
+
+  /* ---------------- New records (the owner's own data, not the seed) ---------------- */
+  r.post("/customers", act(async (req, res, p) => {
+    ownerOnly(p);
+    const db = await getDb();
+    const b = req.body ?? {};
+    const c = await createCustomer(db, p.business_id, { name: b.name, phone: b.phone, email: b.email, tz: b.tz, notes: b.notes, consent: b.consent_text ? { text: String(b.consent_text), source: String(b.consent_source ?? "") } : null }, p.name);
+    back(res, `/customers/${c.id}`, `${c.name} added.${c.consent ? "" : " No consent recorded, so Callback will never call them."}`);
+  }));
+  r.post("/customers/:id/charges", act(async (req, res, p) => {
+    ownerOnly(p);
+    const db = await getDb();
+    const b = req.body ?? {};
+    const o = await createCharge(db, p.business_id, { customerId: req.params.id, kind: b.kind, title: b.title, amount: b.amount, dueAt: b.due_at, appointmentAt: b.appointment_at, note: b.note }, p.name);
+    const out = await planCalls(db, p.business_id, p.name);
+    back(res, `/customers/${req.params.id}`, `${o.title} added ($${(o.amount_cents / 100).toFixed(2)}). Calls re-planned: ${out.planned} ready, ${out.blocked} not calling.`);
+  }));
+  r.post("/obligations/:id/cancel", act(async (req, res, p) => {
+    ownerOnly(p);
+    const db = await getDb();
+    const o = await cancelBooking(db, p.business_id, req.params.id, String(req.body.reason ?? ""), p.name);
+    await planCalls(db, p.business_id, p.name);
+    back(res, `/customers/${o.customer_id}`, `Cancelled. $${(o.settled_cents / 100).toFixed(2)} is owed back; Callback will call to offer a refund or a credit.`);
   }));
 
   /* ---------------- Call policy ---------------- */

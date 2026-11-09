@@ -49,6 +49,9 @@ export interface Obligation {
   subscription_id: string | null;
   discount_cents: number;
   settled_cents: number;
+  /** The owner's own words for why this item exists; the only reason the agent may give. */
+  note: string;
+  source_id: string | null;
 }
 export type CallPurpose = "confirm_deposit" | "chase_invoice" | "cancel_class";
 export type CallStatus = "planned" | "blocked" | "ringing" | "in_progress" | "ended" | "skipped";

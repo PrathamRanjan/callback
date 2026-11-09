@@ -22,6 +22,8 @@ export interface BrainContext {
   customer_first_name: string;
   purpose: "confirm_deposit" | "chase_invoice" | "cancel_class";
   item: string;
+  /** Why the item exists, in the owner's own words (e.g. why a class was cancelled). Empty = the agent gives no reason. */
+  note: string;
   /** Spoken amount, formatted by code from the records. */
   balance_text: string;
   due_text: string;
@@ -74,7 +76,7 @@ export function rulesBrain(ctx: BrainContext): Decision {
     if (has("refund", "money back", "back on my card", "pay me back")) return d(ctx.done.settled ? "That's done; the refund is on its way. Goodbye." : `No problem. I'm refunding the ${ctx.balance_text} to the way you paid now. You'll get a confirmation by text. Thanks ${ctx.customer_first_name}.`, ctx.done.settled ? "end_call" : "settle_refund", null, "refund", "refund chosen");
     if (has("credit", "next time", "keep it", "another class", "rebook", "book", "towards", "put it on", "next month")) return d(ctx.done.settled ? "Done, the credit is on your account. Goodbye." : `Lovely. I've put the ${ctx.balance_text} on your account as credit for any class. Thanks ${ctx.customer_first_name}.`, ctx.done.settled ? "end_call" : "settle_credit", null, "credit", "credit chosen");
     if (ctx.done.settled) return d("All sorted then. Have a good day.", "end_call", null, null, "settled");
-    return d(`Sorry about the cancelled class: the instructor is unwell. You paid ${ctx.balance_text}. Would you like that as a credit for another class, or refunded?`, "none", null, null, "ask choice");
+    return d(`Sorry we had to cancel ${ctx.item}${ctx.note ? ` (${ctx.note.replace(/[.\s]+$/, "")})` : ""}. You paid ${ctx.balance_text}. Would you like that as a credit for another class, or refunded?`, "none", null, null, "ask choice");
   }
 
   // Deposits and invoices.
@@ -150,11 +152,26 @@ export async function decide(ctx: BrainContext, runId?: string | null): Promise<
       },
     });
     const o = r.output;
+    const invented = inventedAmounts(o.say, ctx);
+    if (invented.length) return { ...rulesBrain(ctx), reason: `model said ${invented.join(", ")}, which is not in the records; rules brain took the turn` };
     const ids = new Set([...ctx.options.discounts, ...ctx.options.plans, ...ctx.options.slots].map((x) => x.id));
     const option_id = o.option_id && ids.has(o.option_id) ? o.option_id : null;
     if (["apply_discount", "create_plan", "schedule_callback"].includes(o.tool) && !option_id) return { ...rulesBrain(ctx), reason: "model picked an option that does not exist; rules brain took the turn" };
     return { say: o.say.slice(0, 400), tool: TOOLS.includes(o.tool) ? o.tool : "none", option_id, outcome: o.outcome && (OUTCOMES as readonly string[]).includes(o.outcome) ? o.outcome : null, reason: o.reason, brain: "model", quarantined: q.quarantined, model: r.model, cost_usd: r.costUsd };
-  } catch {
-    return rulesBrain(ctx);
+  } catch (e) {
+    return { ...rulesBrain(ctx), reason: `model unavailable (${(e as Error).message.slice(0, 80)}); rules brain took the turn` };
   }
+}
+
+/** Money the model said that code did not give it: anything not the balance or an amount inside an option label. */
+export function inventedAmounts(say: string, ctx: BrainContext): string[] {
+  const norm = (m: string) => Number(m.replace(/[^0-9.]/g, "")).toFixed(2);
+  const allowed = new Set<string>();
+  for (const src of [ctx.balance_text, ...ctx.options.discounts.map((x) => x.label), ...ctx.options.plans.map((x) => x.label)]) for (const m of src.matchAll(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g)) allowed.add(norm(m[0]));
+  const pctAllowed = new Set<string>();
+  for (const x of ctx.options.discounts) for (const m of x.label.matchAll(/(\d{1,3})\s?%/g)) pctAllowed.add(m[1]);
+  const out: string[] = [];
+  for (const m of say.matchAll(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g)) if (!allowed.has(norm(m[0]))) out.push(m[0]);
+  for (const m of say.matchAll(/(\d{1,3})\s?(?:%|percent)/gi)) if (!pctAllowed.has(m[1])) out.push(m[0]);
+  return out;
 }

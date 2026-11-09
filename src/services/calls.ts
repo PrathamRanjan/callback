@@ -73,6 +73,7 @@ async function brainContext(q: Queryable, call: Call, customer: Customer, turn: 
     customer_first_name: first(customer.name),
     purpose: call.purpose,
     item: o?.title ?? "your account",
+    note: o?.note ?? "",
     balance_text: `$${(bal / 100).toFixed(2)}`,
     due_text: due,
     tone,

@@ -66,13 +66,13 @@ export function installChannelHandlers() {
       if (mm) {
         try {
           const r = await decideApproval(mm[2], mm[1] === "approve", "channel", `${m.channel}:${m.address}`, m.party?.party_id);
-          return r.replayed ? `Already ${r.status}.` : `${mm[1] === "approve" ? "Approved" : "Declined"}: ${r.payload.action} of $${((r.payload.cents ?? 0) / 100).toFixed(2)}.`;
+          return r.replayed ? `Already ${r.status}.` : `${mm[1] === "approve" ? "Approved" : "Declined"}: ${r.payload.action} of $${((r.payload.cents ?? 0) / 100).toFixed(2)}.${r.followUp ? ` ${r.followUp.message}` : ""}`;
         } catch (e) {
           return `Could not decide: ${(e as Error).message}`;
         }
       }
       if (m.party?.party === "owner" && /pending|holds?|approvals?/i.test(text)) {
-        const n = (await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending'")).rows[0].n;
+        const n = (await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1)", [m.party.party_id])).rows[0].n;
         return `${n} pending approval${n === "1" ? "" : "s"}. Open the Guard page or reply "approve <id>".`;
       }
     }

@@ -11,6 +11,7 @@ import { foundationRouter } from "./web/foundation.js";
 import { guardRouter } from "./web/guard.js";
 import { safetyRouter } from "./web/safety.js";
 import { ownerRouter } from "./web/owner.js";
+import { apiRouter, appJson, webApp, webDist } from "./web/api.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -24,6 +25,12 @@ export function createApp() {
   app.use(cookieParser());
   app.use("/static", express.static(join(root, "public"), { maxAge: 0, setHeaders: (res, file) => { if (/[\\/]safety[\\/]/.test(file)) res.setHeader("Cache-Control", "public, max-age=86400"); } }));
   app.get("/healthz", (_req, res) => res.json({ ok: true }));
+  // The web app (web/, built to dist/web): hashed assets, then index.html for browser page loads.
+  app.use("/assets", express.static(join(webDist(), "assets"), { maxAge: "365d", immutable: true }));
+  app.use(express.static(webDist(), { index: false, maxAge: "1d" }));
+  app.use(appJson);
+  app.use(webApp());
+  app.use(apiRouter());
   app.use(ownerRouter());
   app.use(callsRouter());
   app.use(guardRouter());

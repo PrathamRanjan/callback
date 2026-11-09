@@ -26,6 +26,7 @@ const ctxFor = (line: string, over: Partial<BrainContext> = {}): BrainContext =>
   customer_first_name: "Tom",
   purpose: "chase_invoice",
   item: "Invoice #1047",
+  note: "",
   balance_text: "$220.00",
   due_text: "due 3 weeks ago",
   tone: "warm",

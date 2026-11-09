@@ -63,10 +63,18 @@ export const config = {
     agStudioUrl: process.env.AG_STUDIO_URL || "",
     channel3Key: process.env.CHANNEL3_API_KEY || "",
   },
+  /** Demo mode only texts or dials numbers on this list (comma-separated, any spacing); every other message is simulated. */
+  liveContactAllowlist: (process.env.CB_LIVE_CONTACT_ALLOWLIST || "").split(",").map((x) => x.replace(/[^0-9+]/g, "")).filter(Boolean),
   guard: {
     countersignAboveCents: num(process.env.CB_COUNTERSIGN_ABOVE_CENTS, 20000),
   },
 };
+
+/** In demo mode a real SMS or phone call may only reach a number the operator listed; seeded customers are fiction. */
+export function mayContactForReal(phone: string): boolean {
+  if (!config.demoMode) return true;
+  return config.liveContactAllowlist.includes(phone.replace(/[^0-9+]/g, ""));
+}
 
 export function paypalBaseUrl(env: "sandbox" | "live" = config.paypal.env): string {
   return env === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";

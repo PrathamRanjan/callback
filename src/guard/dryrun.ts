@@ -235,7 +235,7 @@ export async function decideApproval(id: string, approve: boolean, method: "clic
   if (!a) throw new Error("No such approval");
   const payload = typeof a.payload === "string" ? JSON.parse(a.payload) : a.payload;
   if (businessId && payload.businessId && payload.businessId !== businessId) throw new Error("No such approval");
-  if (a.status !== "pending") return { status: a.status as string, replayed: true, payload };
+  if (a.status !== "pending") return { status: a.status as string, replayed: true, payload, followUp: null };
   const cents = Number(payload.cents ?? 0);
   if (approve && cents >= config.guard.countersignAboveCents && method !== "passkey") {
     const { hasPasskey } = await import("./passkey.js");
@@ -243,7 +243,13 @@ export async function decideApproval(id: string, approve: boolean, method: "clic
   }
   await db.query("UPDATE approvals SET status = $2, method = $3, decided_at = now() WHERE id = $1", [id, approve ? "approved" : "declined", method]);
   await appendAudit(approve ? "approval.approved" : "approval.declined", "approval", id, { by, method, hash: a.payload_hash, action: a.action });
-  return { status: approve ? "approved" : "declined", payload, replayed: false };
+  // An approval is only useful if someone acts on it: when the call that asked is over, carry the move out now.
+  let followUp: { done: boolean; message: string } | null = null;
+  if (approve) {
+    const { carryOutApproved } = await import("../services/approvals.js");
+    followUp = await carryOutApproved(payload, by).catch((e) => ({ done: false, message: `Approved, but the follow-up failed: ${(e as Error).message.slice(0, 120)}` }));
+  }
+  return { status: approve ? "approved" : "declined", payload, replayed: false, followUp };
 }
 
 export async function pendingApprovals(businessId?: string) {

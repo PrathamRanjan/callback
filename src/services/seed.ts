@@ -1,7 +1,7 @@
 /**
  * Demo data: one small business (a physiotherapy and Pilates studio), its owner and front-desk person, eight customers
  * with mixed consent and time zones, and the money that needs a call: tomorrow's deposits, overdue invoices, a cancelled
- * class. Plus the 90-day by-hand call history for the backtest and a default policy.
+ * class. Phone numbers are from the ranges Australia and the US reserve for fiction, so nothing here can ring a real person. Plus the 90-day by-hand call history for the backtest and a default policy.
  */
 import type { Db } from "../db.js";
 import { compileLocal, savePolicy } from "../guard/policy.js";
@@ -24,7 +24,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   const now = opts.now ?? new Date();
   const bizId = newId("biz");
   const tz = "Australia/Sydney";
-  await db.query("INSERT INTO businesses (id, key, name, tz, currency, phone, sim_now, settings) VALUES ($1,'brightside',$2,$3,'USD',$4,$5,$6)", [bizId, "Brightside Physio & Pilates", tz, "+61 2 9000 0100", opts.pinClock ? now.toISOString() : null, JSON.stringify({ owner_name: "Maya Chen" })]);
+  await db.query("INSERT INTO businesses (id, key, name, tz, currency, phone, sim_now, settings) VALUES ($1,'brightside',$2,$3,'USD',$4,$5,$6)", [bizId, "Brightside Physio & Pilates", tz, "+61 2 5550 0100", opts.pinClock ? now.toISOString() : null, JSON.stringify({ owner_name: "Maya Chen" })]);
   const ownerKey = newSecret("cbo");
   const staffKey = newSecret("cbs");
   const ownerId = newId("per");
@@ -35,14 +35,14 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   const customers: Record<string, { id: string; token: string }> = {};
   const rows: [string, string, string, string, string, string | null, boolean, string][] = [
     // key, name, phone, email, tz, consent json, dnc, notes
-    ["priya", "Priya Natarajan", "+61 400 111 222", "priya@example.com", tz, consent(40), false, "Regular. Prefers texts for links."],
-    ["marcus", "Marcus Okafor", "+61 400 333 444", "marcus@example.com", tz, consent(12), false, ""],
-    ["harbour", "Harbour Dental (Dr Lim)", "+61 2 9000 0200", "accounts@harbourdental.example", tz, consent(200, "contract"), false, "Corporate account: monthly staff Pilates. Pays late, always pays."],
-    ["lena", "Lena Kowalski", "+61 400 555 666", "lena@example.com", tz, consent(5), false, "New client."],
-    ["tom", "Tom Reyes", "+61 400 777 888", "tom@example.com", tz, consent(90), false, "Asks for discounts every time."],
+    ["priya", "Priya Natarajan", "+61 491 570 006", "priya@example.com", tz, consent(40), false, "Regular. Prefers texts for links."],
+    ["marcus", "Marcus Okafor", "+61 491 570 156", "marcus@example.com", tz, consent(12), false, ""],
+    ["harbour", "Harbour Dental (Dr Lim)", "+61 2 5550 4321", "accounts@harbourdental.example", tz, consent(200, "contract"), false, "Corporate account: monthly staff Pilates. Pays late, always pays."],
+    ["lena", "Lena Kowalski", "+61 491 570 157", "lena@example.com", tz, consent(5), false, "New client."],
+    ["tom", "Tom Reyes", "+61 491 570 158", "tom@example.com", tz, consent(90), false, "Asks for discounts every time."],
     ["dev", "Dev Sharma", "+1 415 555 0101", "dev@example.com", "Europe/London", consent(30), false, "Travelling: on UK time this month."],
-    ["noor", "Noor Haddad", "+61 400 999 000", "noor@example.com", tz, null, false, "No consent on file: never call, invoice only."],
-    ["sam", "Sam Whitfield", "+61 400 121 212", "sam@example.com", tz, consent(60), true, "Asked not to be called (DNC)."],
+    ["noor", "Noor Haddad", "+61 491 570 159", "noor@example.com", tz, null, false, "No consent on file: never call, invoice only."],
+    ["sam", "Sam Whitfield", "+61 491 570 110", "sam@example.com", tz, consent(60), true, "Asked not to be called (DNC)."],
   ];
   for (const [key, name, phone, email, ctz, cons, dnc, notes] of rows) {
     const id = newId("cus");
@@ -54,7 +54,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   const obligations: Record<string, string> = {};
   const obl = async (key: string, cust: string, kind: "deposit" | "invoice" | "class_cancel", title: string, cents: number, dueAt: Date | null, apptAt: Date | null, status = "open", extra: Record<string, unknown> = {}) => {
     const id = newId("obl");
-    await db.query("INSERT INTO obligations (id, business_id, customer_id, kind, title, amount_cents, due_at, appointment_at, status, capture_id, settled_cents) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [id, bizId, customers[cust].id, kind, title, cents, dueAt?.toISOString() ?? null, apptAt?.toISOString() ?? null, status, extra.capture_id ?? null, extra.settled_cents ?? 0]);
+    await db.query("INSERT INTO obligations (id, business_id, customer_id, kind, title, amount_cents, due_at, appointment_at, status, capture_id, settled_cents, note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", [id, bizId, customers[cust].id, kind, title, cents, dueAt?.toISOString() ?? null, apptAt?.toISOString() ?? null, status, extra.capture_id ?? null, extra.settled_cents ?? 0, extra.note ?? ""]);
     obligations[key] = id;
   };
   await obl("priya_deposit", "priya", "deposit", "Deposit for initial physio assessment", 6000, addHours(now, 20), addHours(now, 26));
@@ -68,7 +68,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   // The class title is written from the class's own time, so the item and the appointment can never disagree.
   const classAt = addHours(now, 50);
   const classWhen = new Intl.DateTimeFormat("en-AU", { timeZone: tz, weekday: "long", hour: "numeric", minute: "2-digit", hour12: true }).format(classAt).replace(":00", "").replace(" am", "am").replace(" pm", "pm");
-  await obl("tom_class", "tom", "class_cancel", `${classWhen} reformer class cancelled (instructor ill)`, 3500, null, classAt, "open", { capture_id: null, settled_cents: 3500 });
+  await obl("tom_class", "tom", "class_cancel", `${classWhen} reformer class`, 3500, null, classAt, "open", { capture_id: null, settled_cents: 3500, note: "the instructor is unwell" });
 
   await seedHistory(bizId, db);
   const policyText = "Call customers between 9am and 6pm, weekdays only, once a day at most. Confirm deposits for tomorrow's appointments and chase invoices more than a week overdue. You may offer up to 10% off to settle an overdue invoice today, or a plan of up to 3 payments with at least $50 per payment. Send links or invoices up to $300 without asking me; refunds up to $100 for cancelled classes. Be warm and brief.";

@@ -90,11 +90,11 @@ describe("foundation routes", () => {
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=callback-verify&hub.challenge=abc")).text).toBe("abc");
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong")).status).toBe(403);
     expect((await anon.postJson("/webhooks/whatsapp", { entry: [{ changes: [{ value: { messages: [{ type: "text", from: "61400", text: { body: "hi" } }] } }] }] })).json.ok).toBe(true);
-    const sms = await anon.req("POST", "/webhooks/sms", { form: { From: "+61 400 111 222", Body: "STOP" } });
+    const sms = await anon.req("POST", "/webhooks/sms", { form: { From: "+61 491 570 006", Body: "STOP" } });
     expect(sms.status).toBe(200);
     const priya = (await world.db.query<{ dnc: boolean }>("SELECT dnc FROM customers WHERE id = $1", [world.seeded.customers.priya.id])).rows[0];
     expect(priya.dnc).toBe(true);
-    expect((await owner.get(`/ops/channels?address=${encodeURIComponent("+61 400 111 222")}`)).text).toContain("removed from calls");
+    expect((await owner.get(`/ops/channels?address=${encodeURIComponent("+61 491 570 006")}`)).text).toContain("removed from calls");
   });
   it("pwa, push, evidence, judge, llms, skill, mcp page", async () => {
     expect((await anon.get("/manifest.webmanifest")).json.name).toBe("Callback");

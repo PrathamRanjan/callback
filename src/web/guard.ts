@@ -49,12 +49,12 @@ ${approvals.filter((a) => a.status === "pending").length ? approvals.filter((a) 
     r.post(`/ops/guard/approvals/:id/${op}`, act(async (req, res, p) => {
       ownerOnly(p);
       const out = await decideApproval(String(req.params.id), op === "approve", "click", p.name, p.business_id);
-      back(res, nextOf(req.body.next, "/ops/guard"), out.replayed ? `Already ${out.status}.` : op === "approve" ? "Approved. Callback carries it out on its next turn." : "Declined. Callback will offer what your policy allows.");
+      back(res, nextOf(req.body.next, "/ops/guard"), out.replayed ? `Already ${out.status}.` : op === "approve" ? `Approved. ${out.followUp?.message ?? ""}`.trim() : "Declined. Callback will offer what your policy allows.");
     }));
   r.post("/ops/guard/approvals/:id", act(async (req, res, p) => {
     ownerOnly(p);
     const out = await decideApproval(req.params.id, req.body.op === "approve", "click", p.name, p.business_id);
-    back(res, "/ops/guard", out.replayed ? `Already ${out.status}.` : `${out.status}. The agent retries the move on its next turn, or you can replay it from the call.`);
+    back(res, "/ops/guard", out.replayed ? `Already ${out.status}.` : out.status === "approved" ? `Approved. ${out.followUp?.message ?? ""}`.trim() : "Declined. Callback will offer what your policy allows.");
   }));
   r.post("/ops/guard/limits", act(async (req, res, p) => {
     ownerOnly(p);

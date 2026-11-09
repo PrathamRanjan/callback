@@ -1,3 +1,4 @@
+import { GtError } from "../lib/util.js";
 /**
  * Phone path (roadmap E.4) via Twilio Programmable Voice, turn-based: Callback places the call with a TwiML URL;
  * each turn is <Say> the agent's line then <Gather input="speech"> the customer's reply, which Twilio posts back to
@@ -7,7 +8,7 @@
  * Without Twilio credentials, placeCall records the call as simulated and the in-app simulator carries it.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { config } from "../config.js";
+import { config, mayContactForReal } from "../config.js";
 import { getDb } from "../db.js";
 import { newId } from "../lib/ids.js";
 import { customerSays, speakable, startCall } from "../services/calls.js";
@@ -60,6 +61,7 @@ export async function placeCall(callId: string, by: string, mode: "phone" | "sim
     const r = await startCall(db, callId, "simulator", by);
     return { mode: "simulator", providerCallId: null, opening: r.opening };
   }
+  if (!mayContactForReal(customer.phone)) throw new GtError(`Demo mode only dials numbers the operator has listed (CB_LIVE_CONTACT_ALLOWLIST); ${customer.name}'s number is not one. Use the simulator.`, "not_allowlisted");
   const r = await startCall(db, callId, "phone", by);
   const res = await fetchImpl(`https://api.twilio.com/2010-04-01/Accounts/${config.voice.twilioSid}/Calls.json`, {
     method: "POST",

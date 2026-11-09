@@ -4,7 +4,7 @@
  * queued in channel_messages and sent by the worker; inbound messages are matched to a customer or the owner by
  * party_links. Customers are addressed by their status token (party "customer"); the owner by business id.
  */
-import { config } from "../config.js";
+import { config, mayContactForReal } from "../config.js";
 import type { Queryable } from "../db.js";
 import { getDb } from "../db.js";
 import { enqueue } from "../jobs.js";
@@ -58,7 +58,7 @@ export async function deliver(messageId: string): Promise<void> {
   const buttons: Button[] = m.buttons ?? [];
   try {
     let externalId: string | null = null;
-    if (m.channel === "sms" && smsReady()) {
+    if (m.channel === "sms" && smsReady() && mayContactForReal(m.address)) {
       const res = await fetchImpl(`https://api.twilio.com/2010-04-01/Accounts/${config.voice.twilioSid}/Messages.json`, {
         method: "POST",
         headers: { Authorization: "Basic " + Buffer.from(`${config.voice.twilioSid}:${config.voice.twilioToken}`).toString("base64"), "content-type": "application/x-www-form-urlencoded" },

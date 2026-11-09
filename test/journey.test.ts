@@ -76,6 +76,30 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await owner.post(`/calls/${skipId}/skip`, { reason: "owner will call" })).location).toMatch(/ok=/);
     expect((await owner.get("/calls/nope")).status).toBe(404);
   });
+  it("web app read endpoints and new-record routes", async () => {
+    const H = { accept: "application/json" };
+    for (const p of ["/api/app/session", "/api/app/preview", "/api/app/today", "/api/app/calls", "/api/app/calls?status=blocked", "/api/app/customers", "/api/app/policy", "/api/app/policy?draft=" + encodeURIComponent("Call 10am to 4pm weekdays."), "/api/app/guard", "/api/app/money", "/api/app/safety", "/api/app/messages", "/api/app/proof", "/api/app/evals?suite=adversarial", "/api/app/demo"]) {
+      const r = await owner.get(p, H);
+      expect(r.status, p).toBe(200);
+    }
+    const priya = world.seeded.customers.priya;
+    expect((await owner.get(`/api/app/customers/${priya.id}`, H)).json.customer.name).toBe("Priya Natarajan");
+    const call = (await owner.get("/api/app/calls", H)).json[0];
+    expect((await owner.get(`/api/app/calls/${call.id}`, H)).json.call.id).toBe(call.id);
+    const runs = (await owner.get("/api/app/proof", H)).json.runs;
+    expect((await owner.get(`/api/app/trace/${runs[0].id}`, H)).json.steps.length).toBeGreaterThan(0);
+    const mine = (await anon.get(`/api/app/c/${priya.token}`, H)).json;
+    expect(mine.first_name).toBe("Priya");
+    expect(JSON.stringify(mine)).not.toContain("Prefers texts"); // the owner's notes never reach the customer
+    expect((await anon.get("/api/app/c/nope", H)).status).toBe(404);
+    expect((await anon.get("/api/app/today", H)).status).toBe(401);
+    const added = await owner.post("/customers", { name: "Ana Souza", phone: "+61 491 570 737", tz: "Australia/Brisbane", consent_text: "You may call me", consent_source: "front desk" });
+    expect(added.location).toMatch(/ok=/);
+    const anaId = added.location!.split("?")[0].split("/").pop()!;
+    expect((await owner.post(`/customers/${anaId}/charges`, { kind: "invoice", title: "Invoice #3001: gait analysis", amount: "95", due_at: "2026-02-20T00:00:00Z" })).location).toMatch(/ok=.*95\.00/);
+    const items = (await owner.get(`/api/app/customers/${anaId}`, H)).json.items;
+    expect((await owner.post(`/obligations/${items[0].id}/cancel`, { reason: "flood" })).location).toMatch(/err=Only%20a%20paid%20booking/);
+  });
   it("staff may see Today but not the owner pages", async () => {
     await staff.post("/login", { key: world.seeded.staffKey, next: "/today" });
     expect((await staff.get("/today")).status).toBe(200);
