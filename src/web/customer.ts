@@ -33,7 +33,8 @@ ${msgs.length ? html`<div class="card"><h3>Messages from ${biz.name}</h3><ul cla
 <div class="grid2"><div class="card"><h3>Calls</h3><p class="small muted">${c.dnc ? "You have asked not to be called." : c.consent ? `You agreed on ${c.consent.granted_at.slice(0, 10)} (${c.consent.source}) that ${biz.name} may call you about your account, ${pol.rules.hours.start}–${pol.rules.hours.end} your time.` : "No consent on file: you will not be called."}</p>${lastCall ? html`<p class="small">Last call: ${lastCall.status}${lastCall.outcome ? `, ${lastCall.outcome.replace(/_/g, " ")}` : ""}.</p>` : ""}
 ${!c.dnc ? html`<form method="post" action="/c/${c.token}/stop"><button class="btn" type="submit">Stop calling me</button></form>` : ""}</div>
 <div class="card"><h3>Call me back instead</h3><form method="post" action="/c/${c.token}/callback" class="stack"><select name="at">${slots.map((s) => html`<option value="${s.at}">${s.label}</option>`)}</select><button class="btn" type="submit" ${c.dnc || !c.consent ? "disabled" : ""}>Book a callback</button></form></div></div>
-<p class="small muted">Payments are handled by PayPal. ${biz.name} never asks for card details by phone.</p>`));
+${lastCall?.state?.verify_code ? html`<div class="card" id="verify"><h3>Is it really ${biz.name} calling?</h3><p>Our last call to you gave the verify code <b class="mono" style="font-size:1.4em;letter-spacing:.15em">${lastCall.state.verify_code}</b>. If a caller cannot give you this code, hang up and use this page instead.</p></div>` : ""}
+<p class="small muted">Payments are handled by PayPal. ${biz.name} never asks for card details, passwords or one-time codes by phone. If someone does, it is not us.</p>`));
   }));
   r.post("/c/:token/pay/:oid", page(async (req, res) => {
     const db = await getDb();

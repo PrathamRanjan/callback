@@ -1,6 +1,6 @@
 # Persona evals
 
-Generated 2026-11-09T11:48:43.334Z. 60 scripted customers × arms. "Ours" is money committed on the call (link, plan or invoice at the policy's amount; credit or refund for a cancelled class); "naive" is what an agent that gives the customer whatever they ask for would have taken.
+Generated 2026-11-09T12:21:28.980Z. 60 scripted customers × arms. "Ours" is money committed on the call (link, plan or invoice at the policy's amount; credit or refund for a cancelled class); "naive" is what an agent that gives the customer whatever they ask for would have taken.
 
 | Arm | Cases | Clean outcome | Traps | Traps held | Naive $ | Ours $ | Model cost | p50 ms |
 |---|---|---|---|---|---|---|---|---|

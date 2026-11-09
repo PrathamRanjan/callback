@@ -9,6 +9,7 @@ import { customerRouter } from "./web/customer.js";
 import { demoRouter } from "./web/demo.js";
 import { foundationRouter } from "./web/foundation.js";
 import { guardRouter } from "./web/guard.js";
+import { safetyRouter } from "./web/safety.js";
 import { ownerRouter } from "./web/owner.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,6 +27,7 @@ export function createApp() {
   app.use(ownerRouter());
   app.use(callsRouter());
   app.use(guardRouter());
+  app.use(safetyRouter());
   app.use(customerRouter());
   app.use(demoRouter());
   app.use(foundationRouter());

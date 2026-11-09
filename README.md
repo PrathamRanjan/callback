@@ -38,3 +38,19 @@ Webhooks to register when keys arrive: `/webhooks/paypal`, `/webhooks/telegram`,
 `src/core` consent, time, options · `src/ai` provider, grounding, brain · `src/guard` gate, policy, backtest, kill, audit, provenance, passkey · `src/services` planner, calls, money, seed · `src/voice` telephony, realtime, tools · `src/channels` · `src/eval` personas, adversarial, store · `src/mcp` · `src/web` · `test/` · `scripts/` · `eval/` reports · `docs/foundation.md`.
 
 PayPal sandbox only. No real money moves. MIT.
+
+## Scam and fraud protection (9 Nov 2026)
+
+The people at risk on a collections call are the customer, who cannot tell our agent from a scammer pretending to be the business, and the owner, who can be impersonated. Three layers, strictest wins, none can approve a payment (`SAFETY_ACCESSIBILITY_SPEC.md` §4, Callback row of §6):
+
+- **Verify code.** Every call opens with a four-digit code (`verifyCode` in `src/safety/index.ts`, stored in the call state) that the customer's status page `/c/<token>` also shows, so they can check it is really us.
+- **The agent never asks for secrets.** Every line the agent is about to say is scanned (`agentLineUnsafe`); a line asking for a one-time code, password or card number, or moving payment off PayPal, is replaced with a correction, counted as a breach and recorded as a `safety.agent_line` trace step.
+- **Rules in the gate** (`src/guard/dryrun.ts`, step 2b): a refund the customer asks to send to a different account or card is held (`safety.refund_to_other_account`); scam tactics in the customer's words are cautions in the trace; protected mode holds every agent refund and discount for the owner.
+- **Owner impersonation by message.** An inbound Telegram, WhatsApp, SMS or simulator message that claims to be the owner and asks to change payout or bank details is refused, audited (`safety.owner_impersonation`) and listed on `/safety`. Payout details change only in the signed-in settings.
+- **Scam text model in the browser** (`public/safety/`, 23 MB int8 ONNX, fine-tuned MiniLM) scores a pasted message on the owner's device at `/safety`. Advisory; its score never reaches the gate. **Payment-risk model** (`public/safety/risk_lgbm.json`): monotone LightGBM, **trained on synthetic data**, a ranking signal shown with the rule reasons.
+
+Tests: `test/safety.test.ts`; the model's measured results are on `/safety/model-card`.
+
+## Accessibility (9 Nov 2026)
+
+`public/a11y.js` and `public/a11y.css` on every page, including the customer's: a **Display and help** button with text size, high contrast, Atkinson Hyperlegible, read-aloud, voice input (on-device where the browser supports it), plain words, bigger targets, more time and no motion. A first-visit card offers the same choices on owner pages. The profile stays in this browser's `localStorage`; typing and buttons always work without it.

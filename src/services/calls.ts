@@ -7,6 +7,7 @@
 import { decide, OUTCOMES, TOOLS, type BrainContext, type Decision, type Outcome, type Tool } from "../ai/agent.js";
 import { quarantine } from "../ai/grounding.js";
 import { config } from "../config.js";
+import { agentLineUnsafe, verifyCode } from "../safety/index.js";
 import { callbackSlots } from "../core/plans.js";
 import { mayCall } from "../core/consent.js";
 import { fmtLocal } from "../core/time.js";
@@ -48,12 +49,13 @@ export async function startCall(q: Queryable, callId: string, mode: Call["mode"]
   }
   const ctx = await brainContext(q, call, customer, 0, []);
   const d = await decide(ctx, run.id);
-  const opening: Turn = { who: "agent", text: d.say, at: new Date().toISOString(), tool: null };
+  const code = verifyCode(call.id);
+  const opening: Turn = { who: "agent", text: `${d.say} Your verify code for this call is ${code.split("").join(" ")}; it is on your account page, and we never ask for card numbers or passwords by phone.`, at: new Date().toISOString(), tool: null };
   await run.step({ actor: d.brain === "model" ? "model" : "code", tool: `brain.${d.brain}`, args: { turn: 0 }, result: { say: d.say, tool: d.tool, reason: d.reason } });
-  await q.query("UPDATE calls SET status = 'in_progress', mode = $2, persona = $3, started_at = now(), run_id = $4, attempts = attempts + 1, transcript = $5, state = $6, consent_ok = $7, hours_ok = $8 WHERE id = $1", [call.id, mode, opts.persona ?? null, run.id, JSON.stringify([opening]), JSON.stringify({ turns: 0, brain: d.brain }), verdict.consent_ok, verdict.hours_ok]);
+  await q.query("UPDATE calls SET status = 'in_progress', mode = $2, persona = $3, started_at = now(), run_id = $4, attempts = attempts + 1, transcript = $5, state = $6, consent_ok = $7, hours_ok = $8 WHERE id = $1", [call.id, mode, opts.persona ?? null, run.id, JSON.stringify([opening]), JSON.stringify({ turns: 0, brain: d.brain, verify_code: code }), verdict.consent_ok, verdict.hours_ok]);
   await logEvent(q, { businessId: call.business_id, customerId: customer.id, callId: call.id, type: "call.started", summary: `${mode} call to ${customer.name} started`, actor: by });
   await appendAudit("call.started", "call", call.id, { mode, by, consent: verdict.consent_ok, hours: verdict.hours_ok }, q);
-  return { call: await callById(q, call.id), run, opening: d.say };
+  return { call: await callById(q, call.id), run, opening: opening.text };
 }
 
 async function brainContext(q: Queryable, call: Call, customer: Customer, turn: number, transcript: Turn[]): Promise<BrainContext> {
@@ -204,6 +206,12 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
       say = "PayPal is slow to respond just now; nothing has been charged. I'll have the office send the link shortly.";
       await run.step({ actor: "paypal", tool: "error", result: { error: (e as Error).message.slice(0, 300) } });
     }
+  }
+  const unsafe = say ? agentLineUnsafe(say) : { unsafe: false, why: null };
+  if (unsafe.unsafe) {
+    await run.step({ actor: "guard", tool: "safety.agent_line", args: { why: unsafe.why }, gate: "denied", result: { replaced: true } });
+    await q.query("UPDATE calls SET breaches = breaches + 1 WHERE id = $1", [call.id]);
+    say = `Let me correct that: we never ask for codes, passwords or card details on a call. Anything to pay goes through the PayPal link on your account page. ${nextLine(ctx)}`;
   }
   if (say || !forced) transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
   if (toolResult) transcript.push({ who: "system", text: toolResult, at: new Date().toISOString() });

@@ -60,6 +60,8 @@ export interface Turn {
   tool?: string | null;
 }
 export interface CallState {
+  /** Four-digit "verify it's us" code spoken on the call and shown on the customer page (safety layer). */
+  verify_code?: string;
   offered?: string[];
   discount_pct?: number;
   plan_id?: string | null;

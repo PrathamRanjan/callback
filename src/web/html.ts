@@ -37,7 +37,7 @@ export interface LayoutOpts {
 
 export function layout(o: LayoutOpts, body: Raw): string {
   const nav = o.who
-    ? [["/today", "Today"], ["/calls", "Calls"], ["/customers", "Customers"], ["/policy", "Call policy"], ["/ops/guard", "Guard"], ["/ops/money", "Money"], ["/ops/traces", "Runs"], ["/ops/eval", "Evals"], ["/ops/channels", "Channels"], ["/ops/evidence", "Evidence"], ["/demo", "Demo"]]
+    ? [["/today", "Today"], ["/calls", "Calls"], ["/customers", "Customers"], ["/policy", "Call policy"], ["/ops/guard", "Guard"], ["/safety", "Safety"], ["/ops/money", "Money"], ["/ops/traces", "Runs"], ["/ops/eval", "Evals"], ["/ops/channels", "Channels"], ["/ops/evidence", "Evidence"], ["/demo", "Demo"]]
         .filter(([href]) => o.who!.role === "owner" || ["/today", "/calls", "/customers", "/demo"].includes(href))
         .map(([href, label]) => `<a href="${href}">${esc(label)}</a>`)
         .join("")
@@ -65,6 +65,7 @@ ${o.head ? o.head.value : ""}
 <main id="main"><div class="wrap">${flash}${body.value}</div></main>
 <footer><div class="wrap">${o.customer ? `${esc(o.customer.business)} · Payments are handled by PayPal.` : "Callback · PayPal sandbox only: no real money moves. The agent speaks inside the owner's rules; amounts come from the records, never from the conversation."}</div></footer>
 <script src="/static/pwa.js" defer></script>
+<link rel="stylesheet" href="/static/a11y.css"><script src="/static/a11y.js" defer></script>
 ${o.scripts ? o.scripts.value : ""}
 </body>
 </html>`;

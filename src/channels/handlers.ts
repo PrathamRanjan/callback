@@ -7,6 +7,7 @@ import { appendAudit } from "../guard/audit.js";
 import { decideApproval } from "../guard/dryrun.js";
 import { customerByToken, logEvent } from "../store.js";
 import { onInbound } from "./index.js";
+import { assessMessage } from "../safety/index.js";
 
 export function installChannelHandlers() {
   onInbound(async (m0) => {
@@ -14,6 +15,14 @@ export function installChannelHandlers() {
     const db = await getDb();
     const text = m.text.trim();
     if (!m.party && m.channel === "simulator" && /^(owner|customer):/.test(m.address)) m = { ...m, party: { party: m.address.split(":")[0], party_id: m.address.slice(m.address.indexOf(":") + 1) } };
+    // A message claiming to be the owner and asking to change payout or bank details never acts; it is recorded as a hold (SAFETY_ACCESSIBILITY_SPEC §6).
+    const scam = assessMessage(text);
+    if (scam.ownerImpersonation) {
+      const bizId = (await db.query<{ id: string }>("SELECT id FROM businesses ORDER BY created_at LIMIT 1")).rows[0]?.id;
+      await appendAudit("safety.owner_impersonation", "channel", `${m.channel}:${m.address}`, { text: text.slice(0, 300), reasons: scam.reasons });
+      if (bizId) await logEvent(db, { businessId: bizId, type: "safety.hold", summary: `Held a message that claimed to be the owner and asked to change payout details (${m.channel})`, actor: "guard", data: { text: text.slice(0, 300) } });
+      return "Payout and bank details are never changed from a message. The owner can change them after signing in; nothing has been changed.";
+    }
     // Customer STOP by SMS: find the customer by phone, revoke consent.
     if (m.channel === "sms" && /^(stop|unsubscribe|do not call|don't call)/i.test(text)) {
       const c = (await db.query<{ id: string; business_id: string; name: string }>("SELECT id, business_id, name FROM customers WHERE regexp_replace(phone, '[^0-9+]', '', 'g') = regexp_replace($1, '[^0-9+]', '', 'g')", [m.address])).rows[0];

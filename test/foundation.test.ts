@@ -5,6 +5,7 @@ import { CASES, harnessContext, runAdversarial } from "../src/eval/adversarial.j
 import { personas, runPersonaSuite } from "../src/eval/personas.js";
 import { callFor, freshWorld } from "./setup.js";
 import { Client } from "./client.js";
+import { DEMO_IMPERSONATION } from "../src/web/safety.js";
 import { isFoundationRoute, serveTracked } from "./journey-coverage.js";
 
 let world: Awaited<ReturnType<typeof freshWorld>>;
@@ -153,6 +154,16 @@ describe("foundation routes", () => {
     const out = await runPersonaSuite(["rules", "oracle"], 5);
     expect(out.filter((r) => r.arm === "rules").every((r) => r.breaches === 0)).toBe(true);
   }, 60_000);
+  it("safety: the owner's page, the model card, a scan of the demo impersonation, protected mode on and off", async () => {
+    expect((await owner.get("/safety")).text).toMatch(/Verify code/);
+    expect((await owner.get("/safety/model-card")).text).toMatch(/ScamShield/);
+    const scan = await owner.req("POST", "/safety/scan", { json: { text: DEMO_IMPERSONATION } });
+    expect(scan.status).toBe(200);
+    expect(JSON.parse(scan.text).rule).toBe("owner_impersonation");
+    expect((await owner.post("/safety/protected", { on: "1" })).status).toBe(302);
+    expect((await owner.get("/safety")).text).toMatch(/Turn protected mode off/);
+    expect((await owner.post("/safety/protected", { on: "0" })).status).toBe(302);
+  });
   it("every foundation route was walked and nothing returned 5xx", () => {
     expect(srv.failures).toEqual([]);
     const missed = srv.missed((r) => !isFoundationRoute(r) || /sms|voice|ops\/guard/.test(r));

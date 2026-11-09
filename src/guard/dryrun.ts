@@ -17,6 +17,7 @@ import { appendAudit } from "./audit.js";
 import { isKilled } from "./kill.js";
 import { activePolicy } from "./policy.js";
 import { moneyArgumentOk } from "./provenance.js";
+import { assessCallMove } from "../safety/index.js";
 import { notifyParty } from "../channels/index.js";
 
 export type MoneyAction = "charge" | "invoice" | "plan" | "discount" | "refund";
@@ -121,6 +122,15 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
   checks.push({ name: "provenance", ok: prov.ok, note: prov.reason });
   if (!prov.ok) return deny(`Refused before PayPal: ${prov.reason}.`, "money:provenance");
 
+  // 2b. Scam check (SAFETY_ACCESSIBILITY_SPEC §4): the customer's words on the call, a refund to another account,
+  // protected mode. Applies to the agent and the worker; a person's own click is not re-judged here.
+  let safety: Awaited<ReturnType<typeof assessCallMove>> | null = null;
+  if (!move.personInitiated) {
+    safety = await assessCallMove(move, db);
+    checks.push({ name: "scam check", ok: safety.level !== "hold", note: safety.summary });
+    if (safety.level === "hold") return await hold(`Paused by the scam check: ${safety.reasons[0]}`, `safety.${safety.rule ?? "rule"}`);
+  }
+
   // 3. The owner's policy: discount cap, instalment count and minimum, purposes are checked by the planner.
   const pol = await activePolicy(move.businessId, db);
   const settings = await guardSettings(move.businessId, db);
@@ -194,7 +204,7 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
     if (!opts.createApproval) return { decision: "held", reason, policy, checks };
     const id = newId("apr");
     const hash = payloadHash(move);
-    await db.query("INSERT INTO approvals (id, action, payload_hash, payload, status) VALUES ($1,$2,$3,$4,'pending')", [id, move.action, hash, JSON.stringify({ ...move, reason })]);
+    await db.query("INSERT INTO approvals (id, action, payload_hash, payload, status) VALUES ($1,$2,$3,$4,'pending')", [id, move.action, hash, JSON.stringify({ ...move, reason, ...(safety && safety.level !== "clear" ? { safety_rule: safety.rule, safety_reasons: safety.reasons, safety_risk: safety.risk } : {}) })]);
     await appendAudit("approval.requested", "approval", id, { action: move.action, cents: move.cents ?? null, entity: move.entity, entityId: move.entityId, hash });
     await notifyParty("owner", move.businessId, `Callback held a ${move.action} of ${((move.cents ?? 0) / 100).toFixed(2)} (${reason}). Approve or decline.`, [{ id: `approve:${id}`, label: "Approve" }, { id: `decline:${id}`, label: "Decline" }], "approval", id, db);
     return { decision: "held", reason, policy, approvalId: id, checks };
