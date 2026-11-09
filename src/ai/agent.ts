@@ -115,7 +115,7 @@ export function rulesBrain(ctx: BrainContext): Decision {
 }
 
 function nextAsk(ctx: BrainContext): string {
-  if (ctx.purpose === "confirm_deposit") return `Your appointment is ${ctx.due_text}. The ${ctx.balance_text} deposit holds the slot; shall I text you a PayPal link now?`;
+  if (ctx.purpose === "confirm_deposit") return `Your ${ctx.balance_text} deposit is ${ctx.due_text}; it holds the slot. Shall I text you a PayPal link now?`;
   if (ctx.purpose === "chase_invoice") return `There's ${ctx.balance_text} outstanding on ${ctx.item}, ${ctx.due_text}. Would you like to settle it by link now, or would a payment plan help?`;
   return `Would you prefer a credit or a refund for the cancelled class?`;
 }

@@ -62,13 +62,22 @@ export async function planCalls(q: Queryable, businessId: string, by = "worker",
     const status = killed?.engaged ? "blocked" : c.verdict.ok ? "planned" : "blocked";
     const reason = killed?.engaged ? `kill switch on calls: ${killed.reason ?? ""}` : c.verdict.ok ? c.reason : `${c.reason}; not called: ${c.verdict.reasons.join("; ")}`;
     if (open) {
+      // A call that is ringing or in progress is never re-planned: its own start would count as today's attempt.
+      if (["ringing", "in_progress"].includes(open.status)) {
+        skipped++;
+        continue;
+      }
       if (open.status !== status) await q.query("UPDATE calls SET status = $2, reason = $3, consent_ok = $4, hours_ok = $5, scheduled_at = $6 WHERE id = $1", [open.id, status, reason, c.verdict.consent_ok, c.verdict.hours_ok, c.verdict.next_window ?? at.toISOString()]);
       else skipped++;
       if (open.status !== status) status === "planned" ? planned++ : blocked++;
       continue;
     }
     const id = newId("call");
-    await q.query("INSERT INTO calls (id, business_id, customer_id, obligation_id, purpose, status, reason, scheduled_at, consent_ok, hours_ok) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [id, businessId, c.customer.id, c.obligation.id, c.purpose, status, reason, c.verdict.next_window ?? at.toISOString(), c.verdict.consent_ok, c.verdict.hours_ok]);
+    const ins = await q.query("INSERT INTO calls (id, business_id, customer_id, obligation_id, purpose, status, reason, scheduled_at, consent_ok, hours_ok) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING", [id, businessId, c.customer.id, c.obligation.id, c.purpose, status, reason, c.verdict.next_window ?? at.toISOString(), c.verdict.consent_ok, c.verdict.hours_ok]);
+    if (((ins as any).rowCount ?? (ins as any).affectedRows) === 0) {
+      skipped++;
+      continue;
+    }
     await run.step({ actor: "policy", tool: status === "planned" ? "consent.allow" : "consent.block", args: { customer: c.customer.name, purpose: c.purpose }, policy: c.verdict.ok ? null : c.verdict.consent_ok ? "hours" : "consent", gate: c.verdict.ok ? "allowed" : "denied", result: { call: id, reasons: c.verdict.reasons, next_window: c.verdict.next_window } });
     await logEvent(q, { businessId, customerId: c.customer.id, callId: id, type: status === "planned" ? "call.planned" : "call.blocked", summary: `${c.purpose.replace(/_/g, " ")} for ${c.customer.name}: ${reason}`, actor: by });
     status === "planned" ? planned++ : blocked++;

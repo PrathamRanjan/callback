@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS calls (
   consent_ok BOOLEAN, hours_ok BOOLEAN, provider_call_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS calls_biz ON calls(business_id, created_at DESC);
+-- One open call per obligation: the worker and a demo reset planning at the same moment must not create two.
+CREATE UNIQUE INDEX IF NOT EXISTS calls_one_open_per_obligation ON calls(obligation_id) WHERE status IN ('planned','blocked','ringing','in_progress');
 CREATE TABLE IF NOT EXISTS callbacks (
   id TEXT PRIMARY KEY, business_id TEXT NOT NULL, call_id TEXT NOT NULL REFERENCES calls(id), customer_id TEXT NOT NULL, at TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'scheduled', created_at TIMESTAMPTZ NOT NULL DEFAULT now()

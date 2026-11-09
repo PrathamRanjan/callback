@@ -63,7 +63,7 @@ async function brainContext(q: Queryable, call: Call, customer: Customer, turn: 
   const now = await nowOf(q, call.business_id);
   const opts = o ? await optionsFor(q, call.business_id, o) : { balance: 0, plans: [], discounts: [], rules: pol.rules };
   const bal = o ? (o.kind === "class_cancel" ? o.settled_cents : balanceOf(o)) : 0;
-  const due = o?.kind === "deposit" && o.appointment_at ? `on ${fmtLocal(o.appointment_at, customer.tz)}` : o?.kind === "invoice" && o.due_at ? `due ${fmtLocal(o.due_at, customer.tz)}` : o?.appointment_at ? `scheduled ${fmtLocal(o.appointment_at, customer.tz)}` : "";
+  const due = o?.kind === "deposit" && o.appointment_at ? `${o.due_at ? `due ${fmtLocal(o.due_at, customer.tz)}, ` : ""}for your appointment on ${fmtLocal(o.appointment_at, customer.tz)}` : o?.kind === "invoice" && o.due_at ? `due ${fmtLocal(o.due_at, customer.tz)}` : o?.appointment_at ? `scheduled ${fmtLocal(o.appointment_at, customer.tz)}` : "";
   const s = call.state;
   const tone = /warm|friendly|gentle|polite|brief/i.exec(pol.text)?.[0] ?? "warm and brief";
   return {
@@ -231,7 +231,16 @@ export async function endCall(q: Queryable, callId: string, outcome: Outcome | s
   const run = call.run_id ? await resumeRun(call.run_id, q) : null;
   const o = call.obligation_id ? await obligationById(q, call.obligation_id) : null;
   outcome = outcome ?? deriveOutcome(call.state, o);
-  await q.query("UPDATE calls SET status = 'ended', ended_at = now(), outcome = $2, discount_cents = $3 WHERE id = $1", [call.id, outcome, o?.discount_cents ?? 0]);
+  // A discount offered on the call is conditional on paying on the call. If no link, invoice or plan went out, it is withdrawn.
+  let discountCents = o?.discount_cents ?? 0;
+  const s = call.state;
+  if (o && discountCents > 0 && s.discount_pct && !(s.link_sent || s.invoice_sent || s.plan_id)) {
+    await q.query("UPDATE obligations SET discount_cents = 0 WHERE id = $1", [o.id]);
+    await logEvent(q, { businessId: call.business_id, customerId: call.customer_id, callId: call.id, type: "discount.withdrawn", summary: `${s.discount_pct}% discount withdrawn: the call ended without a payment link, invoice or plan`, actor: by });
+    await appendAudit("money.discount_withdrawn", "obligation", o.id, { pct: s.discount_pct, offCents: discountCents, by }, q);
+    discountCents = 0;
+  }
+  await q.query("UPDATE calls SET status = 'ended', ended_at = now(), outcome = $2, discount_cents = $3 WHERE id = $1", [call.id, outcome, discountCents]);
   if (run) {
     await run.step({ actor: "code", tool: "call.end", result: { outcome, turns: call.state.turns ?? 0 } });
     await run.end("done");

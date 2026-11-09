@@ -141,9 +141,15 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect(page.text).toContain("quarantined");
     expect((await owner.post("/demo/persona", { call: callId, persona: "nope" })).location).toMatch(/err=/);
     expect((await anon.post("/demo/persona", { call: callId, persona: "x" })).location).toBe("/login");
-    expect((await anon.post("/demo/reset", { pin: "1" })).location).toMatch(/owner=/);
-    const keys = await anon.get("/demo?owner=a&staff=b");
-    expect(keys.text).toContain("Seeded");
+    // Reset wipes everything, so a stranger is refused; a judge signs in as the owner with one button (demo mode) and may then reset.
+    expect((await anon.post("/demo/reset", { pin: "1" })).location).toMatch(/err=Only/);
+    expect((await anon.post("/demo/signin-as", { role: "staff" })).location).toBe("/calls");
+    const judge = new Client(srv.base);
+    expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
+    expect((await judge.post("/demo/reset", { pin: "1" })).location).toMatch(/ok=Seeded/);
+    const after = await judge.get("/demo");
+    expect(after.text).toContain("Access keys (owner only");
+    expect((await anon.get("/demo")).text).not.toContain("Access keys (owner only");
     const ownerKey = (await world.db.query<{ key_hash: string }>("SELECT key_hash FROM people WHERE role='owner'")).rows[0];
     expect(ownerKey).toBeTruthy();
     expect((await anon.post("/demo/signin", { key: "nope" })).location).toMatch(/err=/);

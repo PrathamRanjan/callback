@@ -52,11 +52,11 @@ export async function recordVoiceEvent(provider: string, callId: string | null, 
 }
 
 /** Places the call. With Twilio: POST /Calls with the TwiML URL. Without: marks it simulated and the UI runs it. */
-export async function placeCall(callId: string, by: string): Promise<{ mode: "phone" | "simulator"; providerCallId: string | null; opening: string }> {
+export async function placeCall(callId: string, by: string, mode: "phone" | "simulator" | null = null): Promise<{ mode: "phone" | "simulator"; providerCallId: string | null; opening: string }> {
   const db = await getDb();
   const call = await callById(db, callId);
   const customer = await customerById(db, call.customer_id);
-  if (!telephonyReady()) {
+  if (!telephonyReady() || mode === "simulator") {
     const r = await startCall(db, callId, "simulator", by);
     return { mode: "simulator", providerCallId: null, opening: r.opening };
   }
