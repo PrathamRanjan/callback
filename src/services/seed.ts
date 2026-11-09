@@ -65,7 +65,10 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   await obl("dev_deposit", "dev", "deposit", "Deposit for telehealth review", 9000, addHours(now, 20), addHours(now, 30));
   await obl("noor_invoice", "noor", "invoice", "Invoice #1055: initial consult", 12500, addDays(now, -10), null);
   await obl("sam_invoice", "sam", "invoice", "Invoice #1039: mat class block", 16000, addDays(now, -40), null);
-  await obl("tom_class", "tom", "class_cancel", "Thursday 6pm reformer cancelled (instructor ill)", 3500, null, addHours(now, 50), "open", { capture_id: null, settled_cents: 3500 });
+  // The class title is written from the class's own time, so the item and the appointment can never disagree.
+  const classAt = addHours(now, 50);
+  const classWhen = new Intl.DateTimeFormat("en-AU", { timeZone: tz, weekday: "long", hour: "numeric", minute: "2-digit", hour12: true }).format(classAt).replace(":00", "").replace(" am", "am").replace(" pm", "pm");
+  await obl("tom_class", "tom", "class_cancel", `${classWhen} reformer class cancelled (instructor ill)`, 3500, null, classAt, "open", { capture_id: null, settled_cents: 3500 });
 
   await seedHistory(bizId, db);
   const policyText = "Call customers between 9am and 6pm, weekdays only, once a day at most. Confirm deposits for tomorrow's appointments and chase invoices more than a week overdue. You may offer up to 10% off to settle an overdue invoice today, or a plan of up to 3 payments with at least $50 per payment. Send links or invoices up to $300 without asking me; refunds up to $100 for cancelled classes. Be warm and brief.";

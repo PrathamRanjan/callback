@@ -153,6 +153,8 @@ export async function obligationsOf(q: Queryable, businessId: string, customerId
 }
 /** What is still owed on an obligation, after discount and anything settled. */
 export const balanceOf = (o: Obligation) => Math.max(0, o.amount_cents - o.discount_cents - o.settled_cents);
+/** A cancelled class the customer already paid for: what the business owes back until it is refunded or credited. */
+export const owedToCustomer = (o: Obligation) => (o.kind === "class_cancel" && !["refunded", "credited", "void"].includes(o.status) ? o.settled_cents : 0);
 
 const call = (r: any): Call => ({ ...r, transcript: j(r.transcript) ?? [], state: j(r.state) ?? {}, attempts: Number(r.attempts), collected_cents: Number(r.collected_cents), discount_cents: Number(r.discount_cents), breaches: Number(r.breaches) });
 export async function callById(q: Queryable, id: string, businessId?: string): Promise<Call> {
