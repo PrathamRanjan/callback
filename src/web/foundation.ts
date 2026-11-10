@@ -30,7 +30,7 @@ import { agentIdOf, serveMcp } from "../mcp/http.js";
 import { balanceOf, callsOf, customerByToken, firstBiz, obligationsOf } from "../store.js";
 import { loadRun, recentRuns, renderTrace, startRun } from "../trace.js";
 import { realtimeReady } from "../voice/realtime.js";
-import { telephonyReady } from "../voice/telephony.js";
+import { telephonyReady, webhookAuthorised } from "../voice/telephony.js";
 import { act, authed, me, ownerOnly, requireOwner } from "./auth.js";
 import { back, flashOf, json, page } from "./common.js";
 import { killBanner } from "./guard.js";
@@ -245,6 +245,10 @@ export function foundationRouter(): Router {
     res.json({ ok: true });
   }));
   r.post("/webhooks/sms", page(async (req, res) => {
+    // Same check as the voice webhooks: a Twilio signature (or the URL secret). Without it anyone could post a fake
+    // "STOP" or a fake owner message here.
+    const url = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    if (!webhookAuthorised(url, req.body ?? {}, req.get("x-twilio-signature") ?? undefined, typeof req.query.s === "string" ? req.query.s : undefined)) return res.status(403).end();
     await smsUpdate(req.body ?? {});
     res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
   }));

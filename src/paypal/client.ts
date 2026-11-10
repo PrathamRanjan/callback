@@ -111,13 +111,13 @@ export class PayPalClient implements PayPalApi {
     return this.call<PPRefund>("GET", `/v2/payments/refunds/${encodeURIComponent(id)}`);
   }
 
-  async createInvoice(input: { recipientEmail: string; amountCents: number; currency: string; description: string; reference: string; dueDays?: number }, requestId: string): Promise<PPInvoice> {
+  async createInvoice(input: { recipientEmail: string; amountCents: number; currency: string; description: string; reference: string; dueDays?: number; businessName?: string }, requestId: string): Promise<PPInvoice> {
     const d = await this.call<Json>(
       "POST",
       "/v2/invoicing/invoices",
       {
-        detail: { currency_code: input.currency, reference: input.reference.slice(0, 120), note: input.description.slice(0, 4000), payment_term: input.dueDays ? { term_type: `NET_${input.dueDays}` } : { term_type: "DUE_ON_RECEIPT" } },
-        invoicer: { business_name: "Callback" },
+        detail: { currency_code: input.currency, reference: input.reference.slice(0, 120), note: input.description.slice(0, 4000), ...invoiceDates(input.dueDays) },
+        invoicer: { business_name: (input.businessName || "Callback").slice(0, 300) },
         primary_recipients: [{ billing_info: { email_address: input.recipientEmail } }],
         items: [{ name: input.description.slice(0, 200), quantity: "1", unit_amount: { currency_code: input.currency, value: toValue(input.amountCents) } }],
       },
@@ -198,7 +198,10 @@ export class PayPalClient implements PayPalApi {
   }
 
   async simulateWebhookEvent(webhookId: string, eventType: string) {
-    const d = await this.call<{ id: string }>("POST", "/v1/notifications/simulate-event", { webhook_id: webhookId, event_type: eventType });
+    // Subscription events only exist in resource version 2.0; without it PayPal answers "Not a valid Resource Type".
+    const body: Record<string, string> = { webhook_id: webhookId, event_type: eventType };
+    if (eventType.startsWith("BILLING.SUBSCRIPTION.")) body.resource_version = "2.0";
+    const d = await this.call<{ id: string }>("POST", "/v1/notifications/simulate-event", body);
     return { id: d.id };
   }
 
@@ -224,6 +227,18 @@ export class PayPalClient implements PayPalApi {
     });
     return d.verification_status === "SUCCESS";
   }
+}
+
+/**
+ * Invoice dates. PayPal only accepts NET_10/15/30/45/60/90 as term types, so any other number of days becomes an
+ * exact due date (DUE_ON_DATE_SPECIFIED). "NET_7" used to be sent and PayPal rejected every invoice as malformed.
+ */
+const NET_TERMS = new Set([10, 15, 30, 45, 60, 90]);
+export function invoiceDates(dueDays?: number, now = new Date()) {
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  if (!dueDays || dueDays <= 0) return { invoice_date: day(now), payment_term: { term_type: "DUE_ON_RECEIPT" } };
+  if (NET_TERMS.has(dueDays)) return { invoice_date: day(now), payment_term: { term_type: `NET_${dueDays}` } };
+  return { invoice_date: day(now), payment_term: { term_type: "DUE_ON_DATE_SPECIFIED", due_date: day(new Date(now.getTime() + dueDays * 86_400_000)) } };
 }
 
 export const WEBHOOK_EVENTS = ["CHECKOUT.ORDER.APPROVED", "PAYMENT.CAPTURE.COMPLETED", "PAYMENT.CAPTURE.DENIED", "PAYMENT.CAPTURE.REFUNDED", "INVOICING.INVOICE.PAID", "INVOICING.INVOICE.CANCELLED", "BILLING.SUBSCRIPTION.ACTIVATED", "BILLING.SUBSCRIPTION.CANCELLED", "BILLING.SUBSCRIPTION.PAYMENT.FAILED", "PAYMENT.SALE.COMPLETED"];

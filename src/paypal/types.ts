@@ -95,7 +95,7 @@ export interface PayPalApi {
   refundCapture(captureId: string, amountCents: number | null, currency: string, note: string, requestId: string): Promise<PPRefund>;
   getRefund(id: string): Promise<PPRefund>;
   /** Invoicing v2 for a balance the customer agreed to pay later. */
-  createInvoice(input: { recipientEmail: string; amountCents: number; currency: string; description: string; reference: string; dueDays?: number }, requestId: string): Promise<PPInvoice>;
+  createInvoice(input: { recipientEmail: string; amountCents: number; currency: string; description: string; reference: string; dueDays?: number; businessName?: string }, requestId: string): Promise<PPInvoice>;
   sendInvoice(invoiceId: string, requestId: string): Promise<void>;
   getInvoice(id: string): Promise<PPInvoice>;
   listInvoices(): Promise<PPInvoice[]>;

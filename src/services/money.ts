@@ -70,7 +70,7 @@ export async function createInvoice(ctx: Ctx, o: Obligation, customer: Customer,
   await ctx.q.query("INSERT INTO invoices (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7)", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
   const pp = paypal();
   try {
-    const inv = await ctx.run.timed({ actor: "paypal", tool: "invoices.create", args: { cents, reference: o.id }, pp_request_id: requestId }, () => pp.createInvoice({ recipientEmail: customer.email || "customer@example.com", amountCents: cents, currency: config.currency, description: o.title, reference: o.id, dueDays }, requestId), (r) => ({ id: r.id, status: r.status }));
+    const inv = await ctx.run.timed({ actor: "paypal", tool: "invoices.create", args: { cents, reference: o.id }, pp_request_id: requestId }, () => pp.createInvoice({ recipientEmail: customer.email || "customer@example.com", amountCents: cents, currency: config.currency, description: o.title, reference: o.id, dueDays, businessName: ctx.businessName }, requestId), (r) => ({ id: r.id, status: r.status }));
     await ctx.run.timed({ actor: "paypal", tool: "invoices.send", args: { id: inv.id }, pp_request_id: requestId + "-send" }, () => pp.sendInvoice(inv.id, requestId + "-send"), () => ({ sent: true }));
     await ctx.q.query("UPDATE invoices SET paypal_invoice_id = $2, href = $3, status = 'sent' WHERE id = $1", [id, inv.id, inv.href ?? null]);
     await ctx.q.query("UPDATE obligations SET paypal_invoice_id = $2, status = 'invoiced' WHERE id = $1", [o.id, inv.id]);

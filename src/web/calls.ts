@@ -7,7 +7,10 @@ import { fmtLocal } from "../core/time.js";
 import { mayContactForReal } from "../config.js";
 import { getDb } from "../db.js";
 import { GtError } from "../lib/util.js";
-import { customerSays, endCall, skipCall, startCall } from "../services/calls.js";
+import { customerSays, endCall, recordLiveSpeech, skipCall, startCall } from "../services/calls.js";
+
+/** OpenAI function-call ids already executed (per call), so a repeated event cannot run a tool twice. */
+const toolCallsSeen = new Set<string>();
 import { optionsFor } from "../services/money.js";
 import { personas } from "../eval/personas.js";
 import { balanceOf, owedToCustomer, callById, callsOf, customerById, customersOf, eventsOf, nowOf, obligationById, obligationsOf } from "../store.js";
@@ -124,20 +127,27 @@ ${opts && (opts.discounts.length || opts.plans.length) ? html`<h3>Offers your po
     await callById(db, req.params.id, p.business_id);
     const name = String(req.body?.name ?? "");
     const args = (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {}) as Record<string, unknown>;
+    // The realtime API reports each function call twice (arguments.done, then output_item.done); a call id runs once.
+    const oaiId = typeof req.body?.call_id === "string" ? `${req.params.id}:${req.body.call_id.slice(0, 100)}` : null;
+    if (oaiId && toolCallsSeen.has(oaiId)) return { ok: true, result: "already done", duplicate: true };
+    if (oaiId) {
+      toolCallsSeen.add(oaiId);
+      if (toolCallsSeen.size > 5000) toolCallsSeen.delete(toolCallsSeen.values().next().value!);
+    }
     const out = await executeRealtimeTool(db, req.params.id, name, args, typeof req.body?.transcript === "string" ? req.body.transcript.slice(0, 1000) : undefined);
     if ("error" in out) return { ok: false, error: out.error };
     return { ok: true, result: out.tool_result ?? "done", gate: out.gate, ended: out.ended, outcome: out.outcome, say: out.say || null };
   }));
   r.post("/calls/:id/speech", json(async (req) => {
-    // The live model's own transcript of what the customer said, recorded as speech (no tool).
+    // The live model's transcript of a line (the customer's or its own), recorded only: the live model acts through
+    // /tool, so the text brain must not make a second decision on the same words.
     const p = await requireOwner(req);
     const db = await getDb();
     const c = await callById(db, req.params.id, p.business_id);
-    if (c.status !== "in_progress") return { ok: false };
     const text = String(req.body?.text ?? "").slice(0, 1000);
     if (!text.trim()) return { ok: false };
-    const out = await customerSays(db, c.id, text, "realtime");
-    return { ok: true, quarantined: out.decision.quarantined, say: out.say, ended: out.ended };
+    const out = await recordLiveSpeech(db, c.id, req.body?.who === "agent" ? "agent" : "customer", text);
+    return { ok: true, quarantined: out.quarantined };
   }));
 
   /* ---------------- Twilio voice webhooks ---------------- */

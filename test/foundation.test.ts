@@ -105,6 +105,16 @@ describe("foundation routes", () => {
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=callback-verify&hub.challenge=abc")).text).toBe("abc");
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong")).status).toBe(403);
     expect((await anon.postJson("/webhooks/whatsapp", { entry: [{ changes: [{ value: { messages: [{ type: "text", from: "61400", text: { body: "hi" } }] } }] }] })).json.ok).toBe(true);
+    // With a Twilio token set, an unsigned SMS webhook is refused; one signed with the token is accepted.
+    const { config } = await import("../src/config.js");
+    const { createHmac } = await import("node:crypto");
+    const prevTok = config.voice.twilioToken;
+    (config.voice as any).twilioToken = "test-token";
+    expect((await anon.req("POST", "/webhooks/sms", { form: { From: "+61 491 570 156", Body: "STOP" } })).status).toBe(403);
+    const form = { From: "+61 491 570 156", Body: "hello" };
+    const sig = createHmac("sha1", "test-token").update(`${srv.base}/webhooks/sms` + Object.keys(form).sort().map((k) => k + (form as any)[k]).join("")).digest("base64");
+    expect((await anon.req("POST", "/webhooks/sms", { form, headers: { "x-twilio-signature": sig } })).status).toBe(200);
+    (config.voice as any).twilioToken = prevTok;
     const sms = await anon.req("POST", "/webhooks/sms", { form: { From: "+61 491 570 006", Body: "STOP" } });
     expect(sms.status).toBe(200);
     const priya = (await world.db.query<{ dnc: boolean }>("SELECT dnc FROM customers WHERE id = $1", [world.seeded.customers.priya.id])).rows[0];

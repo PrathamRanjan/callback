@@ -194,7 +194,7 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
     const name = move.action === "refund" ? "refund" : move.action === "discount" ? "discount" : "charge";
     if (c > limit) {
       checks.push({ name: "autonomy", ok: false, note: `${c} cents is above the owner's ${limit}-cent ${name} limit` });
-      return await hold(`${(c / 100).toFixed(2)} ${move.action} needs the owner (autonomy ${(limit / 100).toFixed(2)}).`, `autonomy.${name}`);
+      return await hold(`over your $${(limit / 100).toFixed(2)} limit for a ${move.action} without asking`, `autonomy.${name}`);
     }
     checks.push({ name: "autonomy", ok: true, note: Number.isFinite(limit) ? `${c} cents is within the ${limit}-cent ${name} limit` : "discounts are bounded by the cap above" });
   } else checks.push({ name: "autonomy", ok: true, note: "a person's own click is their approval" });

@@ -20,7 +20,7 @@ import { register } from "../guard/provenance.js";
 import { newId } from "../lib/ids.js";
 import { GtError } from "../lib/util.js";
 import { balanceOf, bizById, callAttempts, callById, customerById, logEvent, nowOf, obligationById, type Call, type Customer, type Obligation, type Turn } from "../store.js";
-import { resumeRun, startRun, type Run } from "../trace.js";
+import { resumeRun, Run, startRun } from "../trace.js";
 import { applyDiscount, createInvoice, createPlan, optionsFor, sendPayLink, settleCancelledClass, type Ctx } from "./money.js";
 
 const first = (name: string) => name.split(/\s+/)[0].replace(/[(),]/g, "");
@@ -114,10 +114,13 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   const customer = await customerById(q, call.customer_id);
   const run = await resumeRun(call.run_id!, q);
   const qn = quarantine(text);
-  await register(`call:${call.id}`, "speech", text, "obligation", call.obligation_id ?? call.id, q);
-  const transcript: Turn[] = [...call.transcript, { who: "customer", text: text.slice(0, 1000), at: new Date().toISOString(), quarantined: qn.quarantined }];
+  // A live-voice tool call with no words attached: the customer's speech is recorded separately (recordLiveSpeech), so
+  // no placeholder line goes into the transcript or the trace.
+  const silent = Boolean(fm && !fm[4]);
+  if (!silent) await register(`call:${call.id}`, "speech", text, "obligation", call.obligation_id ?? call.id, q);
+  const transcript: Turn[] = silent ? [...call.transcript] : [...call.transcript, { who: "customer", text: text.slice(0, 1000), at: new Date().toISOString(), quarantined: qn.quarantined }];
   const turn = (call.state.turns ?? 0) + 1;
-  await run.step({ actor: "customer", tool: "speech", args: { turn, text: text.slice(0, 300) }, policy: qn.quarantined.length ? "quarantine" : null, gate: "n/a", result: { quarantined: qn.quarantined, money_mentions: qn.money_mentions } });
+  if (!silent) await run.step({ actor: "customer", tool: "speech", args: { turn, text: text.slice(0, 300) }, policy: qn.quarantined.length ? "quarantine" : null, gate: "n/a", result: { quarantined: qn.quarantined, money_mentions: qn.money_mentions } });
   if (qn.quarantined.length) await logEvent(q, { businessId: call.business_id, customerId: customer.id, callId: call.id, type: "speech.quarantined", summary: `Instruction-shaped line quarantined: "${qn.quarantined[0].slice(0, 80)}"`, actor: "guard" });
 
   const ctx = await brainContext(q, call, customer, turn, transcript);
@@ -204,7 +207,8 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     } else {
       gate = "denied";
       toolResult = `PayPal error: ${(e as Error).message.slice(0, 120)}`;
-      say = "PayPal is slow to respond just now; nothing has been charged. I'll have the office send the link shortly.";
+      const what = d.tool === "create_invoice" ? "the invoice" : d.tool === "create_plan" ? "the payment plan" : d.tool === "settle_refund" ? "the refund" : "the payment link";
+      say = `I couldn't set up ${what} with PayPal just now, and nothing has been charged. The office will follow up with you today.`;
       await run.step({ actor: "paypal", tool: "error", result: { error: (e as Error).message.slice(0, 300) } });
     }
   }
@@ -221,6 +225,38 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     await endCall(q, call.id, finalOutcome(outcome ?? null, deriveOutcome(state, o, gate === "held" ? 1 : 0), turn >= 14), by);
   }
   return { say, tool: d.tool, tool_result: toolResult, ended: ended || turn >= 14, outcome, decision: d, gate };
+}
+
+/**
+ * Live voice: a line the realtime model transcribed, recorded on the call without running the turn brain. The live
+ * model already decides and acts through function calls (POST /calls/:id/tool); running the text brain on the same
+ * words as well made a second, independent decision, and on 10 Nov 2026 it sent a duplicate pay link and answered
+ * background noise in Chinese. Customer lines are quarantined like typed ones; agent lines get the same safety check.
+ */
+export async function recordLiveSpeech(q: Queryable, callId: string, who: "customer" | "agent", rawText: string): Promise<{ quarantined: string[] }> {
+  const call = await callById(q, callId);
+  // Transcription lands a second or two after the words, so the last line often arrives just after the model's
+  // end_call: a call that ended in the last minute still takes it.
+  const justEnded = call.status === "ended" && call.ended_at && Date.now() - new Date(call.ended_at).getTime() < 60_000;
+  if (call.status !== "in_progress" && !justEnded) throw new GtError(`Call is ${call.status}.`, "bad_state");
+  const text = rawText.slice(0, 1000);
+  // A late line is added to the finished run without reopening it.
+  const run = justEnded ? new Run(call.run_id!, q) : await resumeRun(call.run_id!, q);
+  if (who === "customer") {
+    const qn = quarantine(text);
+    await register(`call:${call.id}`, "speech", text, "obligation", call.obligation_id ?? call.id, q);
+    await run.step({ actor: "customer", tool: "speech", args: { turn: call.state.turns ?? 0, text: text.slice(0, 300), live: true }, policy: qn.quarantined.length ? "quarantine" : null, gate: "n/a", result: { quarantined: qn.quarantined } });
+    if (qn.quarantined.length) await logEvent(q, { businessId: call.business_id, customerId: call.customer_id, callId: call.id, type: "speech.quarantined", summary: `Instruction-shaped line quarantined: "${qn.quarantined[0].slice(0, 80)}"`, actor: "guard" });
+    await q.query("UPDATE calls SET transcript = $2 WHERE id = $1", [call.id, JSON.stringify([...call.transcript, { who: "customer", text, at: new Date().toISOString(), quarantined: qn.quarantined }])]);
+    return { quarantined: qn.quarantined };
+  }
+  const unsafe = agentLineUnsafe(text);
+  if (unsafe.unsafe) {
+    await run.step({ actor: "guard", tool: "safety.agent_line", args: { why: unsafe.why, live: true }, gate: "denied", result: { flagged: true } });
+    await q.query("UPDATE calls SET breaches = breaches + 1 WHERE id = $1", [call.id]);
+  }
+  await q.query("UPDATE calls SET transcript = $2 WHERE id = $1", [call.id, JSON.stringify([...call.transcript, { who: "agent", text, at: new Date().toISOString(), tool: null }])]);
+  return { quarantined: [] };
 }
 
 /**

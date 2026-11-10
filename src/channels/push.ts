@@ -22,14 +22,28 @@ export async function pushTo(party: Party, partyId: string, payload: { title: st
 export async function sendPush(subscriptionId: string, payload: { title: string; body: string; url?: string }) {
   if (!pushReady()) return;
   const db = await getDb();
-  const row = (await db.query<{ subscription: any }>("SELECT subscription FROM push_subscriptions WHERE id = $1", [subscriptionId])).rows[0];
+  const row = (await db.query<{ subscription: any; party: string; party_id: string }>("SELECT subscription, party, party_id FROM push_subscriptions WHERE id = $1", [subscriptionId])).rows[0];
   if (!row) return;
-  const webpush = await import("web-push");
-  webpush.default.setVapidDetails(`mailto:ops@${new URL(config.appUrl).hostname}`, config.channels.vapidPublic, config.channels.vapidPrivate);
+  // Every send leaves a row saying what the push service answered: a silently removed subscription looked "done"
+  // on 10 Nov 2026 while nothing was delivered.
+  const note = (status: string, body: string) =>
+    db.query("INSERT INTO channel_messages (id, channel, direction, address, body, status) VALUES ($1,'push','out',$2,$3,$4)", [newId("msg"), `${row.party}:${row.party_id}`, body.slice(0, 300), status]);
+  const sub = typeof row.subscription === "string" ? JSON.parse(row.subscription) : row.subscription;
+  // web-push is CommonJS: depending on the loader its functions sit on the namespace or on .default. Reading only
+  // .default crashed every send ("reading 'setVapidDetails'"), so no push ever went out before 10 Nov 2026.
+  const mod: any = await import("web-push");
+  const webpush = mod.default?.sendNotification ? mod.default : mod;
+  webpush.setVapidDetails(`mailto:ops@${new URL(config.appUrl).hostname}`, config.channels.vapidPublic, config.channels.vapidPrivate);
   try {
-    await webpush.default.sendNotification(row.subscription, JSON.stringify(payload));
+    const res = await webpush.sendNotification(sub, JSON.stringify(payload));
+    await note("sent", `Delivered to the push service (${res?.statusCode ?? "ok"}): ${payload.title}: ${payload.body}`);
   } catch (e: any) {
-    if (e?.statusCode === 404 || e?.statusCode === 410) await db.query("DELETE FROM push_subscriptions WHERE id = $1", [subscriptionId]);
-    else throw e;
+    if (e?.statusCode === 404 || e?.statusCode === 410) {
+      await db.query("DELETE FROM push_subscriptions WHERE id = $1", [subscriptionId]);
+      await note("failed", `This device's alert subscription has expired (${e.statusCode}) and was removed. Turn alerts on again on that device.`);
+    } else {
+      await note("failed", `Push service refused (${e?.statusCode ?? "error"}): ${String(e?.body ?? e?.message ?? "").slice(0, 160)}`);
+      throw e;
+    }
   }
 }

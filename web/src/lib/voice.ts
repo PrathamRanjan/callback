@@ -11,6 +11,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
   const [note, setNote] = useState("");
   const pc = useRef<RTCPeerConnection | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const handled = useRef(new Set<string>());
 
   const stop = () => {
     pc.current?.getSenders().forEach((s) => s.track?.stop());
@@ -49,8 +50,14 @@ export function useLiveVoice(callId: string, onChange: () => void) {
         if (msg.type === "conversation.item.input_audio_transcription.completed" && msg.transcript) {
           void postJson(`/calls/${callId}/speech`, { text: msg.transcript }).then(onChange).catch(() => {});
         }
+        if ((msg.type === "response.output_audio_transcript.done" || msg.type === "response.audio_transcript.done") && msg.transcript) {
+          void postJson(`/calls/${callId}/speech`, { who: "agent", text: msg.transcript }).then(onChange).catch(() => {});
+        }
         if (msg.type === "response.function_call_arguments.done" || (msg.type === "response.output_item.done" && msg.item?.type === "function_call")) {
           const item = msg.item ?? msg;
+          // Each function call arrives twice (arguments.done, then output_item.done): run it once.
+          if (!item.call_id || handled.current.has(item.call_id)) return;
+          handled.current.add(item.call_id);
           let args = {};
           try {
             args = JSON.parse(item.arguments || "{}");
@@ -58,7 +65,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
             /* empty args */
           }
           setNote(`Checking with the money gate: ${item.name}`);
-          const out = await postJson<{ ended?: boolean }>(`/calls/${callId}/tool`, { name: item.name, arguments: args }).catch((e) => ({ ok: false, error: (e as Error).message }) as any);
+          const out = await postJson<{ ended?: boolean }>(`/calls/${callId}/tool`, { name: item.name, arguments: args, call_id: item.call_id }).catch((e) => ({ ok: false, error: (e as Error).message }) as any);
           dc.send(JSON.stringify({ type: "conversation.item.create", item: { type: "function_call_output", call_id: item.call_id, output: JSON.stringify(out) } }));
           dc.send(JSON.stringify({ type: "response.create" }));
           onChange();
@@ -68,7 +75,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
       dc.onopen = () => {
         setState("on");
         setNote("Connected. Speak as the customer.");
-        dc.send(JSON.stringify({ type: "session.update", session: { type: "realtime", audio: { input: { transcription: { model: "gpt-4o-mini-transcribe" } } } } }));
+        dc.send(JSON.stringify({ type: "session.update", session: { type: "realtime", audio: { input: { transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } } } }));
         dc.send(JSON.stringify({ type: "response.create" }));
       };
       const offer = await conn.createOffer();

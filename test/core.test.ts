@@ -175,3 +175,13 @@ describe("call outcome", () => {
     expect(finalOutcome("declined", "declined")).toBe("declined");
   });
 });
+
+describe("PayPal invoice dates", () => {
+  it("only sends term types PayPal accepts; other day counts become an exact due date", async () => {
+    const { invoiceDates } = await import("../src/paypal/client.js");
+    const now = new Date("2026-11-10T03:00:00Z");
+    expect(invoiceDates(7, now)).toEqual({ invoice_date: "2026-11-10", payment_term: { term_type: "DUE_ON_DATE_SPECIFIED", due_date: "2026-11-17" } });
+    expect(invoiceDates(30, now).payment_term).toEqual({ term_type: "NET_30" });
+    expect(invoiceDates(undefined, now).payment_term).toEqual({ term_type: "DUE_ON_RECEIPT" });
+  });
+});

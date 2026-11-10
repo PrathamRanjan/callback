@@ -9,6 +9,7 @@
   const callId = btn.dataset.call;
   const say = (t) => { if (status) status.textContent = t; };
   let pc = null, dc = null;
+  const handled = new Set();
   btn.addEventListener("click", async () => {
     if (pc) { pc.close(); pc = null; btn.textContent = "Start live voice"; say("stopped"); location.reload(); return; }
     try {
@@ -25,18 +26,24 @@
         if (msg.type === "conversation.item.input_audio_transcription.completed" && msg.transcript) {
           fetch(`/calls/${callId}/speech`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ text: msg.transcript }) }).catch(() => {});
         }
+        if ((msg.type === "response.output_audio_transcript.done" || msg.type === "response.audio_transcript.done") && msg.transcript) {
+          fetch(`/calls/${callId}/speech`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ who: "agent", text: msg.transcript }) }).catch(() => {});
+        }
         if (msg.type === "response.function_call_arguments.done" || msg.type === "response.output_item.done" && msg.item && msg.item.type === "function_call") {
           const item = msg.item || msg;
           const name = item.name; const callIdOai = item.call_id;
+          // Each function call arrives twice (arguments.done, then output_item.done): run it once.
+          if (!callIdOai || handled.has(callIdOai)) return;
+          handled.add(callIdOai);
           let args = {}; try { args = JSON.parse(item.arguments || "{}"); } catch {}
           say(`tool: ${name}`);
-          const out = await fetch(`/calls/${callId}/tool`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ name, arguments: args }) }).then((r) => r.json());
+          const out = await fetch(`/calls/${callId}/tool`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ name, arguments: args, call_id: callIdOai }) }).then((r) => r.json());
           dc.send(JSON.stringify({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callIdOai, output: JSON.stringify(out) } }));
           dc.send(JSON.stringify({ type: "response.create" }));
           if (out.ended) setTimeout(() => location.reload(), 2500);
         }
       };
-      dc.onopen = () => { say("connected: speak"); dc.send(JSON.stringify({ type: "session.update", session: { type: "realtime", audio: { input: { transcription: { model: "gpt-4o-mini-transcribe" } } } } })); dc.send(JSON.stringify({ type: "response.create" })); };
+      dc.onopen = () => { say("connected: speak"); dc.send(JSON.stringify({ type: "session.update", session: { type: "realtime", audio: { input: { transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } } } })); dc.send(JSON.stringify({ type: "response.create" })); };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       const sdp = await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(s.model)}`, { method: "POST", headers: { Authorization: `Bearer ${s.client_secret}`, "content-type": "application/sdp" }, body: offer.sdp });
