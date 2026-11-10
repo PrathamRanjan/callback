@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BellRing, Send } from "lucide-react";
+import { Bell, BellRing, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,29 @@ export default function MessagesPage() {
           <p className="flex-1 text-sm text-ink-2">Opens Telegram with a one-time code that expires in 15 minutes. Text messages {i?.sms ? "go out through Twilio" : "are shown here as previews (no SMS number connected)"}.</p>
           <ActButton path="/connect/telegram" icon={<BellRing />}>{d.telegram_linked ? "Connect another chat" : "Connect Telegram"}</ActButton>
         </Panel>
+        {i?.push ? (
+          <Panel className="mt-3 flex flex-col gap-3 p-4 md:flex-row md:items-center">
+            <p className="flex-1 text-sm text-ink-2">Or get a pop-up on this phone or computer when Callback holds a decision for you. No app to install.</p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const { enablePush } = await import("@/lib/push");
+                  toast.success(await enablePush());
+                } catch (x) {
+                  toast.error((x as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Bell /> Alerts on this device
+            </Button>
+          </Panel>
+        ) : null}
       </Section>
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <Section id="threads" title="Conversations">

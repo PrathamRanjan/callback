@@ -98,6 +98,8 @@ describe("foundation routes", () => {
     expect(apr).toBeTruthy();
     const note = (await world.db.query<{ id: string; body: string }>("SELECT id, body FROM channel_messages WHERE channel = 'telegram' AND address = '4242' AND entity_id = $1", [apr.id])).rows[0];
     expect(note.body).toMatch(/held a \w+ of \$420\.00/);
+    // The same hold also goes out as a web push to the owner (recorded as simulated here: no VAPID keys in tests).
+    expect((await world.db.query("SELECT 1 FROM channel_messages WHERE channel = 'push' AND address = $1 AND body LIKE '%$420.00%'", [`owner:${world.seeded.business.id}`])).rows).toHaveLength(1);
     await anon.postJson("/webhooks/telegram", { callback_query: { id: "q1", data: `${note.id}:approve:${apr.id}`, message: { chat: { id: 4242 } } } });
     expect((await world.db.query<{ status: string }>("SELECT status FROM approvals WHERE id = $1", [apr.id])).rows[0].status).toBe("approved");
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=callback-verify&hub.challenge=abc")).text).toBe("abc");

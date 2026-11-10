@@ -9,6 +9,7 @@ import type { Queryable } from "../db.js";
 import { getDb } from "../db.js";
 import { enqueue } from "../jobs.js";
 import { newId } from "../lib/ids.js";
+import { pushTo } from "./push.js";
 
 export type Party = "customer" | "owner";
 export type Channel = "sms" | "telegram" | "whatsapp" | "simulator";
@@ -42,6 +43,8 @@ export async function notifyParty(party: Party, partyId: string, body: string, b
   const targets = links.length ? links : [{ channel: "simulator" as Channel, address: `${party}:${partyId}` }];
   if (links.length && !links.some((l) => l.channel === "simulator")) targets.push({ channel: "simulator", address: `${party}:${partyId}` });
   for (const t of targets) await send({ channel: t.channel, address: t.address, body, buttons, entity, entityId }, db);
+  // The owner also gets a push on any device where they turned on alerts (Messages > Alerts on this device).
+  if (party === "owner") await pushTo("owner", partyId, { title: "Callback", body, url: entity === "approval" ? "/approvals" : "/today" }, db);
 }
 
 /** The pay link a customer gets mid-call: by SMS to their phone when Twilio is set, always mirrored to the simulator. */

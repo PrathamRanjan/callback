@@ -116,8 +116,20 @@ Against a typical hackathon field, Callback's edge is the money safety layer and
 2. Keep the Render service warm (or upgrade it) during judging, and set `CB_LIVE_CONTACT_ALLOWLIST` to the presenter's own phone so the "Ring their phone" path can be shown live.
 3. Add a refund and an instalment plan to the Judge tour, and verify live voice and Telegram once on the deployed site.
 
+## Follow-up, 10 Nov afternoon (commit `839b19a` and the next one)
+
+- **Telegram Approve and Decline buttons were broken.** The button data was split at every colon, so the approval id never reached the gate and a tap decided nothing. Fixed, and covered by a regression test that fails on the old code. The router now also answers every button press, so the phone's spinner stops.
+- **Telegram set-up checked on the live app:** the bot, the token, the webhook secret, and the webhook pointing at the live app with no delivery errors. The one remaining step is a real chat, which needs a person to press Start (`docs/TEST_CHECKLIST.md` item 1).
+- **Web push was half-built.** Nothing sent a push, and the new UI had no way to turn it on. Holds now push to the owner, and **Messages → Alerts on this device** subscribes the device.
+- **Customer page: split a bill.** Open invoices offer the plans the owner's rules allow. Choosing one creates a PayPal billing plan and subscription, then opens PayPal to approve it.
+- **Judge tour is now 14 steps:** pay, cancel the booking, refund that payment through PayPal, then set up a plan.
+- **Sandbox proof (local, real PayPal sandbox):**
+  - refund `4Y339503653735331` for $60.00 is COMPLETED, and capture `9HR66219YR4887257` now reads REFUNDED at PayPal;
+  - plan `P-5K975098DD823205ENLZIG5Q` (2 payments of $62.50, every two weeks) and subscription `I-MW0634LRCNRE` (APPROVAL_PENDING, waiting for the buyer).
+- **Tests:** vitest 79/79, local browser journeys 10/10, live journeys 5/5.
+
 ## Not done
 
-- **`CB_LIVE_CONTACT_ALLOWLIST`** was not set on Render. It decides which real number the demo may call or text, and that's the owner's call to make.
-- **Live voice and Telegram** were not tested.
+- **`CB_LIVE_CONTACT_ALLOWLIST`** is not set on Render. It needs the phone number to call, which only the owner can give.
+- **Steps that need a person:** a real Telegram chat, live microphone voice, a browser push pop-up, and approving the plan as the sandbox buyer. Steps are in `docs/TEST_CHECKLIST.md`.
 - **No Magic UI or Aceternity components** were used (see the design brief for why).
