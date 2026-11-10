@@ -87,6 +87,19 @@ describe("foundation routes", () => {
     const tg = await anon.postJson("/webhooks/telegram", { message: { chat: { id: 42 }, text: "hello" } });
     expect(tg.json.ok).toBe(true);
     expect((await anon.postJson("/webhooks/telegram", { callback_query: { data: "m1:approve:nope", message: { chat: { id: 42 } } } })).json.ok).toBe(true);
+    // The owner's Approve button on Telegram really decides the hold. Its data is "<message id>:approve:<approval id>".
+    const code = decodeURIComponent((await owner.post("/connect/telegram")).location ?? "").split("start=callback-")[1];
+    await anon.postJson("/webhooks/telegram", { message: { chat: { id: 4242 }, text: `/start callback-${code}` } });
+    expect((await world.db.query("SELECT 1 FROM party_links WHERE channel = 'telegram' AND address = '4242' AND party = 'owner'")).rows).toHaveLength(1);
+    const held = await callFor(world.db, world.seeded.obligations.harbour_invoice);
+    await owner.post(`/calls/${held}/place`);
+    await owner.post(`/calls/${held}/say`, { text: "Sure, text me the link" });
+    const apr = (await world.db.query<{ id: string }>("SELECT id FROM approvals WHERE status = 'pending' ORDER BY created_at DESC LIMIT 1")).rows[0];
+    expect(apr).toBeTruthy();
+    const note = (await world.db.query<{ id: string; body: string }>("SELECT id, body FROM channel_messages WHERE channel = 'telegram' AND address = '4242' AND entity_id = $1", [apr.id])).rows[0];
+    expect(note.body).toMatch(/held a \w+ of \$420\.00/);
+    await anon.postJson("/webhooks/telegram", { callback_query: { id: "q1", data: `${note.id}:approve:${apr.id}`, message: { chat: { id: 4242 } } } });
+    expect((await world.db.query<{ status: string }>("SELECT status FROM approvals WHERE id = $1", [apr.id])).rows[0].status).toBe("approved");
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=callback-verify&hub.challenge=abc")).text).toBe("abc");
     expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong")).status).toBe(403);
     expect((await anon.postJson("/webhooks/whatsapp", { entry: [{ changes: [{ value: { messages: [{ type: "text", from: "61400", text: { body: "hi" } }] } }] }] })).json.ok).toBe(true);

@@ -90,6 +90,8 @@ export async function routeTelegram(update: any, local: (u: any) => Promise<unkn
     if (!start[2]) await tg("sendMessage", { chat_id: chatId, text: `Connected to ${TG_APPS[app]}. ${HINT[app]}` });
     return app;
   }
+  // Any other button press: stop the spinner on the user's phone straight away, whichever app handles it.
+  if (cb?.id) await tg("answerCallbackQuery", { callback_query_id: cb.id });
   const app = await routeOf(chatId);
   if (!app) {
     await menu(chatId, "Hi! This bot serves eight PayPal hackathon apps. Which one are you using?");

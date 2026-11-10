@@ -50,7 +50,7 @@ function NewCharge({ id, onDone }: { id: string; onDone: () => void }) {
 function CancelBooking({ item, onDone }: { item: Item; onDone: () => void }) {
   return (
     <ActionDialog
-      trigger={<Button variant="outline" size="sm"><Ban /> Cancel booking</Button>}
+      trigger={<Button variant="outline" size="sm" data-tour="cancel-booking"><Ban /> Cancel booking</Button>}
       title={`Cancel ${item.title}?`}
       description={`Callback will call to offer a ${money(item.settled_cents)} refund${item.captured ? " back to their PayPal" : " (paid outside PayPal, so you pay it back by hand)"} or a class credit. Refunds wait for your approval if they're over your limit.`}
       path={`/obligations/${item.id}/cancel`}

@@ -207,7 +207,7 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
     const hash = payloadHash(move);
     await db.query("INSERT INTO approvals (id, action, payload_hash, payload, status) VALUES ($1,$2,$3,$4,'pending')", [id, move.action, hash, JSON.stringify({ ...move, reason, ...(safety && safety.level !== "clear" ? { safety_rule: safety.rule, safety_reasons: safety.reasons, safety_risk: safety.risk } : {}) })]);
     await appendAudit("approval.requested", "approval", id, { action: move.action, cents: move.cents ?? null, entity: move.entity, entityId: move.entityId, hash });
-    await notifyParty("owner", move.businessId, `Callback held a ${move.action} of ${((move.cents ?? 0) / 100).toFixed(2)} (${reason}). Approve or decline.`, [{ id: `approve:${id}`, label: "Approve" }, { id: `decline:${id}`, label: "Decline" }], "approval", id, db);
+    await notifyParty("owner", move.businessId, `Callback held a ${move.action} of $${((move.cents ?? 0) / 100).toFixed(2)} (${reason}). Approve or decline.`, [{ id: `approve:${id}`, label: "Approve" }, { id: `decline:${id}`, label: "Decline" }], "approval", id, db);
     return { decision: "held", reason, policy, approvalId: id, checks };
   }
 }

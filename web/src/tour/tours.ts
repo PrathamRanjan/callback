@@ -38,6 +38,34 @@ async function customerPage(): Promise<string | null> {
   return portal;
 }
 
+/** The owner's page for the customer whose call the tour uses, where a paid booking can be cancelled. */
+async function paidCustomer(): Promise<string | null> {
+  const call = await readyCall();
+  if (!call || call === "/calls") return "/customers";
+  try {
+    const d = await getJson<{ customer: { id: string } | null }>(`/api/app${call}`);
+    return d.customer ? `/customers/${d.customer.id}` : "/customers";
+  } catch {
+    return "/customers";
+  }
+}
+
+/** A customer page with an open invoice small enough to split under the rules (the smallest such one). */
+let planPage: string | null = null;
+async function planPortal(): Promise<string | null> {
+  if (planPage) return planPage;
+  try {
+    const list = await getJson<{ id: string; owed_cents: number }[]>("/api/app/customers");
+    for (const c of list.filter((x) => x.owed_cents >= 10000).sort((a, b) => a.owed_cents - b.owed_cents)) {
+      const d = await getJson<{ customer: { link: string | null }; items: { kind: string; status: string }[] }>(`/api/app/customers/${c.id}`);
+      if (d.customer.link && d.items.some((i) => i.kind === "invoice" && i.status === "open")) return (planPage = d.customer.link);
+    }
+  } catch {
+    /* fall through to the centred card */
+  }
+  return null;
+}
+
 const TOURS: Record<TourKind, Step[]> = {
   owner: [
     { path: "/today", title: "This is your switchboard", body: "Callback makes the awkward money calls for you: deposits before bookings, overdue invoices, refunds for classes you had to cancel. Each lamp is one customer." },
@@ -58,16 +86,18 @@ const TOURS: Record<TourKind, Step[]> = {
     { path: "/calls", el: "take-tour", title: "Replay any time", body: "This button starts the tour again." },
   ],
   judge: [
-    { path: "/today", title: "Judge mode: three minutes", body: "Callback is an AI agent that phones a small studio's customers about money and settles it through PayPal. The AI talks; ordinary code decides what money may move; PayPal moves it. This tour walks every part, including a live PayPal sandbox payment." },
+    { path: "/today", title: "Judge mode: four minutes", body: "Callback is an AI agent that phones a small studio's customers about money and settles it through PayPal. The AI talks; ordinary code decides what money may move; PayPal moves it. This tour walks every part on the PayPal sandbox: a payment, a refund of that same payment, and a payment plan." },
     { path: "/today", el: "today-kpis", title: "One morning at the demo studio", body: "Seeded demo data for a small physio and Pilates studio. The owed total is the sum of open records; nothing here is a model guess." },
     { path: "/today", el: "today-ready", title: "The planner decides who to call", body: "Before any AI is involved, rules pick the calls: consent on file, inside calling hours in the customer's time zone, one try a day, never someone who said stop. Blocked rows name the rule." },
     { path: readyCall, el: "call-score", title: "The three-lane call score", body: "Voice: what was said. Rules: each check the gate ran. Money: each PayPal step. Read across a row and you see one moment of the call in all three." },
     { path: readyCall, el: "call-sim", title: "Play the customer", body: "Start the call, then type what the customer says, or play a scripted persona. The model proposes the next line; a strict schema keeps money out of its hands." },
     { path: readyCall, el: "money-lane", title: "Live: a PayPal sandbox payment", body: "When the customer agrees, the gate checks the amount against the record and your limits, then creates a real PayPal sandbox order. Open the pay link in the Money lane and pay as the sandbox test buyer; the read-back marks it paid." },
+    { path: paidCustomer, el: "cancel-booking", title: "Now the studio cancels", body: "Once the deposit shows paid, tap Cancel booking and give a reason. Callback records the money owed back, tied to the same PayPal payment, and the reason is the only one the agent may give. If you skipped the payment, the button appears once it's paid." },
+    { path: customerPage, el: "portal-refund", title: "Live: a PayPal refund", body: "This is the customer's own page, from the link in their text: what they owe, what they're owed, a call-back time and a one-tap stop. Tap Refund and PayPal's Refunds API sends the money back to the payment it came from. It's under the studio's $100 refund limit, so it runs without asking." },
+    { path: planPortal, el: "portal-plan", title: "Live: a payment plan", body: "A bigger bill can be split. The choices come from the studio's rules (up to 3 payments, at least $50 each), never from the AI. Pick one and Callback creates a PayPal billing plan and subscription; PayPal opens so the sandbox buyer can approve it." },
     { path: "/approvals", el: "approvals", title: "When it isn't sure, it asks", body: "Anything over your limits waits here: the amount, the customer, the reason and how to undo it. Over $200 needs a passkey countersign once one is registered." },
     { path: "/safety", el: "scam-scan", title: "Scam guard", body: "Paste a message pretending to be the studio. Rules and an on-device model flag pressure tactics, and Callback's own calls give a code the customer can check." },
     { path: "/rules", el: "policy", title: "Rules in plain English", body: "Write how you want calls handled. It compiles into checks, refuses anything unsafe, and replays your history to show what would change." },
-    { path: customerPage, el: "portal", title: "The customer's side", body: "What the customer sees from the link in their text: what they owe, a PayPal button, a call-back time, and a one-tap stop. No other customer's data, no owner notes." },
     { path: "/proof", el: "proof", title: "Proof, not claims", body: "Persona and attack evals, the trace of every tool call with PayPal debug ids, and a hash-chained audit log you can verify." },
     { path: "/proof", title: "That's Callback", body: "The front desk persona (Jordan) sees calls but never money: try it from Demo controls. Reset the demo from the ribbon at the top any time." },
   ],

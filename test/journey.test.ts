@@ -157,6 +157,18 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await anon.post(`/c/${tomTok}/settle/nope`, { choice: "credit" })).status).toBe(404);
     expect((await anon.post(`/c/${tok}/callback`, { at: slot })).location).toMatch(/err=/);
     expect((await anon.get("/c/nope")).status).toBe(404);
+    // Lena splits her $180 invoice into a plan her studio's rules allow; it creates a PayPal plan and subscription.
+    const lenaTok = world.seeded.customers.lena.token;
+    const lenaInv = world.seeded.obligations.lena_invoice;
+    const lenaItem = (await anon.get(`/api/app/c/${lenaTok}`)).json.open.find((o: any) => o.id === lenaInv); const plans = lenaItem.plans;
+    expect(plans.map((p: any) => p.id)).toEqual(["plan2", "plan3"]);
+    expect((await anon.post(`/c/${lenaTok}/plan/${lenaInv}`, { option: "plan9" })).location).toMatch(/err=/);
+    const made = await anon.post(`/c/${lenaTok}/plan/${lenaInv}`, { option: "plan3" });
+    expect(made.location ?? "").toMatch(/ok=|paypal/);
+    expect((await world.db.query<{ status: string }>("SELECT status FROM obligations WHERE id = $1", [lenaInv])).rows[0].status).toBe("planned");
+    expect((await world.db.query("SELECT 1 FROM instalment_plans WHERE obligation_id = $1 AND subscription_id IS NOT NULL", [lenaInv])).rows).toHaveLength(1);
+    expect((await anon.post(`/c/${lenaTok}/plan/${lenaInv}`, { option: "plan3" })).location).toMatch(/err=/);
+    expect((await anon.post(`/c/${tomTok}/plan/${world.seeded.obligations.tom_class}`, { option: "plan2" })).status).toBe(404);
   });
   it("demo controls and persona run", async () => {
     expect((await anon.get("/demo")).status).toBe(200);

@@ -25,7 +25,7 @@ export function installChannelHandlers() {
       const token = typed?.[1].toLowerCase() === "customer" ? typed[2] : code.startsWith("cbt_") ? code : null;
       if (token) {
         const c = await customerByToken(db, token).catch(() => null);
-        if (!c) return "That link has expired. Open your page from Brightside again and tap “Get updates on Telegram”.";
+        if (!c) return "That link has expired. Open your account page from the text we sent and tap “Get updates on Telegram”.";
         await link(m.channel, m.address, "customer", c.token);
         return `Hi ${c.name.split(" ")[0]}, you're connected. Send “status” any time. We'll never ask for a card number, a password or a code here.`;
       }
@@ -73,7 +73,7 @@ export function installChannelHandlers() {
       }
       if (m.party?.party === "owner" && /pending|holds?|approvals?/i.test(text)) {
         const n = (await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1)", [m.party.party_id])).rows[0].n;
-        return `${n} pending approval${n === "1" ? "" : "s"}. Open the Guard page or reply "approve <id>".`;
+        return `${n} pending approval${n === "1" ? "" : "s"}. Open Needs you in Callback, or reply "approve <id>".`;
       }
     }
     // Customer status by token-linked address.

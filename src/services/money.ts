@@ -103,6 +103,9 @@ export async function applyDiscount(ctx: Ctx, o: Obligation, stepId: string): Pr
   return { pct: step.pct, offCents: step.off_cents, newBalance: step.pay_cents };
 }
 
+/** Invoice states a customer may still split into a plan: nothing paid, no PayPal invoice or plan outstanding. */
+export const SPLITTABLE = new Set(["open", "link_sent"]);
+
 /** Instalment plan: product + plan + subscription with a fixed cycle count; the customer approves from a link. */
 export async function createPlan(ctx: Ctx, o: Obligation, customer: Customer, optionId: string): Promise<{ planRowId: string; approveUrl: string | null; option: InstalmentOption }> {
   const { plans, balance } = await optionsFor(ctx.q, ctx.businessId, o);

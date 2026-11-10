@@ -25,7 +25,7 @@ import { hasPasskey } from "../guard/passkey.js";
 import { activePolicy, compilePolicy, listPolicies } from "../guard/policy.js";
 import { FAULTABLE, paypal, paypalConfigured, WEBHOOK_EVENTS } from "../paypal/index.js";
 import { assessMessage, protectedMode, safetyHolds } from "../safety/index.js";
-import { optionsFor } from "../services/money.js";
+import { optionsFor, SPLITTABLE } from "../services/money.js";
 import { candidates } from "../services/planner.js";
 import { balanceOf, bizById, callById, callsOf, customerById, customerByToken, customersOf, eventsOf, firstBiz, nowOf, obligationById, obligationsOf, owedToCustomer, type Obligation } from "../store.js";
 import { loadRun, recentRuns } from "../trace.js";
@@ -367,10 +367,13 @@ export function apiRouter(): Router {
     const pol = await activePolicy(c.business_id, db);
     const lastCall = (await callsOf(db, c.business_id, { customerId: c.id, limit: 1 }))[0];
     const msgs = (await db.query<any>("SELECT body, channel, created_at FROM channel_messages WHERE address = $1 AND direction = 'out' ORDER BY created_at DESC LIMIT 6", [`customer:${c.token}`])).rows;
+    // Payment plans the owner's rules allow for each open invoice. The numbers come from the rules, never typed in.
+    const plans = new Map<string, { id: string; label: string }[]>();
+    for (const o of obls.filter(OPEN)) if (o.kind === "invoice" && SPLITTABLE.has(o.status)) plans.set(o.id, (await optionsFor(db, c.business_id, o)).plans.map((p) => ({ id: p.id, label: p.label })));
     return {
       business: { name: biz.name }, first_name: c.name.split(" ")[0], tz: c.tz,
       verify_code: (lastCall?.state as any)?.verify_code ?? null, last_call_at: lastCall?.started_at ?? null,
-      open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id) })),
+      open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id), plans: plans.get(o.id) ?? [] })),
       settled: obls.filter((o) => !OPEN(o)).map((o) => ({ id: o.id, title: o.title, status: o.status, cents: o.settled_cents })),
       messages: msgs,
       calls: { dnc: c.dnc, consent: c.consent ? { granted_on: c.consent.granted_at.slice(0, 10), revoked: Boolean(c.consent.revoked_at) } : null, hours: pol.rules.hours, slots: !c.dnc && c.consent && !c.consent.revoked_at ? callbackSlots(await nowOf(db, c.business_id), c.tz, pol.rules, 6).map((s) => ({ at: s.at, label: s.label })) : [] },

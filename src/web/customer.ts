@@ -9,7 +9,7 @@ import { appendAudit } from "../guard/audit.js";
 import { activePolicy } from "../guard/policy.js";
 import { newId } from "../lib/ids.js";
 import { GtError } from "../lib/util.js";
-import { sendPayLink, settleCancelledClass } from "../services/money.js";
+import { createPlan, sendPayLink, settleCancelledClass, SPLITTABLE } from "../services/money.js";
 import { balanceOf, owedToCustomer, bizById, customerByToken, logEvent, nowOf, obligationsOf, callsOf } from "../store.js";
 import { startRun } from "../trace.js";
 import { back, flashOf, page } from "./common.js";
@@ -70,6 +70,27 @@ ${!c.dnc && c.consent ? html`<form method="post" action="/c/${c.token}/callback"
       const out = await settleCancelledClass({ q: db, run, businessId: biz.id, businessName: biz.name, callId: null, agentScope: `customer:${c.id}`, personInitiated: true }, o, choice);
       await run.end("done");
       back(res, `/c/${c.token}`, out.choice === "refund" ? (out.refundId ? `Refund of ${money(out.cents)} sent to the PayPal account you paid with.` : `Refund of ${money(out.cents)} recorded. You paid for this class outside PayPal, so ${biz.name} will pay it back the same way.`) : `${money(out.cents)} is now a class credit on your account.`);
+    } catch (e) {
+      await run.end("failed");
+      throw e;
+    }
+  }, (req) => `/c/${req.params.token}`));
+  /** The customer splits an open invoice into one of the plans the owner's rules allow. The gate checks it; PayPal opens to approve. */
+  r.post("/c/:token/plan/:oid", page(async (req, res) => {
+    const db = await getDb();
+    const c = await customerByToken(db, req.params.token);
+    const biz = await bizById(db, c.business_id);
+    const o = (await obligationsOf(db, c.business_id, c.id)).find((x) => x.id === req.params.oid);
+    if (!o || o.kind !== "invoice") throw new GtError("Not your item", "not_found", 404);
+    if (!SPLITTABLE.has(o.status)) throw new GtError("This one already has a payment plan or a PayPal invoice, or is settled.", "not_open");
+    const option = String(req.body.option ?? "");
+    if (!option) throw new GtError("Pick a plan.", "no_option");
+    const run = await startRun({ actor: "customer", subject: `${c.name} asked to split ${o.title}`, entity: "obligation", entityId: o.id }, db);
+    try {
+      const out = await createPlan({ q: db, run, businessId: biz.id, businessName: biz.name, callId: null, agentScope: `customer:${c.id}`, personInitiated: true }, o, c, option);
+      await run.end("done");
+      if (out.approveUrl && !out.approveUrl.includes("fake.paypal.local")) return res.redirect(out.approveUrl);
+      back(res, `/c/${c.token}`, `Plan ready: ${out.option.label}. Approve it with PayPal from the link we texted you.`);
     } catch (e) {
       await run.end("failed");
       throw e;

@@ -131,8 +131,12 @@ export async function recentMessages(limit = 100) {
 export async function telegramUpdate(update: any): Promise<void> {
   if (update.callback_query) {
     const cq = update.callback_query;
-    const [replyTo, buttonId] = String(cq.data ?? "").split(":");
-    await receive("telegram", String(cq.message?.chat?.id ?? cq.from?.id), cq.data ?? "", buttonId ?? null, replyTo ?? null);
+    // callback_data is "<message id>:<button id>", and button ids hold colons themselves ("approve:apr_x"), so split once.
+    const data = String(cq.data ?? "");
+    const cut = data.indexOf(":");
+    const replyTo = cut > 0 ? data.slice(0, cut) : null;
+    const buttonId = cut > 0 ? data.slice(cut + 1) : data || null;
+    await receive("telegram", String(cq.message?.chat?.id ?? cq.from?.id), data, buttonId, replyTo);
     return;
   }
   const msg = update.message;
@@ -145,7 +149,9 @@ export async function whatsappUpdate(body: any): Promise<void> {
     for (const change of entry.changes ?? []) {
       for (const m of change.value?.messages ?? []) {
         if (m.type === "interactive" && m.interactive?.button_reply) {
-          const [replyTo, buttonId] = String(m.interactive.button_reply.id).split(":");
+          const bid = String(m.interactive.button_reply.id);
+          const cut = bid.indexOf(":");
+          const [replyTo, buttonId] = cut > 0 ? [bid.slice(0, cut), bid.slice(cut + 1)] : [null, bid];
           await receive("whatsapp", m.from, m.interactive.button_reply.title ?? "", buttonId ?? null, replyTo ?? null);
         } else if (m.type === "text") await receive("whatsapp", m.from, m.text?.body ?? "", null, null);
       }

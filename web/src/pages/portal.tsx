@@ -9,11 +9,29 @@ import { useData, useTitle } from "@/lib/hooks";
 
 interface PortalData {
   business: { name: string }; first_name: string; tz: string; verify_code: string | null; last_call_at: string | null;
-  open: { id: string; kind: string; title: string; note: string; balance_cents: number; owed_to_you_cents: number; discount_cents: number; status: string; due_local: string | null; appointment_local: string | null; paid_by_paypal: boolean }[];
+  open: { id: string; kind: string; title: string; note: string; balance_cents: number; owed_to_you_cents: number; discount_cents: number; status: string; due_local: string | null; appointment_local: string | null; paid_by_paypal: boolean; plans: { id: string; label: string }[] }[];
   settled: { id: string; title: string; status: string; cents: number }[];
   messages: { body: string; channel: string; created_at: string }[];
   calls: { dnc: boolean; consent: { granted_on: string; revoked: boolean } | null; hours: { start: string; end: string }; slots: { at: string; label: string }[] };
   telegram: string;
+}
+
+/** Split an invoice into one of the plans the business's rules allow; PayPal opens to approve the subscription. */
+function PlanPicker({ token, item, plans }: { token: string; item: string; plans: { id: string; label: string }[] }) {
+  const [option, setOption] = useState(plans[0]?.id ?? "");
+  const id = `plan-${item}`;
+  return (
+    <div className="mt-3 rounded-[10px] border border-line bg-surface-2 p-3" data-tour="portal-plan">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <NativeSelect id={id} label="Or split it into payments" value={option} onChange={(e) => setOption(e.target.value)}>
+            {plans.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </NativeSelect>
+        </div>
+        <ActButton path={`/c/${token}/plan/${item}`} fields={{ option }} variant="outline" icon={<CalendarClock />} className="h-12">Set up plan with PayPal</ActButton>
+      </div>
+    </div>
+  );
 }
 
 /** The customer's own page. Plain words, one job per card, big buttons; nothing about other customers. */
@@ -59,7 +77,7 @@ export default function PortalPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {o.kind === "class_cancel" ? (
                       <>
-                        <ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "refund" }} icon={<Undo2 />} onDone={reload} className="h-12 flex-1">Refund {money(o.owed_to_you_cents)}{o.paid_by_paypal ? " to PayPal" : ""}</ActButton>
+                        <span className="flex flex-1" data-tour="portal-refund"><ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "refund" }} icon={<Undo2 />} onDone={reload} className="h-12 flex-1">Refund {money(o.owed_to_you_cents)}{o.paid_by_paypal ? " to PayPal" : ""}</ActButton></span>
                         <ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "credit" }} variant="outline" icon={<Gift />} onDone={reload} className="h-12 flex-1">Keep as class credit</ActButton>
                       </>
                     ) : o.balance_cents > 0 ? (
@@ -67,6 +85,8 @@ export default function PortalPage() {
                     ) : <StateChip s={moneyLamp(o.status)}>{word(o.status)}</StateChip>}
                   </div>
                   {o.kind === "class_cancel" && !o.paid_by_paypal ? <p className="mt-2 text-xs text-ink-2">You paid outside PayPal, so a refund comes back the same way you paid.</p> : null}
+                  {o.status === "planned" ? <p className="mt-2 text-sm"><StateChip s="live">Payment plan set up</StateChip> <span className="text-ink-2">Approve it with PayPal from the link we sent, or pay in full above.</span></p> : null}
+                  {o.plans.length ? <PlanPicker token={token} item={o.id} plans={o.plans} /> : null}
                 </Panel>
               )) : <Empty title="Nothing to pay">You're all square with {d.business.name}.</Empty>}
             </div>

@@ -120,10 +120,31 @@ test("customer: own page with verify code, PayPal button, call-back and stop", a
   await expect(page.getByText("will never ask for a password")).toBeVisible();
 });
 
+test("customer: splits an invoice into a plan the rules allow, and PayPal opens to approve it", async ({ page }) => {
+  test.skip(!!process.env.E2E_URL, "creates a PayPal subscription; run against the local server only");
+  await noTours(page);
+  await be(page, "owner");
+  const link = await page.evaluate(async () => {
+    const list = (await (await fetch("/api/app/customers")).json()) as { id: string; owed_cents: number }[];
+    for (const c of list.filter((x) => x.owed_cents >= 10000).sort((a, b) => a.owed_cents - b.owed_cents)) {
+      const d = await (await fetch(`/api/app/customers/${c.id}`)).json();
+      if (d.items.some((i: { kind: string; status: string }) => i.kind === "invoice" && i.status === "open")) return d.customer.link as string;
+    }
+    return null;
+  });
+  expect(link).toBeTruthy();
+  await page.goto(link!);
+  const picker = page.locator("[data-tour=portal-plan]").first();
+  await expect(picker).toBeVisible();
+  await expect(picker.locator("option").first()).toHaveText(/\d+ (fortnightly|monthly) payments/);
+  await picker.getByRole("button", { name: "Set up plan with PayPal" }).click();
+  await page.waitForURL(/paypal\.com/, { timeout: 45_000 });
+});
+
 test("judge tour: ?tour=judge walks every step across pages, survives navigation, and ends", async ({ page }) => {
   await page.goto("/today?tour=judge");
   const title = page.locator(".driver-popover-title");
-  await expect(title).toHaveText("Judge mode: three minutes");
+  await expect(title).toHaveText("Judge mode: four minutes");
   const seen: string[] = [];
   for (let i = 0; i < 20; i++) {
     seen.push((await title.textContent()) ?? "");
@@ -135,7 +156,10 @@ test("judge tour: ?tour=judge walks every step across pages, survives navigation
   }
   expect(seen).toContain("The three-lane call score");
   expect(seen).toContain("Scam guard");
-  expect(seen).toContain("The customer's side");
+  expect(seen).toContain("Now the studio cancels");
+  expect(seen).toContain("Live: a PayPal refund");
+  expect(seen).toContain("Live: a payment plan");
+  expect(seen).toHaveLength(14);
   expect(seen.at(-1)).toBe("That's Callback");
   await expect(page.locator(".driver-popover")).toHaveCount(0);
 });
