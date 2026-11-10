@@ -217,8 +217,21 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   if (say || !forced) transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
   if (toolResult) transcript.push({ who: "system", text: toolResult, at: new Date().toISOString() });
   await q.query("UPDATE calls SET transcript = $2, state = $3 WHERE id = $1", [call.id, JSON.stringify(transcript), JSON.stringify(state)]);
-  if (ended || turn >= 14) await endCall(q, call.id, outcome ?? (turn >= 14 ? "callback" : deriveOutcome(state, o, gate === "held" ? 1 : 0)), by);
+  if (ended || turn >= 14) {
+    await endCall(q, call.id, finalOutcome(outcome ?? null, deriveOutcome(state, o, gate === "held" ? 1 : 0), turn >= 14), by);
+  }
   return { say, tool: d.tool, tool_result: toolResult, ended: ended || turn >= 14, outcome, decision: d, gate };
+}
+
+/**
+ * The outcome recorded when a call ends. What the call did (a link, invoice or plan sent) outranks a "declined" the
+ * model names: the model proposes, the record decides. A real phone call on 10 Nov 2026 sent a pay link and was logged
+ * as declined because the model's end_call said so.
+ */
+export function finalOutcome<T extends string>(named: T | null, derived: T | Outcome | "held", outOfTurns = false): T | Outcome | "held" {
+  const did = derived === "plan_agreed" || derived === "paid_link" || derived === "invoice_sent";
+  if (did && (!named || named === "declined")) return derived;
+  return named ?? (outOfTurns ? "callback" : derived);
 }
 
 /** The outcome a call's state implies when nobody named one. */

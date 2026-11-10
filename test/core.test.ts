@@ -163,3 +163,15 @@ describe("audit hash, twiml, twilio signature, strictify", () => {
     expect(s.properties.b.required).toEqual(["c"]);
   });
 });
+
+describe("call outcome", () => {
+  it("a pay link sent outranks the model's 'declined' (real phone call, 10 Nov 2026)", async () => {
+    const { finalOutcome } = await import("../src/services/calls.js");
+    expect(finalOutcome("declined", "paid_link")).toBe("paid_link");
+    expect(finalOutcome(null, "plan_agreed")).toBe("plan_agreed");
+    expect(finalOutcome("do_not_call", "paid_link")).toBe("do_not_call");
+    expect(finalOutcome("callback", "declined")).toBe("callback");
+    expect(finalOutcome(null, "declined", true)).toBe("callback");
+    expect(finalOutcome("declined", "declined")).toBe("declined");
+  });
+});
