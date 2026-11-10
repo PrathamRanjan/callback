@@ -13,12 +13,12 @@ The voice agent that makes a small business's money calls: confirm tomorrow's de
 ```bash
 npm install
 cp .env.example .env        # add PAYPAL_CLIENT_ID / SECRET (sandbox) and optionally OPENAI_API_KEY, Twilio, Telegram, WhatsApp, VAPID
-npm run seed -- --pin       # Brightside Physio & Pilates, 8 customers, clock pinned to Wed 13:00 Sydney; prints the owner key
+npm run seed -- --pin       # Brightside Physio & Pilates, 8 customers, clock set to this weekday 11:00 Sydney; prints the owner key
 npm run dev                 # http://localhost:3500
 ```
-Sign in with the owner key (or press **Reset and seed** on `/demo`). Without PayPal credentials every page works and money moves fail honestly. Without an OpenAI key the deterministic rules brain takes every turn and the UI says so. Without Twilio the simulator carries the call. Without channel tokens every message is recorded as *simulated* on `/ops/channels`.
+Sign in with the owner key (or press **Reset and seed** on `/demo`). Without PayPal credentials every page works and money moves fail honestly. Without an OpenAI key calls do not start and policy reading shows an error with a retry button; nothing written by rules is presented as AI (the rules brain runs only in tests and offline evals, `AI_PROVIDER=rules`). The deployed server (`RENDER=true` or `NODE_ENV=production`) refuses to start without the OpenAI key, `AI_PROVIDER=openai`, the PayPal credentials and `SESSION_SECRET`. Without Twilio the simulator carries the call. Without channel tokens every message is recorded as *simulated* on `/ops/channels`.
 
-Other scripts: `npm test` (57 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
+Other scripts: `npm test` (96 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP, private workspaces, honest AI failure), `npm run e2e` (Playwright journeys), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
 
 ## Pages
 `/today` plan and refusals · `/calls`, `/calls/:id` transcript, options, trace, simulator, live voice · `/customers/:id` consent record · `/policy` compile, backtest, earned autonomy · `/ops/guard` holds, passkey, limits, kill switches, audit chain · `/ops/money` links, invoices, plans, refunds, read-back, negative paths, webhooks · `/ops/traces`, `/trace/:id` · `/ops/eval` explorer with CSV and Markdown · `/ops/channels` · `/ops/evidence` · `/judge` five beats · `/demo` · customer `/c/:token` (pay, callback, stop) · `/llms.txt`, `/skill.md`, MCP at `/mcp` (owner) and `/c/:token/mcp` (customer).
@@ -26,13 +26,24 @@ Other scripts: `npm test` (57 tests: structural, core, flows through the gate, j
 ## Integrations and what is real
 | Piece | Real when | Otherwise |
 |---|---|---|
+| Saved demo wallet (vault id, no PayPal login) | `PAYPAL_DEMO_VAULT_TOKEN` | the button is hidden; PayPal's own page still works |
 | PayPal Orders, Invoicing v2, Catalog/Billing/Subscriptions, Payments refunds, Transaction Search, Balances, webhook verification | `PAYPAL_CLIENT_ID`/`SECRET` (sandbox) | honest failure; tests use an in-memory fake |
-| Turn-based brain and policy compiler | `OPENAI_API_KEY` | deterministic rules brain (same gate, same evals) |
+| Turn-based brain and policy reader (`gpt-6.1-sol`, backup `gpt-6-sol`) | `OPENAI_API_KEY` | calls don't start; policy reading shows an error and a retry button (the rules brain is a test and offline-eval arm only) |
 | Live voice (WebRTC) | `OPENAI_API_KEY` | hidden; simulator shown |
 | Phone calls and SMS | `TWILIO_*` | simulator; SMS mirrored to the customer page |
 | Telegram / WhatsApp approvals, web push | tokens / VAPID | simulated, visible on `/ops/channels` |
 
 Webhooks to register when keys arrive: `/webhooks/paypal`, `/webhooks/telegram`, `/webhooks/whatsapp` (verify token `WHATSAPP_VERIFY_TOKEN`), `/webhooks/sms`, `/webhooks/voice/{twiml,gather,status}/:callId`, `/webhooks/voice/events`.
+
+## For judges
+
+1. Open https://pph-callback.onrender.com/try and press **Be the owner**. You get your own private copy of the demo studio, already filled in: 11 customers, three sample calls marked **Sample**, three payments already made from the demo's saved sandbox PayPal wallet (the banner counts them as PayPal confirms them), and one $360 charge held for your approval because it is over the $300 limit. Nobody else sees your copy, and it is deleted after 48 hours without a visit. The banner has a link that opens the same copy on your phone.
+2. **Take a call yourself.** On Today, open Priya's deposit call, start it, and type as the customer, for example "How do I know you're really the studio? And knock it down to forty." The reply comes from `gpt-6.1-sol` (named on the call page). It points you to the verify code on your account page, refuses the discount because your rules allow none, and keeps the amount from the records.
+3. **Pay without a PayPal login.** Open any customer's page (Customers → a customer → their link) and press **Pay … as the demo customer**. It pays from the saved sandbox wallet, then shows the real PayPal order and capture ids it read back. **Pay on PayPal's own page** is still there if you want to sign in as a sandbox buyer.
+4. **Watch it refuse.** Today lists who it will not call and why (no consent, outside their local hours, do-not-call). Needs you has the held $360 charge with what, who, why and how to undo it.
+5. **If the AI fails**, a call does not start (or stops with a fixed line that says so), and the Rules page says "I couldn't read that with the AI model" with a Try again button. Nothing written by rules is shown as AI.
+
+Real: PayPal sandbox (orders, captures, invoices, subscriptions, refunds, webhooks), the OpenAI models, the database. Simulated and labelled: calls to the demo customers' numbers and texts to them, and the studio clock (11:00 Sydney on today's weekday). Reset (banner) rebuilds only your copy.
 
 ## Folder
 `src/core` consent, time, options · `src/ai` provider, grounding, brain · `src/guard` gate, policy, backtest, kill, audit, provenance, passkey · `src/services` planner, calls, money, seed · `src/voice` telephony, realtime, tools · `src/channels` · `src/eval` personas, adversarial, store · `src/mcp` · `src/web` · `test/` · `scripts/` · `eval/` reports · `docs/foundation.md`.
@@ -54,3 +65,52 @@ Tests: `test/safety.test.ts`; the model's measured results are on `/safety/model
 ## Accessibility (9 Nov 2026)
 
 `public/a11y.js` and `public/a11y.css` on every page, including the customer's: a **Display and help** button with text size, high contrast, Atkinson Hyperlegible, read-aloud, voice input (on-device where the browser supports it), plain words, bigger targets, more time and no motion. A first-visit card offers the same choices on owner pages. The profile stays in this browser's `localStorage`; typing and buttons always work without it.
+
+## Wave 1 (11 Nov 2026): what changed, and the live checks
+
+Built from `MASTER_IMPROVEMENT_SPEC.md` Part C, Wave 1.
+
+- **A1 private workspaces.** Each visitor gets their own database schema (`cbws_<id>`), seeded through the same code paths the app uses (`src/services/workspaces.ts`). The gate makes the held $360 charge, and the saved wallet makes the three sample payments. Starts are limited to 5 per address per hour and 40 live copies; the spec says 300, but 40 is the cap because the free database is 1 GB and shared by 8 apps. The longest-idle copy is recycled when the cap is reached, and copies expire after 48 idle hours. PayPal webhooks (by `custom_id` `<workspace>:<record>` or the stored id) and Telegram chats are answered inside the copy that made them. The shared showcase studio feeds the landing preview, nobody signs into it, and it is rebuilt at boot and every 24 hours. Resetting it needs `CB_ADMIN_KEY`.
+- **A2.1 saved demo wallet.** `POST /c/:token/wallet/:id` pays with the vault id from `PAYPAL_DEMO_VAULT_TOKEN` through the gate. The order is read back from PayPal (`GET`) before anything is marked paid.
+- **A4 hosting.** `/healthz` runs `SELECT 1` and reports the commit. The demo clock is 11:00 Sydney on today's weekday, with no fixed dates. A call with no new turn for 10 minutes ends as `abandoned`. In the demo, the attempts rule counts only finished calls (spec C3).
+- **A11 and A5.** The models are `gpt-6.1-sol` (backup `gpt-6-sol`) and `gpt-6-luna`. Requests use a 4,000-token cap and low reasoning effort. Broken JSON gets one repair attempt. If a guard rejects a line (an invented amount, or an option that was not offered), the backup model is asked once. After that the call stops with a fixed line and the outcome `ai_failed`. The rules brain runs only in tests and offline evals. The deployed server will not start without its keys. Cost figures use list prices from secondary sources (OpenAI's own pricing page was not read).
+- **Part B fixes.** C1: one session request per page load (was three). C3: the attempts rule above. C4: no pinned date. C6: the pricing block with no prices is removed. C7: the session survives a switch to a phone user agent. The tour no longer starts on its own or pulls you back to Today. Calls, Money and Proof filters are buttons, not broken ARIA tabs. Messages, Money and the other two-column pages fit a phone. The Messages page now opens on the owner's conversation. Seeded calls carry a Sample chip. The agent-line check no longer replaces "check the verify code on your page".
+
+**Live checks** (`node scripts/live-acceptance.mjs`, against the deployed commit f10e8db):
+
+| Item | Check | Result | Detail |
+|---|---|---|---|
+| A4 | /healthz answers and checks the database | Pass | HTTP 200, db postgres, 70 ms, commit f10e8db, first answer after 173 ms |
+| A1 | two visitors each get a private studio, signed in as the owner | Pass | A 302→/today, B 302→/today; private true/true |
+| A1 | the two studios share no records | Pass | 11 and 11 customers, 0 shared ids |
+| A4 | the demo clock is a current weekday, not a pinned date | Pass | studio clock 2026-11-11T00:00:00.000Z |
+| A1 | the seed holds one move for the owner through the real gate | Pass | 1 pending: charge |
+| A2.1 | seed payments made from the saved wallet and confirmed by PayPal | Pass | 3 of 3 payments confirmed by PayPal |
+| A2.1 | customer page pays from the saved wallet, no login; real sandbox ids read back | Pass | order 57N59585E2232752D, capture 9KG70495AH630922B; item now paid |
+| A1 | the payment shows only in the payer's studio | Pass | the other studio's deposit is open |
+| A5.1 | a call turn runs on the model named on screen | Pass | brain model; OpenAI gpt-6.1-sol for call turns and reading your policy (backup gpt-6-sol); place 302, say 303, 21165 ms |
+| B2 | haggling line: points to the verify code, no discount, no invented amount | Pass | You can check the verification code on your account page, or call the studio using a number you trust. I’m sorry, there’s no discount available on your account. The balance is $150.00. |
+| A5.4 | policy text is read by the model, numbers by code | Pass | source model, ai_failed false, max discount 10% |
+| A1 | strangers cannot arm faults or reset the showcase | Pass | fault → /demo?err=Only the owner can make PayPal fail on purpose.; reset → /demo?err=Only the owner of a demo can reset it, from inside that demo. The shar |
+
+Run 2026-11-10T17:27:09.304Z against https://pph-callback.onrender.com.
+
+**Checked by hand in a browser on the live site (11 Nov, commit f10e8db):**
+
+| Check | Result | Detail |
+|---|---|---|
+| Customer page, phone width: **Pay as the demo customer** | Pass | Lena's $180 invoice paid; order 7G91325308942590F, capture 062871670Y002840J shown on the page, read back from PayPal |
+| PayPal's own webhooks land in the right copy | Pass | 4 verified `PAYMENT.CAPTURE.COMPLETED` events in that copy: its 3 seed payments and the browser payment |
+| C7: still signed in after switching to a phone user agent | Pass | reloaded /today with an Android user agent; stayed on /today |
+| C1: Today on a warm site | Pass | Today's figures drawn about 0.2 to 1 s after navigation; 1 session request (was 12 s in the review) |
+| axe WCAG 2.2 AA on Calls, Money, Proof, Messages, Rules | Pass | no violations, light theme at phone width and dark theme at desktop width |
+| No sideways scroll at 375 px | Pass | Today, Calls, Money, Proof, Messages (also in the e2e suite for every owner page) |
+| C6: landing has no pricing block | Pass | no "Pricing" heading |
+
+**Failed or not verified:**
+
+- **Cold start: not verified.** The service was warm during every check. The free Render plan sleeps after idle minutes, so the first visit after a quiet spell is slow. The fix is an always-on instance, which the owner buys in Render's dashboard. No keep-warm ping was added: a ping would spend the free plan's instance hours, which the account's other apps also use.
+- **A call turn took 21 s on the second run** (6.5 s on the first): an opening line and one reply, each a `gpt-6.1-sol` call with low reasoning effort. Not yet measured per call. Voice moves to `gpt-live-1` in Wave 3.
+- **Telegram inside a private copy: not verified live.** The routing is unit-tested; no Telegram message was sent from a private copy.
+- **The honest AI failure states** (no key, failing model) are verified in tests (`test/ai-honest.test.ts`) and locally. They were not provoked on the live site, because that would mean removing the live key.
+- **Evaluation fixtures still use fixed times** (`src/eval/*`, `scripts/eval-adversarial.ts`). They test calling-hours rules and are never shown as live data.
