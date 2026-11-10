@@ -39,18 +39,20 @@ These checks need your phone, your accounts or your eyes. Everything else is cov
 1. Open a ready call and tap **Talk with your voice**. Allow the microphone.
 2. Speak as the customer, for example "Yes, send me the link."
    - Expect: the agent answers out loud, and the transcript and the three lanes fill in.
+   - Checked on 10 Nov 2026, locally and on the live site, with a recorded sentence played into the browser: one money-gate check, one PayPal order, the call ends as "paid link". Your own voice is still worth one try.
 
 ## 6. Browser alerts (needs Chrome or Edge, or an iPhone with Callback added to the Home Screen)
 1. On **Messages**, tap **Alerts on this device** and allow notifications.
 2. Repeat step 1.2 (the $420 hold).
    - Expect: a pop-up notification. Tapping it opens **Needs you**.
+   - Checked on 10 Nov 2026 in real Chrome: the push service accepted the push (201) and the notification showed. Each send now leaves a line on **Messages** saying what the push service answered. If a line says the subscription expired, tap **Alerts on this device** again.
+   - On a Mac, also allow Chrome in System Settings → Notifications, or nothing pops up.
 
-## 7. A real phone call and text: waiting on you
-Calls and texts only go to numbers on the demo allowlist (`CB_LIVE_CONTACT_ALLOWLIST`). Send me the number you want to test with, in international format (for example +61 4xx xxx xxx). I'll then:
-- add it to the allowlist on Render;
-- add a test customer with that number.
-
-After that, **Ring their phone** on that customer's call dials you from the Twilio number. The pay link arrives by SMS.
+## 7. A real phone call and text
+Calls and texts only go to numbers on the demo allowlist (`CB_LIVE_CONTACT_ALLOWLIST`).
+- Checked on 10 Nov 2026: a real call to a Singapore mobile, and the pay link arrived by SMS. The number was then taken off the allowlist, so the allowlist is empty again.
+- To repeat it, send the number to use; it goes back on the allowlist for the test.
+- Known gap: replies to the text (for example STOP) don't reach Callback. The Twilio number is shared with other apps and has no reply address set, so it stays that way until someone decides who owns that number. STOP on the call, on the customer page or on Telegram does work.
 
 ## 8. On your own phone
 1. Open the live URL on your phone. Check the bottom nav, the More sheet and the Judge tour.
@@ -67,6 +69,8 @@ After that, **Ring their phone** on that customer's call dials you from the Twil
 | The demo clock | Pinned inside calling hours so calls are "ready" whenever a judge visits. The ribbon says so. | Real time for real businesses (demo mode off) |
 | Tom's cancelled class | Seeded as paid in cash, so there's no PayPal payment to refund. The app says it will be paid back by hand. | The tour refunds the payment you just made, through PayPal (item 3) |
 | PayPal | Sandbox, not live money | Set `PAYPAL_ENV=live` with live keys |
+| PayPal webhooks | The sandbox listed the events but delivered none of them on 10 Nov 2026. An event resent from PayPal reached the live app straight away and passed the signature check. | A read-back worker asks PayPal for the state of every open payment, plan and refund, so nothing waits on a webhook |
+| Render free plan | The service sleeps when idle; the first visit after that takes 30 to 60 seconds | A paid instance |
 | Evals (60 customer scripts, 25 attacks) | Run against an in-memory PayPal on purpose, so a run doesn't create hundreds of sandbox orders | The live money paths are exercised by the browser journeys and items 3–4 |
 
 Nothing else is hard-coded. Amounts come from the records, plans and discounts from the owner's rules, and every PayPal id is read back from PayPal.

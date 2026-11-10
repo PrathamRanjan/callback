@@ -5,6 +5,8 @@ import { expect, test, type Page } from "@playwright/test";
 async function be(page: Page, who: "owner" | "front desk" | "customer") {
   await page.goto("/try");
   await page.getByRole("button", { name: `Be the ${who}` }).click();
+  // Wait for the sign-in to land: on the live site a goto right after the click raced the cookie back to /try.
+  await page.waitForURL((u) => !u.pathname.startsWith("/try"));
 }
 /** Marks first-run tours as seen, for tests that aren't about the tour. */
 async function noTours(page: Page) {

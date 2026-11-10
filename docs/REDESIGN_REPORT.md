@@ -128,8 +128,30 @@ Against a typical hackathon field, Callback's edge is the money safety layer and
   - plan `P-5K975098DD823205ENLZIG5Q` (2 payments of $62.50, every two weeks) and subscription `I-MW0634LRCNRE` (APPROVAL_PENDING, waiting for the buyer).
 - **Tests:** vitest 79/79, local browser journeys 10/10, live journeys 5/5.
 
+## Full test pass, 10 Nov evening (commit `f040851`)
+
+Every integration was run for real: PayPal sandbox, Twilio, Telegram, OpenAI Realtime, browser push and MCP. Bugs it found, all fixed and covered by tests:
+
+- **Live voice ran every money move two or three times.** The realtime API reports each function call twice, and each transcript also went to the text brain, which made its own decision. Now a call id runs once (in the browser and on the server), and transcripts are recorded only. The agent's spoken lines are kept, and a late last line still lands after the call ends.
+- **Invoices failed at PayPal.** PayPal rejects a 7-day net term. Invoices now use a valid net term or an exact due date, and carry the business name. Invoice `INV2-LS3A-SFLM-Q6YJ-MV5V` is SENT at PayPal.
+- **No push was ever sent.** The web-push import crashed every send. Each send now also records the push service's answer on **Messages**.
+- **The SMS webhook accepted unsigned requests.** It now requires a Twilio signature.
+- **Subscription webhook simulation returned 500.** Fixed with the right resource version.
+- **Smaller fixes:** hold reasons show dollars, and a PayPal error line names what failed.
+- **A race in the browser journeys,** which only showed on the slower live site, is also fixed.
+
+Proof on the live site:
+
+- A browser voice call with a recorded sentence produced one gate check, one PayPal order (`31H187485C264702F`) and the outcome "paid link".
+- MCP: 14 owner tools, and an anonymous caller is refused.
+- A PayPal event resent to the webhook arrived and verified.
+
+Tests: vitest 82/82, local journeys 10/10, live journeys 9/9 (2 skipped on live by design).
+
 ## Not done
 
-- **`CB_LIVE_CONTACT_ALLOWLIST`** is not set on Render. It needs the phone number to call, which only the owner can give.
-- **Steps that need a person:** a real Telegram chat, live microphone voice, a browser push pop-up, and approving the plan as the sandbox buyer. Steps are in `docs/TEST_CHECKLIST.md`.
+- **`CB_LIVE_CONTACT_ALLOWLIST`** is empty again on purpose, after the real call test. Real calls need a number added for each test.
+- **Text replies (STOP by SMS)** don't reach Callback. The shared Twilio number has no reply address, and changing it affects other apps.
+- **Steps that need a person:** pressing Start in a real Telegram chat, and approving the pay link, plan and invoice as the sandbox buyer. Steps are in `docs/TEST_CHECKLIST.md`.
+- **The Render free plan sleeps,** so the first visit after a quiet spell is slow.
 - **No Magic UI or Aceternity components** were used (see the design brief for why).
