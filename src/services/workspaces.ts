@@ -135,7 +135,7 @@ async function buildWorkspace(id: string) {
   try {
     await createWorkspaceSchema(db, id);
     const seeded = await inWorkspace(id, () => seedWorkspace(db, id));
-    await registry((r) => r.query("UPDATE workspaces SET seed_state = 'ready', seed_note = $2 WHERE id = $1", [id, config.paypal.demoVaultToken ? "0 of 3 payments confirmed by PayPal" : "The saved demo wallet is not set up, so the seed's sample payments were not made."]));
+    await registry((r) => r.query("UPDATE workspaces SET seed_state = 'ready', seed_note = $2 WHERE id = $1", [id, config.paypal.demoVaultToken ? "Paying 3 sample items from the saved sandbox wallet…" : "The saved demo wallet is not set up, so the seed's sample payments were not made."]));
     cache.delete(id);
     // The real payments run after the page opens; their progress shows on Today.
     void inWorkspace(id, () => seedPayments(db, id, seeded)).catch((e) => console.error(`[workspace ${id}] seed payments`, (e as Error).message));
@@ -210,7 +210,7 @@ async function seedPayments(db: Db, id: string | null, seeded: WorkspaceSeed) {
   ];
   let done = 0;
   const failed: string[] = [];
-  for (const j of jobs) {
+  for (const [k, j] of jobs.entries()) {
     const run = await startRun({ actor: "system", subject: `Seed: ${j.label} paid from the saved demo wallet`, entity: "obligation", entityId: j.obl }, db);
     try {
       const o = await obligationById(db, j.obl);
@@ -222,7 +222,7 @@ async function seedPayments(db: Db, id: string | null, seeded: WorkspaceSeed) {
       failed.push(`${j.label}: ${(e as Error).message.slice(0, 120)}`);
       await run.end("failed");
     }
-    const note = `${done} of ${jobs.length} payments confirmed by PayPal${failed.length ? `; not made: ${failed.join("; ")}` : ""}`;
+    const note = `${done} of ${jobs.length} payments confirmed by PayPal${k < jobs.length - 1 ? " so far…" : ""}${failed.length ? `; not made: ${failed.join("; ")}` : ""}`;
     if (id) {
       await registry((r) => r.query("UPDATE workspaces SET seed_note = $2 WHERE id = $1", [id, note]));
       cache.delete(id);

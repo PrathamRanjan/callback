@@ -84,7 +84,7 @@ export default function ApprovalsPage() {
         </div>
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="limits" title="What Callback may do alone">
           <Panel className="p-4">
             <LimitsForm g={g} onDone={refresh} />

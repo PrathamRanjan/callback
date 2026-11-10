@@ -47,7 +47,7 @@ export default function DemoPage() {
         next="Switch persona, reset the data, move the clock, or make PayPal fail on purpose."
         actions={<Button variant="outline" onClick={() => startTour("judge", nav, true)}><Compass /> Judge tour</Button>}
       />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="persona" title="Be someone else">
           <Panel className="space-y-2 p-4">
             {d.people.map((p) => (

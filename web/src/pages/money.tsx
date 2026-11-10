@@ -72,7 +72,7 @@ export default function MoneyPage() {
           </ul>
         ) : <Empty title="No money moves yet">They appear here when a call sends a pay link, an invoice, a plan or a refund.</Empty>}
       </Section>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="captures" title="Payments captured">
           {d.captures.length ? (
             <ul className="space-y-2">{d.captures.map((c) => <li key={c.capture_id}><Panel className="flex items-center gap-3 p-3 text-sm"><span className="lamp" data-s={moneyLamp(c.status)} aria-hidden="true" /><div className="min-w-0 flex-1"><div className="font-medium">{c.customer} · {c.item}</div><div className="truncate font-mono text-xs text-ink-2">Capture {c.capture_id}</div></div><span className="num font-medium">{money(c.cents)}</span></Panel></li>)}</ul>
@@ -81,12 +81,12 @@ export default function MoneyPage() {
         <Section id="test" title="When PayPal misbehaves" hint="Runs a money move against a canned PayPal reply, to show the agent stays honest.">
           <Panel className="space-y-4 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1"><NativeSelect id="neg" label="Failure" value={neg} onChange={(e) => setNeg(e.target.value)}>{NEG.map((n) => <option key={n.v} value={n.v}>{n.l}</option>)}</NativeSelect></div>
+              <div className="min-w-0 flex-1"><NativeSelect id="neg" label="Failure" value={neg} onChange={(e) => setNeg(e.target.value)}>{NEG.map((n) => <option key={n.v} value={n.v}>{n.l}</option>)}</NativeSelect></div>
               <ActButton path="/ops/money/negative" fields={{ case: neg }} variant="outline" icon={<FlaskConical />} onDone={reload}>Run it</ActButton>
             </div>
             {d.paypal.configured ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="flex-1"><NativeSelect id="hook" label="Simulate a sandbox webhook" value={hook || d.webhook_events[0]} onChange={(e) => setHook(e.target.value)}>{d.webhook_events.map((e) => <option key={e}>{e}</option>)}</NativeSelect></div>
+                <div className="min-w-0 flex-1"><NativeSelect id="hook" label="Simulate a sandbox webhook" value={hook || d.webhook_events[0]} onChange={(e) => setHook(e.target.value)}>{d.webhook_events.map((e) => <option key={e}>{e}</option>)}</NativeSelect></div>
                 <ActButton path="/ops/money/webhook/simulate" fields={{ event: hook || d.webhook_events[0] }} variant="outline" icon={<Webhook />} onDone={reload}>Send</ActButton>
               </div>
             ) : null}

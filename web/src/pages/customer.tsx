@@ -87,7 +87,7 @@ export default function CustomerPage() {
         needs={callable ? undefined : c.dnc ? "They asked not to be called. Callback never will." : "No consent on file, so Callback won't call. Record it below if they agreed."}
         actions={owner ? <><NewCharge id={c.id} onDone={reload} />{c.link ? <Button variant="outline" asChild><Link to={c.link}><ExternalLink /> Their page</Link></Button> : null}</> : null}
       />
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 xl:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div className="min-w-0">
           <Section id="items" title="Money">
             {d.items.length ? (

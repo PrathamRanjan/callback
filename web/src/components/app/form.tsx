@@ -69,9 +69,9 @@ export function Field({ id, label, hint, ...rest }: { id: string; label: string;
 
 export function NativeSelect({ id, label, children, ...rest }: { id: string; label: string; children: ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid min-w-0 gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select id={id} name={id} className="h-11 rounded-md border border-line bg-surface px-3 text-base md:text-sm" {...rest}>{children}</select>
+      <select id={id} name={id} className="h-11 w-full min-w-0 max-w-full truncate rounded-md border border-line bg-surface px-3 text-base md:text-sm" {...rest}>{children}</select>
     </div>
   );
 }

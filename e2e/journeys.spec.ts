@@ -21,7 +21,8 @@ async function skipTour(page: Page) {
 }
 async function noSideScroll(page: Page) {
   const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(over, "no horizontal scroll").toBeLessThanOrEqual(0);
+  const wide = over > 0 ? await page.evaluate(() => { const W = document.documentElement.clientWidth; return [...document.querySelectorAll("main *")].filter((e) => e.getBoundingClientRect().right > W + 1).slice(0, 3).map((e) => `${e.tagName}.${String((e as HTMLElement).className).slice(0, 80)}`); }) : [];
+  expect(over, `no horizontal scroll on ${new URL(page.url()).pathname}: ${wide.join(" / ")}`).toBeLessThanOrEqual(0);
 }
 
 test("landing: promise, three steps, trust lanes, no priceless pricing block, FAQ; no sideways scroll at 360px", async ({ page }) => {
@@ -200,4 +201,10 @@ test("phone layout: bottom nav, More sheet, 44px targets, no sideways scroll", a
   await page.getByRole("button", { name: "Send inbound" }).click();
   await expect(page.locator("main")).toContainText("checkoutnow");
   await noSideScroll(page);
+  // Every owner page fits a phone (Money scrolled 34 px sideways on the live site, 11 Nov).
+  for (const path of ["/calls", "/customers", "/approvals", "/money", "/rules", "/safety", "/proof", "/demo"]) {
+    await page.goto(path);
+    await expect(page.locator("main h1").first()).toBeVisible();
+    await noSideScroll(page);
+  }
 });

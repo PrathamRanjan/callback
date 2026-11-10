@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Accessibility, BadgeCheck, BookOpenCheck, CircleDollarSign, Compass, FlaskConical, Inbox, LayoutDashboard, LogOut, Menu, MessagesSquare,  PhoneCall, RotateCcw, Scale, Search, ShieldAlert, Users,
@@ -145,8 +145,12 @@ export function AppShell() {
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
   }, []);
+  // Refresh the session's counts on each page change, but not on first mount: the provider has just loaded it
+  // (spec B2 C1, the duplicate session fetch).
+  const firstPath = useRef(true);
   useEffect(() => {
-    void reload();
+    if (firstPath.current) firstPath.current = false;
+    else void reload();
     document.getElementById("main")?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.pathname]);

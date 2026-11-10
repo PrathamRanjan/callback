@@ -67,7 +67,7 @@ export default function RulesPage() {
         happened="Your rules in plain English, compiled into checks the gate runs before every call and every money move."
         next={p.draft ? "Review the compiled draft and the replay, then adopt it or keep it as a draft." : "Write a change in your own words to see what it would do."}
       />
-      <div className="grid gap-6 lg:grid-cols-2" data-tour="policy">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0" data-tour="policy">
         <Section id="active" title="Active rules">
           <Panel className="p-4">
             <p className="mb-3 whitespace-pre-wrap rounded-[8px] bg-paper p-3 text-sm">{p.active.text}</p>

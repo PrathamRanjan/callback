@@ -130,7 +130,7 @@ export default function SafetyPage() {
         needs={d.holds.some((h) => h.status === "pending") ? "A move the scam guard paused is waiting on Needs you." : undefined}
         next="Rules in code, a text model in your browser and a payment-risk model. The strictest wins; none of them can approve a payment."
       />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="check" title="Check a message"><Checker demo={d.demo_message} /></Section>
         <Section id="how" title="How calls protect your customers">
           <Panel className="p-4">
@@ -151,7 +151,7 @@ export default function SafetyPage() {
           <ActButton path="/safety/protected" fields={{ on: d.protected.on ? "0" : "1", contact1: c1 ?? d.protected.contacts[0] ?? "", contact2: c2 ?? d.protected.contacts[1] ?? "" }} variant={d.protected.on ? "outline" : "default"} onDone={reload}>{d.protected.on ? "Turn off" : "Turn on"}</ActButton>
         </Panel>
       </Section>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="holds" title="Moves the scam guard paused">
           {d.holds.length ? (
             <ul className="space-y-2">{d.holds.map((h) => <li key={h.id}><Panel className="p-3 text-sm"><div className="flex items-center justify-between gap-2"><b>{h.action} {money(h.cents)}</b><StateChip s={h.status === "pending" ? "hold" : h.status === "approved" ? "done" : "off"}>{word(h.status)}</StateChip></div>{h.reasons.length ? <ul className="mt-1 list-disc pl-5 text-ink-2">{h.reasons.map((r) => <li key={r}>{r}</li>)}</ul> : null}<div className="mt-1 text-xs text-ink-2 num">{when(h.created_at)}</div></Panel></li>)}</ul>

@@ -143,7 +143,7 @@ export default function CallPage() {
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 xl:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div className="min-w-0">
           {live ? (
             <Panel className="mb-6 p-4" data-tour="call-sim">
