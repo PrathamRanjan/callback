@@ -71,4 +71,4 @@ Every screen answers three questions at the top: **what happened**, **what needs
 
 ## Components
 
-shadcn/ui (MIT) for the working app: sidebar, sheet, dialog, table, tabs, badge, tooltip, toast (sonner), command palette, skeleton, form controls, chart. Magic UI (MIT) only on the landing page (a number ticker and a border beam on the live preview). Aceternity UI: not used on money screens; one component at most on the landing page if it earns its place. Every component is restyled to the tokens above. Guided tours: Driver.js (MIT).
+shadcn/ui (MIT) for the working app: sidebar, sheet, dialog, table, tabs, badge, tooltip, toast (sonner), command palette, skeleton, form controls, chart. As built: no Magic UI or Aceternity component earned its place. The landing page's count-up on the live owed total is a 20-line component of our own that respects reduced motion; adding a library for it would have cost more bundle than it gave. Every component is restyled to the tokens above. Guided tours: Driver.js (MIT).

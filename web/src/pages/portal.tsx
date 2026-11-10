@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { CalendarClock, CreditCard, Gift, MessageCircle, PhoneOff, ShieldCheck, Undo2 } from "lucide-react";
 import { ActButton, Empty, ErrorState, Panel, Rows, StateChip } from "@/components/app/bits";
-import { PublicShell } from "@/components/app/shell";
+import { PublicShell } from "@/components/app/public-shell";
 import { NativeSelect } from "@/components/app/form";
 import { money, moneyLamp, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
@@ -21,6 +21,8 @@ export default function PortalPage() {
   const { token = "" } = useParams();
   const { data: d, error, loading, reload } = useData<PortalData>(`/api/app/c/${token}`);
   const [slot, setSlot] = useState("");
+  const [q] = useSearchParams();
+  const back = q.get("paid") ? "Thanks: PayPal has your payment. It shows here as paid once PayPal confirms it." : q.get("plan") ? "Your payment plan is approved." : null;
   useTitle(d ? `${d.business.name}: your account` : "Your account");
   return (
     <PublicShell>
@@ -29,6 +31,7 @@ export default function PortalPage() {
           <>
             <p className="text-sm text-ink-2">{d.business.name}</p>
             <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "112%" }}>Hi {d.first_name}</h1>
+            {back ? <p role="status" className="mt-4 rounded-[10px] bg-done-soft px-4 py-3 text-sm font-medium">{back}</p> : null}
             {d.verify_code ? (
               <Panel className="mt-4 flex items-center gap-3 border-brand/40 bg-brand-soft p-4">
                 <ShieldCheck className="size-6 flex-none" aria-hidden="true" />

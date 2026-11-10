@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Bot, Check, ChevronDown, Code2, Phone, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicShell } from "@/components/app/shell";
+import { PublicShell } from "@/components/app/public-shell";
 import { Panel } from "@/components/app/bits";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 import { money, PURPOSE } from "@/lib/format";
-import { startTour } from "@/tour/tours";
 
 interface Preview {
   business: { name: string; tz: string } | null;
@@ -106,7 +105,7 @@ export default function Landing() {
             <Button size="lg" className="h-12 px-6 text-base" asChild>
               <Link to={session?.me ? "/today" : "/try"}>{session?.me ? "Open the studio" : "Try the live demo"} <ArrowRight /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-12 px-6 text-base" onClick={() => startTour("judge", nav, true)}>
+            <Button size="lg" variant="outline" className="h-12 px-6 text-base" onClick={() => void import("@/tour/tours").then((m) => m.startTour("judge", nav, true))}>
               Judge tour, 3 minutes
             </Button>
           </div>

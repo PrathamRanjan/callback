@@ -23,7 +23,7 @@ export function CallLine({ c }: { c: CallRow }) {
             <span className="font-medium">{c.customer?.name ?? "Unknown"}</span>
             <span className="text-sm text-ink-2">{PURPOSE[c.purpose] ?? c.purpose}</span>
           </div>
-          <div className={`truncate text-sm ${s === "off" ? "text-off" : "text-ink-2"}`}><span className="sr-only">{LAMP_LABEL[s]}: </span>{what}</div>
+          <div className={`line-clamp-2 text-sm ${s === "off" ? "text-off" : "text-ink-2"}`}><span className="sr-only">{LAMP_LABEL[s]}: </span>{what}</div>
         </div>
         <div className="text-right">
           <div className="num font-medium">{c.status === "ended" && c.collected_cents ? money(c.collected_cents) : money(cents)}</div>

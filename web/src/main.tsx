@@ -9,16 +9,15 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppShell } from "@/components/app/shell";
 import { Rows } from "@/components/app/bits";
 import { applyDisplay } from "@/components/app/display-help";
 import { getJson } from "@/lib/api";
 import { SessionCtx, type Session } from "@/lib/hooks";
 import { applyTheme } from "@/lib/theme";
-import { resumeTour, startTour, tourActive } from "@/tour/tours";
 import Landing from "@/pages/landing";
 import Try from "@/pages/try";
 
+const AppShell = lazy(() => import("@/components/app/shell").then((m) => ({ default: m.AppShell })));
 const Today = lazy(() => import("@/pages/today"));
 const Calls = lazy(() => import("@/pages/calls"));
 const Call = lazy(() => import("@/pages/call"));
@@ -71,8 +70,14 @@ function Tours() {
   const nav = useNavigate();
   useEffect(() => {
     const q = new URLSearchParams(loc.search).get("tour");
-    if (q === "judge" && !tourActive()) void startTour("judge", nav, true);
-    else resumeTour(nav);
+    let active = false;
+    try {
+      active = Boolean(sessionStorage.getItem("cb-tour"));
+    } catch {
+      /* storage blocked */
+    }
+    if (q !== "judge" && !active) return; // keep the tour code out of first load
+    void import("@/tour/tours").then((t) => (q === "judge" && !t.tourActive() ? t.startTour("judge", nav, true) : t.resumeTour(nav)));
   }, [loc.pathname, loc.search, nav]);
   return null;
 }

@@ -1,3 +1,4 @@
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { dirname, join } from "node:path";
@@ -20,12 +21,14 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
+  // gzip pages, scripts and JSON. Not MCP (streamed responses) or webhooks.
+  app.use(compression({ filter: (req, res) => !/^\/(mcp|webhooks)(\/|$)|\/mcp$/.test(req.path) && compression.filter(req, res) }));
   app.use(express.urlencoded({ extended: false, limit: "200kb" }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   app.use("/static", express.static(join(root, "public"), { maxAge: 0, setHeaders: (res, file) => { if (/[\\/]safety[\\/]/.test(file)) res.setHeader("Cache-Control", "public, max-age=86400"); } }));
   app.get("/healthz", (_req, res) => res.json({ ok: true }));
-  // The web app (web/, built to dist/web): hashed assets, then index.html for browser page loads.
+  // The web app (web/, built to dist/client): hashed assets, then index.html for browser page loads.
   app.use("/assets", express.static(join(webDist(), "assets"), { maxAge: "365d", immutable: true }));
   app.use(express.static(webDist(), { index: false, maxAge: "1d" }));
   app.use(appJson);

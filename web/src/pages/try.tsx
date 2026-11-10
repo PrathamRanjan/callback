@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PublicShell } from "@/components/app/shell";
+import { PublicShell } from "@/components/app/public-shell";
 import { Panel } from "@/components/app/bits";
 import { act, getJson } from "@/lib/api";
 import { useData, useSession, useTitle } from "@/lib/hooks";

@@ -384,13 +384,13 @@ export function apiRouter(): Router {
 /** Serves the built web app for browser page loads. API, webhooks, static files and non-browser clients fall through. */
 export function webApp() {
   const dist = join(root, "dist", "client");
-  let index: string | null = null;
   const SKIP = /^\/(api|webhooks|static|assets|mcp|healthz|llms\.txt|skill\.md|manifest\.webmanifest|sw\.js|push|voice|connect|favicon|fonts|robots\.txt)(\/|$)|^\/c\/[^/]+\/mcp|^\/ops\/eval(\.csv|\/[^/]+\.md)/;
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.method !== "GET" || SKIP.test(req.path) || req.query.classic === "1") return next();
     if (!(req.get("accept") ?? "").includes("text/html")) return next();
+    let index: string;
     try {
-      index ??= readFileSync(join(dist, "index.html"), "utf8");
+      index = readFileSync(join(dist, "index.html"), "utf8"); // read each time: a rebuild never leaves stale asset names
     } catch {
       return next(); // web app not built: the server-rendered pages answer
     }

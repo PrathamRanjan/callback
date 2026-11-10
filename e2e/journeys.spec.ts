@@ -143,7 +143,7 @@ test("judge tour: ?tour=judge walks every step across pages, survives navigation
 test("display and help: text size and calm mode apply and persist", async ({ page }) => {
   await noTours(page);
   await be(page, "owner");
-  await skipTour(page);
+  await expect(page.locator("[data-tour=today-kpis]")).toBeVisible();
   await page.getByRole("button", { name: "Display and help" }).first().click();
   await page.getByRole("radio", { name: "Largest" }).click();
   await page.getByLabel("No movement").click();

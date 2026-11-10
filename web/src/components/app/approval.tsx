@@ -56,11 +56,11 @@ export function ApprovalCard({ a, passkey, onDone, compact = false }: { a: Appro
     <Panel className="overflow-hidden border-hold/50">
       <div className="flex flex-wrap items-start gap-3 border-b border-line bg-hold-soft px-4 py-3">
         <span className="lamp mt-1.5" data-s="hold" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[10rem] flex-1">
           <div className="text-sm font-medium">{ACTION[a.action] ?? a.action} · waiting for you</div>
           <div className="font-display text-[1.6rem] font-[750] leading-tight num">{a.cents !== null ? money(a.cents) : a.discount_pct ? `${a.discount_pct}% off` : "—"}</div>
         </div>
-        <div className="text-right text-sm">
+        <div className="w-full text-sm sm:w-auto sm:text-right">
           <div className="font-medium">{a.customer?.name ?? "Unknown customer"}</div>
           <div className="text-ink-2">{a.item?.title}</div>
         </div>
