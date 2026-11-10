@@ -79,7 +79,7 @@ Run against `https://pph-callback.onrender.com` after Render deployed `72a606c` 
 | Live journeys, rerun on `7afce5e` (landing, front desk, customer page, Judge tour, phone layout) | 5/5 |
 | Lighthouse mobile, live landing (warm instance) | Performance 99 · Accessibility 100 · Best practices 100 · SEO 100 (LCP 1.8 s, FCP 1.7 s, TBT 10 ms) |
 
-The live run skipped the journeys that move money or create records (the deposit order, the $420 approval, the new customer), so the shared live data stays tidy. Those journeys passed locally against the same build. A cold start on Render's free tier still takes about 30 to 50 seconds before the first page loads.
+The live run skipped the journeys that move money or create records (the deposit order, the $420 approval, the new customer), so the shared live data stays tidy. Those journeys passed locally against the same build. A cold start on Render's free tier was not timed in this pass; it is slow, so warm the service before judging.
 
 ## Scores (strict, out of 10)
 
