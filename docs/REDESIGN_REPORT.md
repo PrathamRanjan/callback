@@ -62,14 +62,24 @@ The nine browser journeys:
 
 ### Failures and limits, stated plainly
 
-- **Lighthouse performance** sits right at the line (90/91), measured locally. Render's free tier sleeps when idle and will score lower on a cold start. The first load is still 127 kB of gzipped JavaScript.
+- **Lighthouse performance** sat right at the line locally (90/91). The live landing page scored 99 once the instance was warm. Render's free tier sleeps when idle, and the first visit after a sleep is slow. The first load is still 127 kB of gzipped JavaScript.
 - **Buyer activity page:** the capture was confirmed through PayPal's own API (the read-back). PayPal's account pages ask for a separate login from checkout, so the capture was not also matched by eye on the buyer's Activity page.
 - **Not exercised in this pass:** live voice (Realtime needs a microphone), Telegram and web push.
 - **Screenshot runs** use the rules brain so they are repeatable. The live site uses the AI model.
 
 ## Live QC
 
-Filled in after the deploy below.
+Run against `https://pph-callback.onrender.com` after Render deployed `72a606c` (the redesign merge) and `7afce5e` (the fix below).
+
+| Check | Result |
+|---|---|
+| Live pages (landing, /try, /today, /calls, /approvals, /money, /proof, customer page, `?classic=1`) | All 200 |
+| Live journeys, first run on `72a606c` | 3/5. The persona picker reset the demo before demo info had loaded, so the owner sometimes landed on an empty studio |
+| Fix | `7afce5e`: the picker now waits for demo info and resets only when the studio isn't seeded. The wrong studio name in the Judge tour and "Simulated: nothing" on the ribbon were also corrected |
+| Live journeys, rerun on `7afce5e` (landing, front desk, customer page, Judge tour, phone layout) | 5/5 |
+| Lighthouse mobile, live landing (warm instance) | Performance 99 · Accessibility 100 · Best practices 100 · SEO 100 (LCP 1.8 s, FCP 1.7 s, TBT 10 ms) |
+
+The live run skipped the journeys that move money or create records (the deposit order, the $420 approval, the new customer), so the shared live data stays tidy. Those journeys passed locally against the same build. A cold start on Render's free tier still takes about 30 to 50 seconds before the first page loads.
 
 ## Scores (strict, out of 10)
 
