@@ -27,7 +27,8 @@ export default function Try() {
   const go = async (who: "owner" | "staff" | "customer") => {
     setBusy(who);
     try {
-      if (!data?.seeded) await act("/demo/reset", { pin: "1" });
+      const info = data ?? (await getJson<DemoInfo>("/api/app/demo")); // a fast click can beat the first load
+      if (!info.seeded) await act("/demo/reset", { pin: "1" });
       await act("/demo/signin-as", { role: who === "staff" ? "staff" : "owner" });
       await reload();
       if (who === "customer") {
