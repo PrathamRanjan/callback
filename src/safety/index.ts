@@ -36,9 +36,15 @@ export function verifyCode(callId: string): string {
 }
 
 /** The agent's own line: true when it asks the customer for something nobody legitimate asks for by phone. */
+// The agent's own line is unsafe only when it ASKS for a secret. Pointing the customer to the verify code on their own
+// page, or saying "we never ask for card numbers", is the safety message itself (it was being replaced by mistake).
+const SECRET_WORDS = String.raw`(otp|one[- ]time (code|password)|verification code|verify code|password|passcode|pin|cvv|card number|card details|full card)`;
+const ASKS_FOR_SECRET = new RegExp(String.raw`\b(tell|read|give|share|send|provide|confirm|say|repeat|need|want|what(?:'s| is)|enter|type)\b[^.?!\n]{0,40}\b${SECRET_WORDS}\b`, "i");
+const NEGATED = /\b(never|don't|do not|won't|will not|not|no one|nobody)\b[^.?!\n]{0,30}\b(ask|need|share|give|request|want)/i;
 export function agentLineUnsafe(text: string): { unsafe: boolean; why: string | null } {
   const s = scanText(text);
-  if (s.secretsRequested) return { unsafe: true, why: "the line asked for a one-time code, password or card number" };
+  const asks = text.split(/(?<=[.?!])\s+|\n+/).some((x) => ASKS_FOR_SECRET.test(x) && !NEGATED.test(x));
+  if (asks) return { unsafe: true, why: "the line asked for a one-time code, password or card number" };
   if (s.fired.includes("off_platform") || s.fired.includes("gift_cards_crypto")) return { unsafe: true, why: `the line ${TACTIC_WORDS[s.fired.includes("off_platform") ? "off_platform" : "gift_cards_crypto"]}` };
   return { unsafe: false, why: null };
 }

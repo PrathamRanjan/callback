@@ -41,7 +41,8 @@ export function DemoRibbon() {
   return (
     <div className="border-b border-line bg-surface-2 text-[0.8rem] text-ink" role="note" aria-label="Demo status">
       <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
-        <span className="font-semibold">Demo studio</span>
+        <span className="font-semibold">{session.workspace ? "Your private demo" : "Demo studio"}</span>
+        {session.workspace?.seed_note ? <span className="text-ink-2" role="status">{session.workspace.seed_note}</span> : null}
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="live" aria-hidden="true" />Live: {live || "nothing external"}</span>
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="idle" aria-hidden="true" />Simulated: {sim.join(", ")}{session.business?.pinned ? ", the clock" : ""}</span>
         {session.business ? <span className="num text-ink-2">Studio time {session.business.clock_local}</span> : null}
@@ -55,7 +56,7 @@ export function DemoRibbon() {
               size="sm"
               className="h-8 px-2 text-[0.8rem]"
               onClick={async () => {
-                if (!window.confirm("Reset the demo studio to fresh data? Every demo call and payment record is wiped and the clock is pinned to the demo morning.")) return;
+                if (!window.confirm("Rebuild your demo from scratch? Only your private demo changes; nobody else's.")) return;
                 try {
                   const r = await act("/demo/reset", { pin: "1" });
                   toast.success(r.message || "Demo reset.");

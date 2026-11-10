@@ -13,7 +13,7 @@ interface RulesT { purposes: string[]; hours: { start: string; end: string }; da
 interface Backtest { cases: number; run: number; wait: number; deny: number; collected_auto_cents: number; held_cents: number; minutes_saved: number; minutes_still_by_hand: number; would_have_declined: number; breaches_prevented: number; rows: { id: string; purpose: string; customer: string; amount_cents: number; decision: string; why: string }[] }
 interface Policy {
   active: { text: string; rules: RulesT };
-  draft: { text: string; rules: RulesT; refused: string[]; unexpressed: string[]; source: string } | null;
+  draft: { text: string; rules: RulesT; refused: string[]; unexpressed: string[]; source: string; ai_failed?: boolean } | null;
   backtest: Backtest;
   history: { id: string; status: string; source: string; text: string; created_at: string }[];
 }
@@ -85,13 +85,19 @@ export default function RulesPage() {
             </form>
             {p.draft ? (
               <div className="mt-4 space-y-3 border-t border-line pt-4">
-                <div className="flex items-center gap-2"><StateChip s={p.draft.refused.length ? "off" : "ready"}>{p.draft.refused.length ? "Can't adopt" : "Ready to adopt"}</StateChip><span className="text-xs text-ink-2">Compiled by {p.draft.source}</span></div>
+                {p.draft.ai_failed ? (
+                  <div role="alert" className="rounded-[8px] bg-off-soft p-3 text-sm">
+                    <b>I couldn't read that with the AI model.</b> Nothing was changed. The numbers below were read by code only, so these rules can't be adopted yet.
+                    <div className="mt-2"><Button size="sm" variant="outline" onClick={() => reload()} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : null}Try again</Button></div>
+                  </div>
+                ) : null}
+                <div className="flex items-center gap-2"><StateChip s={p.draft.refused.length || p.draft.ai_failed ? "off" : "ready"}>{p.draft.refused.length || p.draft.ai_failed ? "Can't adopt" : "Ready to adopt"}</StateChip><span className="text-xs text-ink-2">{p.draft.ai_failed ? "Numbers read by code only" : p.draft.source === "model" ? "Read by the AI model; numbers by code" : "Read by the rules arm (test only)"}</span></div>
                 <RulesList r={p.draft.rules} />
                 {p.draft.refused.length ? <div className="rounded-[8px] bg-off-soft p-3 text-sm"><b>Refused:</b> {p.draft.refused.join("; ")}</div> : null}
                 {p.draft.unexpressed.length ? <div className="rounded-[8px] bg-ready-soft p-3 text-sm"><b>Couldn't express as a rule:</b> {p.draft.unexpressed.join("; ")}</div> : null}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => save("activate")} disabled={busy || p.draft.refused.length > 0}>Adopt these rules</Button>
-                  <Button variant="outline" onClick={() => save("draft")} disabled={busy}>Save as draft</Button>
+                  <Button onClick={() => save("activate")} disabled={busy || p.draft.refused.length > 0 || p.draft.ai_failed}>Adopt these rules</Button>
+                  <Button variant="outline" onClick={() => save("draft")} disabled={busy || p.draft.ai_failed}>Save as draft</Button>
                   <Button variant="ghost" onClick={() => setDraft(null)}>Discard</Button>
                 </div>
               </div>

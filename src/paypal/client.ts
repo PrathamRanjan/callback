@@ -89,6 +89,38 @@ export class PayPalClient implements PayPalApi {
     return { id: d.id, status: d.status, approveUrl: approve };
   }
 
+  async createVaultOrder(input: OrderInput & { vaultId: string }, requestId: string) {
+    const d = await this.call<PPOrder>(
+      "POST",
+      "/v2/checkout/orders",
+      {
+        intent: "CAPTURE",
+        purchase_units: [{ reference_id: input.customId, custom_id: input.customId, description: input.description.slice(0, 127), amount: { currency_code: input.currency, value: toValue(input.amountCents) } }],
+        payment_source: { paypal: { vault_id: input.vaultId } },
+      },
+      { requestId, prefer: "return=representation" },
+    );
+    return { id: d.id, status: d.status };
+  }
+
+  async getPaymentToken(id: string) {
+    return this.call<any>("GET", `/v3/vault/payment-tokens/${encodeURIComponent(id)}`);
+  }
+
+  async createSetupToken(input: { returnUrl: string; cancelUrl: string }, requestId: string) {
+    const d = await this.call<any>(
+      "POST",
+      "/v3/vault/setup-tokens",
+      { payment_source: { paypal: { usage_type: "MERCHANT", experience_context: { return_url: input.returnUrl, cancel_url: input.cancelUrl, shipping_preference: "NO_SHIPPING", vault_instruction: "ON_PAYER_APPROVAL" } } } },
+      { requestId },
+    );
+    return { id: String(d.id), approveUrl: d.links?.find((l: any) => l.rel === "approve")?.href ?? null };
+  }
+
+  async createPaymentToken(setupTokenId: string, requestId: string) {
+    return this.call<any>("POST", "/v3/vault/payment-tokens", { payment_source: { token: { id: setupTokenId, type: "SETUP_TOKEN" } } }, { requestId });
+  }
+
   async getOrder(id: string) {
     return this.call<PPOrder>("GET", `/v2/checkout/orders/${encodeURIComponent(id)}`);
   }

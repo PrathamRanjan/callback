@@ -7,7 +7,12 @@ export interface CallRow {
   id: string; status: string; purpose: string; outcome: string | null; reason: string | null; mode: string | null;
   customer: { id: string; name: string; tz: string } | null;
   item: { id: string; title: string; kind: string; balance_cents: number; owed_to_customer_cents: number; status: string } | null;
-  scheduled_at: string | null; scheduled_local: string | null; ended_at: string | null; created_at: string; collected_cents: number; breaches: number;
+  scheduled_at: string | null; scheduled_local: string | null; ended_at: string | null; created_at: string; collected_cents: number; breaches: number; is_sample?: boolean;
+}
+
+/** Seeded, not a real call (spec 0.2 rule 4). Its money is never counted as confirmed by PayPal. */
+export function SampleChip() {
+  return <span className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-ink-2" title="Seeded sample call, not a real one">Sample</span>;
 }
 
 export function CallLine({ c }: { c: CallRow }) {
@@ -22,6 +27,7 @@ export function CallLine({ c }: { c: CallRow }) {
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className="font-medium">{c.customer?.name ?? "Unknown"}</span>
             <span className="text-sm text-ink-2">{PURPOSE[c.purpose] ?? c.purpose}</span>
+            {c.is_sample ? <SampleChip /> : null}
           </div>
           <div className={`line-clamp-2 text-sm ${s === "off" ? "text-off" : "text-ink-2"}`}><span className="sr-only">{LAMP_LABEL[s]}: </span>{what}</div>
         </div>

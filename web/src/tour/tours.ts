@@ -93,9 +93,9 @@ const TOURS: Record<TourKind, Step[]> = {
     { path: readyCall, el: "call-sim", title: "Play the customer", body: "Start the call, then type what the customer says, or play a scripted persona. The model proposes the next line; a strict schema keeps money out of its hands." },
     { path: readyCall, el: "money-lane", title: "Live: a PayPal sandbox payment", body: "When the customer agrees, the gate checks the amount against the record and your limits, then creates a real PayPal sandbox order. Open the pay link in the Money lane and pay as the sandbox test buyer; the read-back marks it paid." },
     { path: paidCustomer, el: "cancel-booking", title: "Now the studio cancels", body: "Once the deposit shows paid, tap Cancel booking and give a reason. Callback records the money owed back, tied to the same PayPal payment, and the reason is the only one the agent may give. If you skipped the payment, the button appears once it's paid." },
-    { path: customerPage, el: "portal-refund", title: "Live: a PayPal refund", body: "This is the customer's own page, from the link in their text: what they owe, what they're owed, a call-back time and a one-tap stop. Tap Refund and PayPal's Refunds API sends the money back to the payment it came from. It's under the studio's $100 refund limit, so it runs without asking." },
+    { path: customerPage, el: "portal-refund", title: "Live: a PayPal refund", body: "This is the customer's own page, from the link in their text: what they owe, what they're owed, a call-back time and a one-tap stop. Tap Refund and PayPal's Refunds API sends the money back to the payment it came from. It's under the refund limit set on the Rules page, so it runs without asking." },
     { path: planPortal, el: "portal-plan", title: "Live: a payment plan", body: "A bigger bill can be split. The choices come from the studio's rules (up to 3 payments, at least $50 each), never from the AI. Pick one and Callback creates a PayPal billing plan and subscription; PayPal opens so the sandbox buyer can approve it." },
-    { path: "/approvals", el: "approvals", title: "When it isn't sure, it asks", body: "Anything over your limits waits here: the amount, the customer, the reason and how to undo it. Over $200 needs a passkey countersign once one is registered." },
+    { path: "/approvals", el: "approvals", title: "When it isn't sure, it asks", body: "Anything over your limits waits here: the amount, the customer, the reason and how to undo it. Above the countersign amount it also needs a passkey, once one is registered." },
     { path: "/safety", el: "scam-scan", title: "Scam guard", body: "Paste a message pretending to be the studio. Rules and an on-device model flag pressure tactics, and Callback's own calls give a code the customer can check." },
     { path: "/rules", el: "policy", title: "Rules in plain English", body: "Write how you want calls handled. It compiles into checks, refuses anything unsafe, and replays your history to show what would change." },
     { path: "/proof", el: "proof", title: "Proof, not claims", body: "Persona and attack evals, the trace of every tool call with PayPal debug ids, and a hash-chained audit log you can verify." },
@@ -205,7 +205,11 @@ export function resumeTour(navigate: Nav) {
   if (!raw || moving || drv?.isActive()) return;
   try {
     const t = JSON.parse(raw) as Live;
-    if (TOURS[t.kind]) void show(t.kind, t.i);
+    const step = TOURS[t.kind]?.[t.i];
+    if (!step) return store.del(KEY, true);
+    // The visitor opened another page themselves: the tour stops rather than pulling them back to its step.
+    if (typeof step.path === "string" && step.path && window.location.pathname !== step.path.split("?")[0]) return end(t.kind);
+    void show(t.kind, t.i);
   } catch {
     store.del(KEY, true);
   }

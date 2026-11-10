@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { config } from "../src/config.js";
 import { createApp } from "../src/app.js";
 import { setPayPal } from "../src/paypal/index.js";
 import { callFor, freshWorld } from "./setup.js";
@@ -193,7 +194,13 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await anon.post("/demo/signin-as", { role: "staff" })).location).toBe("/calls");
     const judge = new Client(srv.base);
     expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
-    expect((await judge.post("/demo/reset", { pin: "1" })).location).toMatch(/ok=Seeded/);
+    // The shared studio (no private workspace) is reset only with the operator key, never by a visitor, even its owner.
+    expect((await judge.post("/demo/reset", { pin: "1" })).location).toMatch(/err=Only/);
+    (config as any).adminKey = "test-admin-key";
+    expect((await judge.post("/demo/reset", { admin_key: "wrong" })).location).toMatch(/err=Only/);
+    expect((await judge.post("/demo/reset", { admin_key: "test-admin-key" })).location).toMatch(/ok=Showcase/);
+    (config as any).adminKey = "";
+    expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
     const after = await judge.get("/demo");
     expect(after.text).toContain("Access keys (owner only");
     expect((await anon.get("/demo")).text).not.toContain("Access keys (owner only");
@@ -261,7 +268,8 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
   });
   it("every non-foundation route was walked and nothing returned 5xx", () => {
     expect(srv.failures).toEqual([]);
-    const missed = srv.missed((r) => isFoundationRoute(r) || /\/static|\/healthz|ALL /.test(r));
+    // Private-workspace routes run with workspaces on and are walked by workspaces.test.ts.
+    const missed = srv.missed((r) => isFoundationRoute(r) || /\/static|\/healthz|ALL |\/demo\/start|\/demo\/join|\/wallet\//.test(r));
     expect(missed).toEqual([]);
   });
 });

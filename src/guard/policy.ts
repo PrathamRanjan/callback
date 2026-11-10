@@ -6,7 +6,7 @@
  * or the guard's own caps.
  */
 import { z } from "zod";
-import { hasOpenAI, structured } from "../ai/provider.js";
+import { hasOpenAI, rulesArm, structured } from "../ai/provider.js";
 import { spanExists } from "../ai/grounding.js";
 import type { Queryable } from "../db.js";
 import { getDb } from "../db.js";
@@ -53,6 +53,8 @@ export interface Compiled {
   unexpressed: string[];
   refused: string[];
   source: "rules" | "model";
+  /** Set when the model could not read the text (spec A5.5). The numbers shown were read by code only; it cannot be adopted. */
+  ai_error?: string;
 }
 
 const WORDNUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
@@ -161,10 +163,15 @@ export function clampRules(r: Rules): Rules {
   };
 }
 
-/** Model-assisted compile: the model may only return quotes from the owner's text for every number; code converts. */
+/**
+ * Model-assisted compile: the model may only return quotes from the owner's text for every number; code converts.
+ * Code always parses the numbers (that is the guard). When the model fails, the result says so in `ai_error` and the
+ * owner cannot adopt it until a retry works; the purposes and unlisted requests were not read (spec A11).
+ */
 export async function compilePolicy(text: string, runId?: string | null): Promise<Compiled> {
   const local = compileLocal(text);
-  if (!hasOpenAI()) return local;
+  if (rulesArm()) return local;
+  if (!hasOpenAI()) return { ...local, ai_error: "no AI model is configured" };
   try {
     const r = await structured<any>({
       purpose: "policy",
@@ -192,8 +199,8 @@ export async function compilePolicy(text: string, runId?: string | null): Promis
     for (const q of ["hours_quote", "discount_quote", "instalments_quote", "amount_quote"]) if (o[q] && !spanExists(text, o[q])) unexpressed.push(`The model quoted "${String(o[q]).slice(0, 60)}" which is not in your text; ignored.`);
     for (const u of o.unexpressed ?? []) if (typeof u === "string") unexpressed.push(u);
     return { rules: clampRules(rules), unexpressed: [...new Set(unexpressed)], refused: local.refused, source: "model" };
-  } catch {
-    return local;
+  } catch (e) {
+    return { ...local, ai_error: (e as Error).message.slice(0, 300) };
   }
 }
 

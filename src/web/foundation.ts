@@ -13,7 +13,8 @@ import { conversation, receive, recentMessages, smsReady, smsUpdate, telegramRea
 import { pushReady, subscribe } from "../channels/push.js";
 import { routeTelegram } from "../channels/router.js";
 import { config } from "../config.js";
-import { getDb } from "../db.js";
+import { currentWs, getDb, inWorkspace } from "../db.js";
+import { getWorkspace, splitCustomId, wsForRef, wsFromSecret } from "../services/workspaces.js";
 import { CASES, harnessContext, renderAdversarialReport, runAdversarial } from "../eval/adversarial.js";
 import { personas, renderPersonaReport, runPersonaSuite } from "../eval/personas.js";
 import { evalRows, summarise, toCsv } from "../eval/store.js";
@@ -195,12 +196,20 @@ export function foundationRouter(): Router {
         verified = await paypal().verifyWebhookSignature(headers as Record<string, string | undefined>, body, config.paypal.webhookId);
       } catch { verified = false; }
     }
-    await db.query("INSERT INTO webhook_events (id, event_type, resource_id, body, verified) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING", [String(body.id ?? newId("wh")), String(body.event_type ?? "unknown"), body.resource?.id ?? null, JSON.stringify(body), verified]);
-    if (verified) {
-      const { enqueue } = await import("../jobs.js");
-      await enqueue(db, "read_back", {}, new Date(), `read_back:webhook:${body.id ?? Date.now()}`);
-    }
-    res.status(verified ? 200 : 202).json({ received: true, verified });
+    // Which studio the event is for: the custom_id "<workspace>:<record>" set on every PayPal object made in a private
+    // demo, else the id recorded when it was made, else the shared showcase studio.
+    const rsc = body.resource ?? {};
+    let ws = splitCustomId(rsc.custom_id ?? rsc.purchase_units?.[0]?.custom_id ?? rsc.detail?.reference ?? null).ws;
+    for (const ref of [rsc.id, rsc.supplementary_data?.related_ids?.order_id, rsc.billing_agreement_id, rsc.invoice_id]) if (!ws && ref) ws = await wsForRef(String(ref));
+    if (ws && !(await getWorkspace(ws))) ws = null;
+    await inWorkspace(ws, async () => {
+      await db.query("INSERT INTO webhook_events (id, event_type, resource_id, body, verified) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING", [String(body.id ?? newId("wh")), String(body.event_type ?? "unknown"), rsc.id ?? null, JSON.stringify(body), verified]);
+      if (verified) {
+        const { enqueue } = await import("../jobs.js");
+        await enqueue(db, "read_back", {}, new Date(), `read_back:webhook:${body.id ?? Date.now()}`);
+      }
+    });
+    res.status(verified ? 200 : 202).json({ received: true, verified, workspace: ws ? "private demo" : "showcase" });
   }));
 
   /* ---------------- channels (B.8) ---------------- */
@@ -220,7 +229,8 @@ export function foundationRouter(): Router {
   /** One tap: a 15-minute one-time code, then straight into Telegram; the shared bot routes "callback-<code>" here. */
   r.post("/connect/telegram", act(async (req, res, p) => {
     ownerOnly(p);
-    const code = randomBytes(12).toString("base64url").replace(/[-_]/g, "x");
+    const ws = currentWs();
+    const code = `${ws ? `${ws}Z` : ""}${randomBytes(12).toString("base64url").replace(/[-_]/g, "x")}`;
     await (await getDb()).query("INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [`tglink:${code}`, JSON.stringify({ business_id: p.business_id, exp: Date.now() + 15 * 60_000 })]);
     res.redirect(303, `https://t.me/${config.channels.telegramBot}?start=callback-${code}`);
   }));
@@ -233,7 +243,15 @@ export function foundationRouter(): Router {
   }));
   r.post("/webhooks/telegram", page(async (req, res) => {
     if (config.channels.telegramSecret && req.get("x-telegram-bot-api-secret-token") !== config.channels.telegramSecret) return res.status(403).end();
-    await routeTelegram(req.body ?? {}, telegramUpdate);
+    // A chat linked from a private demo is answered inside that demo; the link code or the customer token names it.
+    await routeTelegram(req.body ?? {}, async (u: any) => {
+      const chat = String(u?.message?.chat?.id ?? u?.callback_query?.message?.chat?.id ?? u?.callback_query?.from?.id ?? "");
+      const start = /^\/start\s+(\S+)/.exec(String(u?.message?.text ?? ""));
+      let ws = start ? wsFromSecret(start[1]) : null;
+      if (!ws && chat) ws = await wsForRef(`tg:${chat}`);
+      if (ws && !(await getWorkspace(ws))) ws = null;
+      return inWorkspace(ws, () => telegramUpdate(u));
+    });
     res.json({ ok: true });
   }));
   r.get("/webhooks/whatsapp", (req, res) => {
@@ -278,7 +296,7 @@ export function foundationRouter(): Router {
     const n = (t: string) => Number(counts.find((c) => c.t === t)?.n ?? 0);
     res.send(await ownerPage(req, p, "Evidence", html`<h1>Evidence</h1><p class="muted">What this build can show, in numbers it produced itself.</p>
 <div class="scorecard">${stat("Calls ended", calls.length)}${stat("Collected", money(calls.reduce((s, c) => s + c.collected_cents, 0)))}${stat("Guard refusals on calls", calls.reduce((s, c) => s + c.breaches, 0), "attempts stopped before PayPal")}${stat("Quarantined lines", n("quarantined"))}${stat("Trace steps", n("steps"), `${n("runs")} runs, ${n("paypal_steps")} PayPal calls, ${n("blocked")} blocked`)}${stat("Audit chain", chain.ok ? "intact" : "BROKEN", `${chain.rows} rows`)}</div>
-<div class="grid2"><div class="card"><h3>Model</h3><p>${providerLabel()}. ${ai.calls} calls, ${ai.ok} ok, $${ai.cost_usd.toFixed(4)}.</p><table class="small"><tr><th>Purpose</th><th>Calls</th><th>Cost</th><th>p50 ms</th><th>Replayed</th></tr>${ai.by_purpose.map((b) => html`<tr><td>${b.purpose}</td><td>${b.calls}</td><td>$${b.cost_usd.toFixed(4)}</td><td>${b.p50_ms}</td><td>${b.replayed}</td></tr>`)}</table><p class="small muted">Model output schemas carry no amount, percentage, phone or PayPal id field (assertSafeSchema, checked at every call and by the structural test). ${hasOpenAI() ? "" : "Without a key the deterministic rules brain takes every turn; the evals below show the same guard applies."}</p></div>
+<div class="grid2"><div class="card"><h3>Model</h3><p>${providerLabel()}. ${ai.calls} calls, ${ai.ok} ok, $${ai.cost_usd.toFixed(4)}.</p><table class="small"><tr><th>Purpose</th><th>Calls</th><th>Cost</th><th>p50 ms</th><th>Replayed</th></tr>${ai.by_purpose.map((b) => html`<tr><td>${b.purpose}</td><td>${b.calls}</td><td>$${b.cost_usd.toFixed(4)}</td><td>${b.p50_ms}</td><td>${b.replayed}</td></tr>`)}</table><p class="small muted">Model output schemas carry no amount, percentage, phone or PayPal id field (assertSafeSchema, checked at every call and by the structural test). ${hasOpenAI() ? "Cost figures are estimates from list prices." : "No AI model is configured here, so calls and policy reading show an error instead of running."}</p></div>
 <div class="card"><h3>Policy backtest (active policy)</h3>${rulesTable(pol.rules)}<p>${bt.cases} by-hand calls: run ${bt.run}, wait ${bt.wait}, deny ${bt.deny}; ${money(bt.collected_auto_cents)} collected alone; ${Math.round(bt.minutes_saved / 60 * 10) / 10} h saved; ${bt.breaches_prevented} calls outside hours or consent prevented.</p></div></div>
 <div class="grid2"><div class="card"><h3>Personas</h3>${sums.personas.length ? html`<table class="small"><tr><th>Arm</th><th>Cases</th><th>Clean</th><th>Traps caught</th><th>Naive $</th><th>Ours $</th></tr>${sums.personas.map((s) => html`<tr><td>${s.arm}</td><td>${s.cases}</td><td>${s.correct}</td><td>${s.traps_caught}/${s.traps}</td><td>${s.naive_usd.toFixed(2)}</td><td>${s.ours_usd.toFixed(2)}</td></tr>`)}</table>` : html`<p class="muted">Not run. <a href="/ops/eval">Run on the Evals page.</a></p>`}</div>
 <div class="card"><h3>Adversarial</h3>${sums.adversarial.length ? html`<p>${sums.adversarial[0].correct}/${sums.adversarial[0].cases} attacks blocked.</p>` : html`<p class="muted">Not run. <a href="/ops/eval?suite=adversarial">Run on the Evals page.</a></p>`}<p class="small muted">Integrations: PayPal ${paypalConfigured() ? "sandbox" : "not configured"} · Twilio ${telephonyReady() ? "set" : "simulated"} · Realtime ${realtimeReady() ? "set" : "off"} · Telegram ${telegramReady() ? "set" : "simulated"} · Push ${pushReady() ? "set" : "simulated"}.</p></div></div>

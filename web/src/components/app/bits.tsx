@@ -198,3 +198,20 @@ export function Avatar({ name, s }: { name?: string | null; s?: LampState }) {
     </span>
   );
 }
+
+/**
+ * A row of filter buttons. These pages filter one list rather than switch panels, so they are a labelled group of
+ * pressed/unpressed buttons, not ARIA tabs (axe flagged tabs whose aria-controls pointed at panels that never exist).
+ * Unpressed labels use the body ink colour so they keep AA contrast in both themes.
+ */
+export function Segmented<T extends string>({ value, onChange, label, options, className }: { value: T; onChange: (v: T) => void; label: string; options: { v: T; label: ReactNode }[]; className?: string }) {
+  return (
+    <div role="group" aria-label={label} className={cn("inline-flex w-fit flex-wrap items-center gap-1 rounded-lg bg-surface-2 p-[3px]", className)}>
+      {options.map((o) => (
+        <button key={o.v} type="button" aria-pressed={o.v === value} onClick={() => onChange(o.v)} className={cn("inline-flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand", o.v === value ? "bg-surface font-semibold shadow-sm" : "hover:bg-surface/60")}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}

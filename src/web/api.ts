@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { aiUsageSummary, hasOpenAI, providerLabel } from "../ai/provider.js";
+import { aiUsageSummary, brainKind, providerLabel } from "../ai/provider.js";
 import { recentMessages, conversation, smsReady, telegramReady } from "../channels/index.js";
 import { pushReady } from "../channels/push.js";
 import { config, mayContactForReal } from "../config.js";
@@ -32,6 +32,7 @@ import { loadRun, recentRuns } from "../trace.js";
 import { realtimeReady } from "../voice/realtime.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me, type Me } from "./auth.js";
+import { workspaceOf } from "./workspace.js";
 import { DEMO_IMPERSONATION } from "./safety.js";
 import { json } from "./common.js";
 import { GtError } from "../lib/util.js";
@@ -80,7 +81,7 @@ const callRow = (c: any, custs: Map<string, any>, obls: Map<string, Obligation>)
     customer: cu ? { id: cu.id, name: cu.name, tz: cu.tz } : null,
     item: o ? { id: o.id, title: o.title, kind: o.kind, balance_cents: balanceOf(o), owed_to_customer_cents: owedToCustomer(o), status: o.status } : null,
     scheduled_at: c.scheduled_at, scheduled_local: c.scheduled_at && cu ? fmtLocal(c.scheduled_at, cu.tz) : null,
-    ended_at: c.ended_at, created_at: c.created_at, collected_cents: c.collected_cents, breaches: c.breaches,
+    ended_at: c.ended_at, created_at: c.created_at, collected_cents: c.collected_cents, breaches: c.breaches, is_sample: Boolean(c.is_sample),
   };
 };
 
@@ -112,7 +113,11 @@ export function apiRouter(): Router {
       business: biz ? { name: biz.name, tz: biz.tz, clock: now.toISOString(), clock_local: fmtLocal(now, biz.tz), pinned: Boolean(biz.sim_now) } : null,
       pending,
       demo: config.demoMode,
-      integrations: { paypal: paypalConfigured() ? config.paypal.env : null, brain: hasOpenAI() ? "model" : "rules", brain_label: providerLabel(), phone: telephonyReady(), realtime: realtimeReady(), sms: smsReady(), telegram: telegramReady(), push: pushReady(), telegram_bot: config.channels.telegramBot },
+      workspace: (() => {
+        const w = workspaceOf(req);
+        return w ? { private: true, seed_state: w.seed_state, seed_note: w.seed_note, expires_at: w.expires_at, idle_hours: config.workspaces.idleHours, join_url: w.join_token ? `${config.appUrl}/demo/join/${w.join_token}` : null } : null;
+      })(),
+      integrations: { paypal: paypalConfigured() ? config.paypal.env : null, brain: brainKind(), brain_label: providerLabel(), phone: telephonyReady(), realtime: realtimeReady(), sms: smsReady(), telegram: telegramReady(), push: pushReady(), telegram_bot: config.channels.telegramBot },
     };
   }));
 
@@ -184,7 +189,7 @@ export function apiRouter(): Router {
     const refunds = o ? (await db.query<any>("SELECT id, amount_cents, paypal_refund_id, status, created_at FROM refunds WHERE obligation_id = $1 ORDER BY created_at", [o.id])).rows : [];
     const approvals = (await pendingApprovals(p.business_id)).filter((a) => a.payload?.agentScope === `agent:${c.id}` || (o && a.payload?.entityId === o.id));
     return {
-      call: { id: c.id, status: c.status, purpose: c.purpose, outcome: c.outcome, reason: c.reason, mode: c.mode, transcript: c.transcript, state: c.state, consent_ok: c.consent_ok, hours_ok: c.hours_ok, breaches: c.breaches, collected_cents: c.collected_cents, started_at: c.started_at, ended_at: c.ended_at, run_id: c.run_id, verify_code: (c.state as any)?.verify_code ?? null },
+      call: { id: c.id, status: c.status, purpose: c.purpose, outcome: c.outcome, reason: c.reason, mode: c.mode, transcript: c.transcript, state: c.state, consent_ok: c.consent_ok, hours_ok: c.hours_ok, breaches: c.breaches, collected_cents: c.collected_cents, started_at: c.started_at, ended_at: c.ended_at, run_id: c.run_id, verify_code: (c.state as any)?.verify_code ?? null, is_sample: Boolean((c as any).is_sample) },
       customer: { id: cu.id, name: cu.name, tz: cu.tz, dnc: cu.dnc, consent: cu.consent, token: p.role === "owner" ? cu.token : null, phone_live: telephonyReady() && mayContactForReal(cu.phone) },
       item: o ? { id: o.id, title: o.title, kind: o.kind, note: o.note, amount_cents: o.amount_cents, discount_cents: o.discount_cents, settled_cents: o.settled_cents, balance_cents: balanceOf(o), owed_to_customer_cents: owedToCustomer(o), status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, cu.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, cu.tz) : null, captured: Boolean(o.capture_id), paypal_order_id: o.paypal_order_id, paypal_invoice_id: o.paypal_invoice_id, subscription_id: o.subscription_id } : null,
       offers: opts ? { discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label, pct: d.pct })), plans: opts.plans.map((x) => ({ id: x.id, label: x.label })), slots: callbackSlots(now, cu.tz, pol.rules).map((s) => ({ id: s.id, label: s.label })) } : null,
@@ -193,7 +198,7 @@ export function apiRouter(): Router {
       trace: trace ? trace.steps.map((s: any) => ({ seq: s.step ?? s.seq, actor: s.actor, tool: s.tool, gate: s.gate, policy: s.policy, args: s.args, result: s.result, pp_request_id: s.pp_request_id, pp_debug_id: s.pp_debug_id, duration_ms: s.duration_ms, at: s.at })) : [],
       events: events.map((e: any) => ({ at: e.at, type: e.type, summary: e.summary, actor: e.actor })),
       samples: personas().filter((x) => x.purpose === c.purpose).slice(0, 6).flatMap((x) => x.lines.slice(0, 1)),
-      voice: { realtime: realtimeReady(), brain: hasOpenAI() ? "model" : "rules" },
+      voice: { realtime: realtimeReady(), brain: brainKind() },
     };
   }));
 
@@ -232,7 +237,7 @@ export function apiRouter(): Router {
     const draftText = typeof req.query.draft === "string" && req.query.draft.trim() ? req.query.draft.slice(0, 4000) : null;
     const compiled = draftText ? await compilePolicy(draftText) : null;
     const bt = backtest(await history(p.business_id, db), compiled?.rules ?? pol.rules, limits);
-    return { active: { text: pol.text, rules: pol.rules }, draft: compiled ? { text: draftText, rules: compiled.rules, refused: compiled.refused, unexpressed: compiled.unexpressed, source: compiled.source } : null, backtest: bt, autonomy: await suggestAutonomy(p.business_id, db), limits, history: (await listPolicies(p.business_id)).slice(0, 12).map((x: any) => ({ id: x.id, status: x.status, source: x.source, text: x.text, created_at: x.created_at })) };
+    return { active: { text: pol.text, rules: pol.rules }, draft: compiled ? { text: draftText, rules: compiled.rules, refused: compiled.refused, unexpressed: compiled.unexpressed, source: compiled.source, ai_failed: Boolean(compiled.ai_error) } : null, backtest: bt, autonomy: await suggestAutonomy(p.business_id, db), limits, history: (await listPolicies(p.business_id)).slice(0, 12).map((x: any) => ({ id: x.id, status: x.status, source: x.source, text: x.text, created_at: x.created_at })) };
   }));
 
   r.get("/api/app/guard", json(async (req) => {
@@ -302,7 +307,7 @@ export function apiRouter(): Router {
     const db = await getDb();
     const addr = typeof req.query.address === "string" ? req.query.address : null;
     const tg = (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM party_links WHERE channel = 'telegram' AND party = 'owner' AND party_id = $1", [p.business_id])).rows[0]?.n ?? 0;
-    return { owner_address: `owner:${p.business_id}`, telegram_linked: tg, recent: (await recentMessages(80)).map((m: any) => ({ id: m.id, channel: m.channel, direction: m.direction, address: m.address, body: m.body, status: m.status, at: m.created_at })), thread: addr ? (await conversation(addr)).map((m: any) => ({ direction: m.direction, body: m.body, channel: m.channel, status: m.status, at: m.created_at })) : [], address: addr };
+    return { owner_address: `owner:${p.business_id}`, telegram_linked: tg, recent: (await recentMessages(80)).map((m: any) => ({ id: m.id, channel: m.channel, direction: m.direction, address: m.address, body: m.body, status: m.status, at: m.created_at })), thread: (await conversation(addr ?? `owner:${p.business_id}`)).map((m: any) => ({ direction: m.direction, body: m.body, channel: m.channel, status: m.status, at: m.created_at })), address: addr };
   }));
 
   r.get("/api/app/proof", json(async (req) => {
@@ -374,7 +379,8 @@ export function apiRouter(): Router {
       business: { name: biz.name }, first_name: c.name.split(" ")[0], tz: c.tz,
       verify_code: (lastCall?.state as any)?.verify_code ?? null, last_call_at: lastCall?.started_at ?? null,
       open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id), plans: plans.get(o.id) ?? [] })),
-      settled: obls.filter((o) => !OPEN(o)).map((o) => ({ id: o.id, title: o.title, status: o.status, cents: o.settled_cents })),
+      settled: await Promise.all(obls.filter((o) => !OPEN(o)).map(async (o) => ({ id: o.id, title: o.title, status: o.status, cents: o.settled_cents, capture_id: o.capture_id, via_wallet: o.paypal_order_id ? (await db.query("SELECT 1 FROM pay_links WHERE paypal_order_id = $1 AND via = 'demo_wallet'", [o.paypal_order_id])).rows.length > 0 : false }))),
+      demo_wallet: config.demoMode && Boolean(config.paypal.demoVaultToken),
       messages: msgs,
       calls: { dnc: c.dnc, consent: c.consent ? { granted_on: c.consent.granted_at.slice(0, 10), revoked: Boolean(c.consent.revoked_at) } : null, hours: pol.rules.hours, slots: !c.dnc && c.consent && !c.consent.revoked_at ? callbackSlots(await nowOf(db, c.business_id), c.tz, pol.rules, 6).map((s) => ({ at: s.at, label: s.label })) : [] },
       telegram: `https://t.me/${config.channels.telegramBot}?start=callback-${c.token}`,

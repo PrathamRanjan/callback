@@ -24,13 +24,13 @@ async function noSideScroll(page: Page) {
   expect(over, "no horizontal scroll").toBeLessThanOrEqual(0);
 }
 
-test("landing: promise, three steps, trust lanes, pricing labelled, FAQ; no sideways scroll at 360px", async ({ page }) => {
+test("landing: promise, three steps, trust lanes, no priceless pricing block, FAQ; no sideways scroll at 360px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("money calls");
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /AI proposes\. Code decides\. PayPal moves\./ })).toBeVisible();
-  await expect(page.getByText("Illustrative only.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pricing" })).toHaveCount(0); // spec B2 C6: tiers with no prices removed
   await expect(page.getByText("Amounts come from your records.")).toBeVisible();
   await page.getByRole("button", { name: "Who does it call, and when?" }).click();
   await expect(page.getByText("Only customers with consent on file")).toBeVisible();
@@ -40,12 +40,9 @@ test("landing: promise, three steps, trust lanes, pricing labelled, FAQ; no side
 test("owner: seed, Today, a deposit call creates a PayPal sandbox order, money page shows it", async ({ page }) => {
   await be(page, "owner");
   await expect(page).toHaveURL(/\/today/);
-  await expect(page.locator(".driver-popover")).toBeVisible(); // first-run tour shows once
-  await expect(page.locator(".driver-popover-title")).toHaveText("This is your switchboard");
-  await skipTour(page);
   await expect(page.locator("[data-tour=today-kpis]")).toContainText("Owed to you");
-  await page.reload();
-  await expect(page.locator(".driver-popover")).toHaveCount(0); // never again
+  await expect(page.locator(".driver-popover")).toHaveCount(0); // no automatic tour; /judge starts it on request
+  await expect(page.getByRole("note", { name: "Demo status" })).toContainText("private demo", { ignoreCase: true });
   await page.getByRole("link", { name: /Priya Natarajan/ }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Priya Natarajan");
   await page.getByRole("button", { name: "Start in simulator" }).click();
@@ -78,7 +75,7 @@ test("owner: a $420 move is held, shows what/who/why/undo, and approving carries
   await expect(card).toContainText("Undo");
   await card.getByRole("button", { name: /Approve \$420\.00/ }).click();
   await expect(page.getByText(/Approved\./).first()).toBeVisible();
-  await expect(card).toContainText("Nothing is waiting");
+  await expect(card.getByRole("button", { name: /Approve \$420\.00/ })).toHaveCount(0);
 });
 
 test("owner: add a customer and a charge from scratch (no seed needed)", async ({ page }) => {
@@ -118,7 +115,7 @@ test("customer: own page with verify code, PayPal button, call-back and stop", a
   await be(page, "customer");
   await expect(page).toHaveURL(/\/c\//);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Hi ");
-  await expect(page.getByRole("button", { name: /with PayPal|Refund|class credit/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /PayPal|Refund|class credit/ }).first()).toBeVisible();
   await expect(page.getByText("will never ask for a password")).toBeVisible();
 });
 
@@ -192,9 +189,15 @@ test("phone layout: bottom nav, More sheet, 44px targets, no sideways scroll", a
   const small = await page.evaluate(() =>
     [...document.querySelectorAll("main button, main a, nav a, nav button")]
       .filter((e) => (e as HTMLElement).offsetParent !== null)
-      .map((e) => e.getBoundingClientRect())
-      .filter((r) => r.height > 0 && r.height < 40).length,
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.height < 40; })
+      .map((e) => `${e.tagName} "${(e.textContent ?? "").trim().slice(0, 40)}" ${Math.round(e.getBoundingClientRect().height)}px`),
   );
-  expect(small, "tap targets under 40px tall").toBe(0);
+  expect(small, "tap targets under 40px tall").toEqual([]);
+  await noSideScroll(page);
+  // Messages used to scroll sideways by 650 px on a phone; a long unbroken link must wrap.
+  await page.goto("/messages");
+  await page.getByLabel(/Message from/).fill(`https://www.sandbox.paypal.com/checkoutnow?token=${"A".repeat(120)}`);
+  await page.getByRole("button", { name: "Send inbound" }).click();
+  await expect(page.locator("main")).toContainText("checkoutnow");
   await noSideScroll(page);
 });

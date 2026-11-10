@@ -4,10 +4,10 @@
  * cancelled-class item the agent then settles by PayPal refund or credit. Nothing here moves money; the planner
  * picks the new items up on its next pass, and every call still passes consent, hours and the gate.
  */
-import type { Queryable } from "../db.js";
+import { scopedSecret, type Queryable } from "../db.js";
 import { appendAudit } from "../guard/audit.js";
 import { newId } from "../lib/ids.js";
-import { GtError, newSecret } from "../lib/util.js";
+import { GtError } from "../lib/util.js";
 import { customerById, logEvent, obligationById, type Customer, type Obligation } from "../store.js";
 
 const MAX_CENTS = 1_000_000;
@@ -68,7 +68,7 @@ export async function createCustomer(q: Queryable, businessId: string, input: Ne
   const consentText = input.consent?.text?.trim();
   const consent = consentText ? { granted_at: new Date().toISOString(), source: String(input.consent?.source ?? "").trim().slice(0, 120) || "recorded by the owner", text: consentText.slice(0, 500), revoked_at: null } : null;
   const id = newId("cus");
-  await q.query("INSERT INTO customers (id, business_id, name, phone, email, tz, token, consent, dnc, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9)", [id, businessId, name, phone, email, tz, newSecret("cbt"), consent ? JSON.stringify(consent) : null, String(input.notes ?? "").trim().slice(0, 500)]);
+  await q.query("INSERT INTO customers (id, business_id, name, phone, email, tz, token, consent, dnc, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9)", [id, businessId, name, phone, email, tz, scopedSecret("cbt"), consent ? JSON.stringify(consent) : null, String(input.notes ?? "").trim().slice(0, 500)]);
   await appendAudit("customer.created", "customer", id, { by, consent: Boolean(consent) }, q);
   await logEvent(q, { businessId, customerId: id, type: "customer.created", summary: `${by} added ${name}${consent ? " with consent to call" : " (no consent: never called)"}`, actor: by });
   return customerById(q, id, businessId);

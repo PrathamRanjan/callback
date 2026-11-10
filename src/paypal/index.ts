@@ -15,10 +15,10 @@ function base(): PayPalApi {
 }
 
 export type FaultKind = "fail_503" | "lose_response";
-export const FAULTABLE = ["createOrder", "captureOrder", "refundCapture", "createInvoice", "createSubscription"] as const;
+export const FAULTABLE = ["createOrder", "createVaultOrder", "captureOrder", "refundCapture", "createInvoice", "createSubscription"] as const;
 
 /** Every PayPal method that writes money state. The structural test checks each call site sits behind the gate. */
-export const PAYPAL_WRITES = ["createOrder", "captureOrder", "refundCapture", "createInvoice", "sendInvoice", "createProduct", "createPlan", "createSubscription", "cancelSubscription"] as const;
+export const PAYPAL_WRITES = ["createOrder", "createVaultOrder", "captureOrder", "refundCapture", "createInvoice", "sendInvoice", "createProduct", "createPlan", "createSubscription", "cancelSubscription"] as const;
 
 async function takeFault(method: string): Promise<FaultKind | null> {
   if (!config.demoMode) return null;

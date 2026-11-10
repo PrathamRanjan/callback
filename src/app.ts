@@ -5,6 +5,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installChannelHandlers } from "./channels/handlers.js";
 import { GtError } from "./lib/util.js";
+import { config } from "./config.js";
+import { getDb, inWorkspace } from "./db.js";
+import { workspaceMiddleware } from "./web/workspace.js";
 import { callsRouter } from "./web/calls.js";
 import { customerRouter } from "./web/customer.js";
 import { demoRouter } from "./web/demo.js";
@@ -27,10 +30,21 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   app.use("/static", express.static(join(root, "public"), { maxAge: 0, setHeaders: (res, file) => { if (/[\\/]safety[\\/]/.test(file)) res.setHeader("Cache-Control", "public, max-age=86400"); } }));
-  app.get("/healthz", (_req, res) => res.json({ ok: true }));
+  // Health (spec A4): the database answers, and which build is running.
+  app.get("/healthz", async (_req, res) => {
+    const t0 = Date.now();
+    try {
+      const db = await getDb();
+      await inWorkspace(null, () => db.query("SELECT 1"));
+      res.json({ ok: true, commit: config.commit || null, db: db.kind, db_ms: Date.now() - t0 });
+    } catch (e) {
+      res.status(503).json({ ok: false, commit: config.commit || null, error: "database unavailable" });
+    }
+  });
   // The web app (web/, built to dist/client): hashed assets, then index.html for browser page loads.
   app.use("/assets", express.static(join(webDist(), "assets"), { maxAge: "365d", immutable: true }));
   app.use(express.static(webDist(), { index: false, maxAge: "1d" }));
+  app.use(workspaceMiddleware());
   app.use(appJson);
   app.use(webApp());
   app.use(apiRouter());

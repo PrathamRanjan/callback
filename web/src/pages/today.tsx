@@ -1,12 +1,10 @@
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { CalendarClock } from "lucide-react";
 import { ActButton, Empty, ErrorState, Kpi, PageHead, Rows, Section } from "@/components/app/bits";
 import { ApprovalCard, type Approval } from "@/components/app/approval";
 import { CallList, type CallRow } from "@/components/app/call-row";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 import { money, plural } from "@/lib/format";
-import { startTour, tourActive } from "@/tour/tours";
 
 interface Today {
   now: string; now_local: string; tz: string;
@@ -16,13 +14,9 @@ interface Today {
 
 export default function TodayPage() {
   useTitle("Today");
-  const nav = useNavigate();
   const { session, reload: reloadSession } = useSession();
   const { data, error, loading, reload } = useData<Today>("/api/app/today", { poll: 15000 });
   const owner = session?.me?.role === "owner";
-  useEffect(() => {
-    if (data && owner && !tourActive() && !new URLSearchParams(location.search).get("tour")) void startTour("owner", nav);
-  }, [data, owner, nav]);
   const refresh = async () => {
     await reload();
     await reloadSession();
@@ -52,7 +46,7 @@ export default function TodayPage() {
         <Section id="needs" title="Needs you" hint="Held because they're over your limits. Nothing moves until you decide.">
           <div data-tour="today-needs" className="space-y-3">
             {data.approvals.length ? data.approvals.map((a) => <ApprovalCard key={a.id} a={a} passkey={false} compact onDone={refresh} />) : <Empty title="Nothing is waiting for you">When a call wants to move more than your limits, it stops here.</Empty>}
-            {data.approvals.length ? <Link to="/approvals" className="inline-block text-sm font-medium text-brand underline-offset-4 hover:underline">See every approval and your limits</Link> : null}
+            {data.approvals.length ? <Link to="/approvals" className="inline-flex min-h-11 items-center text-sm font-medium text-brand underline-offset-4 hover:underline">See every approval and your limits</Link> : null}
           </div>
         </Section>
       ) : null}

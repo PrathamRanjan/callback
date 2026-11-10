@@ -9,7 +9,8 @@ import { appendAudit } from "../guard/audit.js";
 import { activePolicy } from "../guard/policy.js";
 import { newId } from "../lib/ids.js";
 import { GtError } from "../lib/util.js";
-import { createPlan, sendPayLink, settleCancelledClass, SPLITTABLE } from "../services/money.js";
+import { createPlan, payFromDemoWallet, sendPayLink, settleCancelledClass, SPLITTABLE } from "../services/money.js";
+import { markStep } from "../services/workspaces.js";
 import { balanceOf, owedToCustomer, bizById, customerByToken, logEvent, nowOf, obligationsOf, callsOf } from "../store.js";
 import { startRun } from "../trace.js";
 import { back, flashOf, page } from "./common.js";
@@ -34,7 +35,7 @@ export function customerRouter(): Router {
 ${req.query.paid ? html`<div class="banner good" role="status">Thanks: PayPal has your payment. It shows here once confirmed.</div>` : ""}${req.query.plan ? html`<div class="banner good" role="status">Your payment plan is approved.</div>` : ""}
 ${verify ? html`<section class="card verify-card" id="verify"><div class="spread"><div><h2>Is it really ${biz.name} calling?</h2><p class="sub muted">Our last call gave this verify code. If a caller can't tell you this code, hang up and use this page instead.</p></div><span class="verify-code" aria-label="Verify code ${verify.split("").join(" ")}">${verify}</span></div></section>` : ""}
 <div class="section-title"><h2>What's open</h2></div>
-${open.length ? html`<div class="stack">${open.map((o) => o.kind === "class_cancel" ? html`<section class="card"><div class="spread"><div><h3 style="margin:0">${o.title}</h3><p class="sub muted">${o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : ""}</p></div><span class="amt big-amt">${money(owedToCustomer(o))}</span></div>${owedToCustomer(o) ? html`<p>We cancelled this class, so we owe you <b>${money(owedToCustomer(o))}</b>. How would you like it?</p><form method="post" action="/c/${c.token}/settle/${o.id}" class="row"><button class="btn primary lg" type="submit" name="choice" value="refund">${raw(icon("undo"))}Refund to my PayPal</button><button class="btn lg" type="submit" name="choice" value="credit">${raw(icon("ticket"))}Keep it as a class credit</button></form><p class="small muted">${o.capture_id ? "A refund goes back to the PayPal account you paid with. It can't be sent anywhere else." : "You paid for this class outside PayPal, so a refund is paid back the same way you paid. It can't be sent anywhere else."}</p>` : html`<p class="muted">Nothing to settle.</p>`}</section>` : html`<section class="card"><div class="spread"><div><h3 style="margin:0">${o.title}</h3><p class="sub muted">${o.due_at ? `Due ${fmtLocal(o.due_at, c.tz)}` : ""}${o.appointment_at ? ` · appointment ${fmtLocal(o.appointment_at, c.tz)}` : ""}${o.discount_cents ? ` · after ${money(o.discount_cents)} off` : ""}</p></div><span class="amt big-amt">${money(balanceOf(o))}</span></div><form method="post" action="/c/${c.token}/pay/${o.id}" class="row" style="margin-top:.75rem"><button class="btn primary lg" type="submit">${raw(icon("wallet"))}Pay ${money(balanceOf(o))} with PayPal</button>${pill(o.status)}</form></section>`)}</div>` : html`<div class="empty">Nothing outstanding. Thank you.</div>`}
+${open.length ? html`<div class="stack">${open.map((o) => o.kind === "class_cancel" ? html`<section class="card"><div class="spread"><div><h3 style="margin:0">${o.title}</h3><p class="sub muted">${o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : ""}</p></div><span class="amt big-amt">${money(owedToCustomer(o))}</span></div>${owedToCustomer(o) ? html`<p>We cancelled this class, so we owe you <b>${money(owedToCustomer(o))}</b>. How would you like it?</p><form method="post" action="/c/${c.token}/settle/${o.id}" class="row"><button class="btn primary lg" type="submit" name="choice" value="refund">${raw(icon("undo"))}Refund to my PayPal</button><button class="btn lg" type="submit" name="choice" value="credit">${raw(icon("ticket"))}Keep it as a class credit</button></form><p class="small muted">${o.capture_id ? "A refund goes back to the PayPal account you paid with. It can't be sent anywhere else." : "You paid for this class outside PayPal, so a refund is paid back the same way you paid. It can't be sent anywhere else."}</p>` : html`<p class="muted">Nothing to settle.</p>`}</section>` : html`<section class="card"><div class="spread"><div><h3 style="margin:0">${o.title}</h3><p class="sub muted">${o.due_at ? `Due ${fmtLocal(o.due_at, c.tz)}` : ""}${o.appointment_at ? ` · appointment ${fmtLocal(o.appointment_at, c.tz)}` : ""}${o.discount_cents ? ` · after ${money(o.discount_cents)} off` : ""}</p></div><span class="amt big-amt">${money(balanceOf(o))}</span></div><form method="post" action="/c/${c.token}/pay/${o.id}" class="row" style="margin-top:.75rem"><button class="btn primary lg" type="submit">${raw(icon("wallet"))}Pay ${money(balanceOf(o))} on PayPal's own page</button>${pill(o.status)}</form>${config.demoMode && config.paypal.demoVaultToken ? html`<form method="post" action="/c/${c.token}/wallet/${o.id}" class="row" style="margin-top:.5rem"><button class="btn lg" type="submit">Pay as the demo customer (saved PayPal, no login)</button></form><p class="small muted">Demo only: paid from the demo's saved sandbox wallet. A real sandbox payment; nothing real is charged.</p>` : ""}</section>`)}</div>` : html`<div class="empty">Nothing outstanding. Thank you.</div>`}
 ${done.length ? html`<details class="card"><summary><b>Settled</b> <span class="muted small">${done.length} item${done.length === 1 ? "" : "s"}</span></summary><table class="kv">${done.map((o) => html`<tr><th>${o.title}</th><td>${pill(o.status)}</td></tr>`)}</table></details>` : ""}
 ${msgs.length ? html`<section class="card"><h2>Messages from ${biz.name}</h2><ul class="feed">${msgs.map((m: any) => html`<li><span class="small muted">${m.channel}</span><br>${m.body}</li>`)}</ul></section>` : ""}
 <div class="grid g2" style="margin-top:1rem"><section class="card"><h2>Calls from us</h2><p class="sub muted">${c.dnc ? "You've asked not to be called. We won't." : c.consent ? `You agreed on ${c.consent.granted_at.slice(0, 10)} that we may call about your account, ${pol.rules.hours.start}–${pol.rules.hours.end} your time.` : "We have no consent on file, so we won't call you."}</p>
@@ -53,6 +54,24 @@ ${!c.dnc && c.consent ? html`<form method="post" action="/c/${c.token}/callback"
       await run.end("done");
       if (out.approveUrl && !out.approveUrl.includes("fake.paypal.local")) return res.redirect(out.approveUrl);
       back(res, `/c/${c.token}`, `PayPal link created for ${money(out.cents)} (sandbox: ${out.approveUrl ?? "see messages"}).`);
+    } catch (e) {
+      await run.end("failed");
+      throw e;
+    }
+  }, (req) => `/c/${req.params.token}`));
+  /** Demo only (spec A2.1): pay from the demo's saved sandbox wallet, no PayPal login. Real order and capture ids. */
+  r.post("/c/:token/wallet/:oid", page(async (req, res) => {
+    const db = await getDb();
+    const c = await customerByToken(db, req.params.token);
+    const biz = await bizById(db, c.business_id);
+    const o = (await obligationsOf(db, c.business_id, c.id)).find((x) => x.id === req.params.oid);
+    if (!o || o.kind === "class_cancel") throw new GtError("Not your item", "not_found", 404);
+    const run = await startRun({ actor: "customer", subject: `${c.name} paid ${o.title} from the saved demo wallet`, entity: "obligation", entityId: o.id }, db);
+    try {
+      const out = await payFromDemoWallet({ q: db, run, businessId: biz.id, businessName: biz.name, callId: null, agentScope: `customer:${c.id}`, personInitiated: true }, o, c);
+      await run.end("done");
+      await markStep("paid_from_wallet");
+      back(res, `/c/${c.token}`, `Paid ${money(out.cents)} from the demo's saved sandbox wallet. PayPal order ${out.orderId}, capture ${out.captureId}, read back from PayPal.`);
     } catch (e) {
       await run.end("failed");
       throw e;

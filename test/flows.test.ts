@@ -239,7 +239,7 @@ describe("gate and autonomy", () => {
     expect(calls[1].status).toBe("planned");
     const msgs = (await db.query<any>("SELECT status FROM channel_messages WHERE direction = 'out'")).rows;
     expect(msgs.every((m) => ["simulated", "sent"].includes(m.status))).toBe(true);
-    expect(config.ai.provider).toBe("none");
+    expect(config.ai.provider).toBe("rules");
     await db.close();
   });
 });

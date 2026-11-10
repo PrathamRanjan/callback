@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ActButton, Empty, ErrorState, Lamp, PageHead, Panel, Rows, Section, StateChip } from "@/components/app/bits";
 import { CallScore, type Step, type Turn } from "@/components/app/call-score";
+import { SampleChip } from "@/components/app/call-row";
 import { act } from "@/lib/api";
 import { callLamp, LAMP_LABEL, money, moneyLamp, outcomeWord, PURPOSE, PURPOSE_VERB, when, word } from "@/lib/format";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 import { useLiveVoice } from "@/lib/voice";
 
 interface CallData {
-  call: { id: string; status: string; purpose: string; outcome: string | null; reason: string | null; mode: string | null; transcript: Turn[]; consent_ok: boolean | null; hours_ok: boolean | null; breaches: number; collected_cents: number; started_at: string | null; ended_at: string | null; run_id: string | null; verify_code: string | null };
+  call: { id: string; status: string; purpose: string; outcome: string | null; reason: string | null; mode: string | null; transcript: Turn[]; consent_ok: boolean | null; hours_ok: boolean | null; breaches: number; collected_cents: number; started_at: string | null; ended_at: string | null; run_id: string | null; verify_code: string | null; is_sample?: boolean };
   customer: { id: string; name: string; tz: string; dnc: boolean; consent: any; token: string | null; phone_live: boolean };
   item: { id: string; title: string; kind: string; note: string; amount_cents: number; discount_cents: number; settled_cents: number; balance_cents: number; owed_to_customer_cents: number; status: string; due_local: string | null; appointment_local: string | null; captured: boolean; paypal_order_id: string | null; paypal_invoice_id: string | null; subscription_id: string | null } | null;
   offers: { discounts: { id: string; label: string; pct: number }[]; plans: { id: string; label: string }[]; slots: { id: string; label: string }[] } | null;
@@ -121,7 +122,7 @@ export default function CallPage() {
       <Link to="/calls" className="mb-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-ink-2 hover:text-ink"><ArrowLeft className="size-4" />All calls</Link>
       <PageHead
         title={d.customer.name}
-        kicker={<span className="inline-flex flex-wrap items-center gap-2"><StateChip s={s}>{c.status === "ended" ? outcomeWord(c.outcome) || "Ended" : LAMP_LABEL[s]}</StateChip><span>{PURPOSE[c.purpose]} · {d.item?.title}</span></span>}
+        kicker={<span className="inline-flex flex-wrap items-center gap-2"><StateChip s={s}>{c.status === "ended" ? outcomeWord(c.outcome) || "Ended" : LAMP_LABEL[s]}</StateChip><span>{PURPOSE[c.purpose]} · {d.item?.title}</span>{c.is_sample ? <SampleChip /> : null}</span>}
         happened={c.status === "ended" ? `Call ended${c.ended_at ? ` ${when(c.ended_at)}` : ""}: ${outcomeWord(c.outcome) || "no outcome"}.${c.collected_cents ? ` ${money(c.collected_cents)} collected.` : ""}` : c.status === "blocked" ? `Not calling: ${c.reason}.` : live ? "The call is on the line." : "Planned. Nothing has been said yet."}
         needs={d.approvals.some((a) => a.status === "pending") ? <Link to="/approvals" className="font-medium text-hold underline underline-offset-4">A money move is waiting for you</Link> : undefined}
         next={canStart ? `${PURPOSE_VERB[c.purpose]}: ${money(cents)}.` : live ? "Type what the customer says, or play a persona." : undefined}
@@ -148,7 +149,7 @@ export default function CallPage() {
             <Panel className="mb-6 p-4" data-tour="call-sim">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <Lamp s="live" showLabel label="On the line" />
-                <span className="text-sm text-ink-2">Brain: {d.voice.brain === "model" ? "AI model, checked by rules" : "rules only"}</span>
+                <span className="text-sm text-ink-2">Brain: {d.voice.brain === "model" ? "AI model, checked by code" : d.voice.brain === "rules" ? "rules arm (test only, not AI)" : "no AI model: calls can't start"}</span>
                 {c.verify_code ? <span className="ml-auto rounded-full bg-surface-2 px-2.5 py-1 font-mono text-xs">Verify code {c.verify_code}</span> : null}
               </div>
               <form onSubmit={(e) => { e.preventDefault(); void say(text); }} className="grid gap-2">

@@ -87,7 +87,7 @@ export function ApprovalCard({ a, passkey, onDone, compact = false }: { a: Appro
         <Button variant="outline" onClick={() => decide("decline")} disabled={busy !== null} aria-busy={busy === "decline"}>
           {busy === "decline" ? <Loader2 className="animate-spin" /> : <X />} Decline
         </Button>
-        {a.call_id ? <Link to={`/calls/${a.call_id}`} className="ml-auto text-sm font-medium text-brand underline-offset-4 hover:underline">Open the call</Link> : null}
+        {a.call_id ? <Link to={`/calls/${a.call_id}`} className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-brand underline-offset-4 hover:underline">Open the call</Link> : null}
       </div>
       {a.countersign && !passkey && !compact ? <p className="border-t border-line px-4 py-2 text-xs text-ink-2">This is a big move: register a passkey on Needs you so big moves need your fingerprint or face, not just a click.</p> : null}
     </Panel>

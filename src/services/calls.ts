@@ -49,6 +49,12 @@ export async function startCall(q: Queryable, callId: string, mode: Call["mode"]
   }
   const ctx = await brainContext(q, call, customer, 0, []);
   const d = await decide(ctx, run.id);
+  if (d.failed) {
+    // Spec A5.5: no stand-in opening. The call stays planned so it can be started again; nothing reached the customer.
+    await run.step({ actor: "code", tool: "brain.none", args: { turn: 0 }, gate: "denied", result: { reason: d.reason } });
+    await run.end("failed");
+    throw new GtError("The AI model couldn't start this call, so nothing was said to the customer. Try again in a moment.", "ai_unavailable", 503);
+  }
   const code = verifyCode(call.id);
   const opening: Turn = { who: "agent", text: `${d.say} Your verify code for this call is ${code.split("").join(" ")}; it is on your account page, and we never ask for card numbers or passwords by phone.`, at: new Date().toISOString(), tool: null };
   await run.step({ actor: d.brain === "model" ? "model" : "code", tool: `brain.${d.brain}`, args: { turn: 0 }, result: { say: d.say, tool: d.tool, reason: d.reason } });
@@ -129,7 +135,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
 
   const state = { ...call.state, turns: turn, brain: d.brain };
   let say = d.say;
-  let toolResult: string | null = null;
+  let toolResult: string | null = d.failed ? "The AI model failed on this turn, so code ended the call with a fixed line. The reason is in the trace." : null;
   let gate: TurnResult["gate"] = "n/a";
   let ended = false;
   let outcome: Outcome | null = d.outcome;
@@ -221,7 +227,8 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   if (say || !forced) transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
   if (toolResult) transcript.push({ who: "system", text: toolResult, at: new Date().toISOString() });
   await q.query("UPDATE calls SET transcript = $2, state = $3 WHERE id = $1", [call.id, JSON.stringify(transcript), JSON.stringify(state)]);
-  if (ended || turn >= 14) {
+  if (d.failed) await endCall(q, call.id, "ai_failed", by);
+  else if (ended || turn >= 14) {
     await endCall(q, call.id, finalOutcome(outcome ?? null, deriveOutcome(state, o, gate === "held" ? 1 : 0), turn >= 14), by);
   }
   return { say, tool: d.tool, tool_result: toolResult, ended: ended || turn >= 14, outcome, decision: d, gate };

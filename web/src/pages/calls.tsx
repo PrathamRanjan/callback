@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Empty, ErrorState, PageHead, Rows } from "@/components/app/bits";
+import { Empty, ErrorState, PageHead, Rows, Segmented } from "@/components/app/bits";
 import { CallList, type CallRow } from "@/components/app/call-row";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useData, useTitle } from "@/lib/hooks";
 import { plural } from "@/lib/format";
@@ -33,15 +32,7 @@ export default function CallsPage() {
         next={data ? `${plural(counts("planned"), "call")} ready. Open one to start it.` : undefined}
       />
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
-        <Tabs value={f} onValueChange={setF}>
-          <TabsList className="h-auto flex-wrap bg-surface-2">
-            {FILTERS.map((x) => (
-              <TabsTrigger key={x.v} value={x.v} className="min-h-10 px-3">
-                {x.label} <span className="ml-1 text-xs text-ink-2 num">{counts(x.v)}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Segmented label="Show calls" value={f} onChange={setF} options={FILTERS.map((x) => ({ v: x.v, label: <>{x.label} <span className="ml-1 text-xs num">{counts(x.v)}</span></> }))} />
         <Input type="search" placeholder="Find a customer" aria-label="Find a customer" value={q} onChange={(e) => setQ(e.target.value)} className="h-11 md:ml-auto md:max-w-[260px]" />
       </div>
       <div data-tour="calls-list">

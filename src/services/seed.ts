@@ -3,11 +3,11 @@
  * with mixed consent and time zones, and the money that needs a call: tomorrow's deposits, overdue invoices, a cancelled
  * class. Phone numbers are from the ranges Australia and the US reserve for fiction, so nothing here can ring a real person. Plus the 90-day by-hand call history for the backtest and a default policy.
  */
-import type { Db } from "../db.js";
+import { scopedSecret, type Db } from "../db.js";
 import { compileLocal, savePolicy } from "../guard/policy.js";
 import { seedHistory } from "../guard/backtest.js";
 import { newId } from "../lib/ids.js";
-import { hashKey, newSecret } from "../lib/util.js";
+import { hashKey } from "../lib/util.js";
 import { addDays, addHours } from "../core/time.js";
 
 export interface Seeded {
@@ -18,15 +18,15 @@ export interface Seeded {
   obligations: Record<string, string>;
 }
 
-export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } = {}): Promise<Seeded> {
+export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean; ws?: string } = {}): Promise<Seeded> {
   const existing = (await db.query<{ id: string }>("SELECT id FROM businesses WHERE key = 'brightside'")).rows[0];
   if (existing) throw new Error("Already seeded");
   const now = opts.now ?? new Date();
   const bizId = newId("biz");
   const tz = "Australia/Sydney";
   await db.query("INSERT INTO businesses (id, key, name, tz, currency, phone, sim_now, settings) VALUES ($1,'brightside',$2,$3,'USD',$4,$5,$6)", [bizId, "Brightside Physio & Pilates", tz, "+61 2 5550 0100", opts.pinClock ? now.toISOString() : null, JSON.stringify({ owner_name: "Maya Chen" })]);
-  const ownerKey = newSecret("cbo");
-  const staffKey = newSecret("cbs");
+  const ownerKey = scopedSecret("cbo");
+  const staffKey = scopedSecret("cbs");
   const ownerId = newId("per");
   await db.query("INSERT INTO people (id, business_id, name, role, key_hash) VALUES ($1,$2,'Maya Chen','owner',$3)", [ownerId, bizId, hashKey(ownerKey)]);
   await db.query("INSERT INTO people (id, business_id, name, role, key_hash) VALUES ($1,$2,'Jordan Lee','staff',$3)", [newId("per"), bizId, hashKey(staffKey)]);
@@ -46,7 +46,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean } 
   ];
   for (const [key, name, phone, email, ctz, cons, dnc, notes] of rows) {
     const id = newId("cus");
-    const token = newSecret("cbt");
+    const token = scopedSecret("cbt");
     await db.query("INSERT INTO customers (id, business_id, name, phone, email, tz, token, consent, dnc, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [id, bizId, name, phone, email, ctz, token, cons, dnc, notes]);
     customers[key] = { id, token };
   }

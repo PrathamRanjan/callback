@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: process.env.E2E_URL
     ? undefined
     : {
-        command: `rm -rf ./data/pglite-e2e && DATABASE_URL= OPENAI_API_KEY= AI_PROVIDER=rules TELEGRAM_BOT_TOKEN= PORT=${port} APP_URL=${url} PGLITE_PATH=./data/pglite-e2e node --env-file-if-exists=.env dist/main.js`,
+        command: `rm -rf ./data/pglite-e2e && DATABASE_URL= OPENAI_API_KEY= AI_PROVIDER=rules CB_WORKSPACE_STARTS_PER_HOUR=1000 TELEGRAM_BOT_TOKEN= PORT=${port} APP_URL=${url} PGLITE_PATH=./data/pglite-e2e node --env-file-if-exists=.env dist/main.js`,
         url: `${url}/healthz`,
         reuseExistingServer: false,
         timeout: 60_000,

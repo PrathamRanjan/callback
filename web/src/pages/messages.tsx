@@ -67,14 +67,14 @@ export default function MessagesPage() {
           </Panel>
         ) : null}
       </Section>
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr] [&>*]:min-w-0">
         <Section id="threads" title="Conversations">
           {threads.length ? (
             <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
               {[{ address: d.owner_address } as Msg, ...threads.filter((t) => t.address !== d.owner_address)].map((t) => (
                 <li key={t.address}>
                   <button type="button" onClick={() => setAddr(t.address)} aria-current={current === t.address} className={`w-full px-4 py-3 text-left hover:bg-surface-2 ${current === t.address ? "bg-brand-soft" : ""}`}>
-                    <div className="text-sm font-medium">{who(t.address)}</div>
+                    <div className="truncate text-sm font-medium">{who(t.address)}</div>
                     {t.body ? <div className="truncate text-xs text-ink-2">{t.body}</div> : null}
                   </button>
                 </li>
@@ -88,8 +88,8 @@ export default function MessagesPage() {
               <ol className="mb-4 max-h-[420px] space-y-2 overflow-y-auto">
                 {d.thread.map((m, k) => (
                   <li key={k} className={m.direction === "in" ? "pl-10 text-right" : "pr-10"}>
-                    <span className={`inline-block rounded-[10px] px-3 py-2 text-left text-sm ${m.direction === "in" ? "bg-surface-2" : "bg-brand-soft"}`}>{m.body}</span>
-                    <div className="mt-0.5 text-[0.7rem] text-ink-2">{m.channel} · {m.status} · {when(m.at)}</div>
+                    <span className={`inline-block max-w-full rounded-[10px] px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.direction === "in" ? "bg-surface-2" : "bg-brand-soft"}`}>{m.body}</span>
+                    <div className="mt-0.5 text-[0.7rem] text-ink-2 [overflow-wrap:anywhere]">{m.channel} · {m.status} · {when(m.at)}</div>
                   </li>
                 ))}
               </ol>

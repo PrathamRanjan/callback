@@ -150,25 +150,6 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="border-y border-line bg-surface" aria-labelledby="pricing">
-        <div className="mx-auto max-w-[1180px] px-4 py-14">
-          <h2 id="pricing" className="font-display text-h2 font-[750]" style={{ fontStretch: "112%" }}>Pricing</h2>
-          <p className="mt-2 max-w-[680px] text-ink-2"><strong className="text-ink">Illustrative only.</strong> Callback is a hackathon build and is not for sale. This shows how it could be priced: by calls made, never a cut of what you collect.</p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {[
-              { t: "Solo", p: "per call", d: ["Deposits and overdue invoices", "Your calling hours and limits", "Pay links and invoices through your PayPal"] },
-              { t: "Studio", p: "monthly, calls included", d: ["Everything in Solo", "Instalment plans, refunds and class credits", "Passkey approvals and a staff login"] },
-            ].map((x) => (
-              <Panel key={x.t} className="p-5">
-                <div className="flex items-baseline justify-between"><h3 className="text-xl font-semibold">{x.t}</h3><span className="text-sm text-ink-2">{x.p}</span></div>
-                <ul className="mt-3 space-y-1.5">{x.d.map((d) => <li key={d} className="flex gap-2"><Check className="mt-0.5 size-4 flex-none text-done" aria-hidden="true" />{d}</li>)}</ul>
-                <p className="mt-3 text-sm text-ink-2">PayPal's own fees apply as usual.</p>
-              </Panel>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section className="mx-auto max-w-[820px] px-4 py-14" aria-labelledby="faq">
         <h2 id="faq" className="font-display text-h2 font-[750]" style={{ fontStretch: "112%" }}>Questions</h2>
         <div className="mt-5 divide-y divide-line rounded-[10px] border border-line bg-surface">

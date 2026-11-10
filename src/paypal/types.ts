@@ -89,6 +89,13 @@ export interface PayPalApi {
   verifyCredentials(): Promise<{ appId?: string; scopes: string[] }>;
   /** Pay link: a buyer-approved order (intent CAPTURE) the customer opens from the SMS or WhatsApp message. */
   createOrder(input: OrderInput & { returnUrl: string; cancelUrl: string }, requestId: string): Promise<{ id: string; status: string; approveUrl: string | null }>;
+  /** Saved-wallet payment (demo only): an order paid from a vaulted PayPal wallet with no buyer login. Intent CAPTURE
+   * completes at once; the caller still reads the order back before changing any state. */
+  createVaultOrder(input: OrderInput & { vaultId: string }, requestId: string): Promise<{ id: string; status: string }>;
+  /** Vault v3: the saved wallet's payment token (health check) and the one-time setup to replace it. */
+  getPaymentToken(id: string): Promise<{ id: string; customer?: { id?: string }; payment_source?: { paypal?: { email_address?: string } } }>;
+  createSetupToken(input: { returnUrl: string; cancelUrl: string }, requestId: string): Promise<{ id: string; approveUrl: string | null }>;
+  createPaymentToken(setupTokenId: string, requestId: string): Promise<{ id: string; customer?: { id?: string } }>;
   getOrder(id: string): Promise<PPOrder>;
   captureOrder(id: string, requestId: string): Promise<PPOrder>;
   getCapture(id: string): Promise<PPCapture>;

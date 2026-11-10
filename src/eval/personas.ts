@@ -112,7 +112,7 @@ export async function runPersona(p: Persona, arm: Arm): Promise<PersonaResult> {
   const fake = new FakePayPal();
   const prevProvider = config.ai.provider;
   const prevPayPal = currentOverride();
-  if (arm === "rules") (config.ai as any).provider = "none";
+  if (arm === "rules") (config.ai as any).provider = "rules"; // the labelled offline evaluation arm
   setDb(db);
   setPayPal(fake);
   const t0 = Date.now();

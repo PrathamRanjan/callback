@@ -30,7 +30,7 @@ export const STATUS_WORD: Record<string, string> = {
   allowed: "Allowed", held: "Held for you", denied: "Refused", dry_run_refused: "Refused before PayPal", approved: "Approved", declined: "Declined",
 };
 export const word = (s: string | null | undefined) => (s ? STATUS_WORD[s] ?? s.replace(/_/g, " ") : "");
-const OUTCOME: Record<string, string> = { paid_link: "Pay link sent", plan_agreed: "Plan agreed", invoice_sent: "Invoice sent", callback: "Call back booked", credit: "Credited", refund: "Refunded", declined: "Declined", no_answer: "No answer", wrong_person: "Wrong person", do_not_call: "Asked not to be called", held: "Waiting for you" };
+const OUTCOME: Record<string, string> = { paid_link: "Pay link sent", plan_agreed: "Plan agreed", invoice_sent: "Invoice sent", callback: "Call back booked", credit: "Credited", refund: "Refunded", declined: "Declined", no_answer: "No answer", wrong_person: "Wrong person", do_not_call: "Asked not to be called", held: "Waiting for you", abandoned: "Ended: no reply for 10 minutes", ai_failed: "Stopped: the AI model failed" };
 export const outcomeWord = (o: string | null | undefined) => (o ? OUTCOME[o] ?? o.replace(/_/g, " ") : "");
 
 export function when(iso: string | null | undefined) {

@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ExternalLink, FlaskConical, RefreshCw, Webhook } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ActButton, Empty, ErrorState, Kpi, PageHead, Panel, Rows, Section, StateChip } from "@/components/app/bits";
+import { ActButton, Empty, ErrorState, Kpi, PageHead, Panel, Rows, Section, Segmented, StateChip } from "@/components/app/bits";
 import { NativeSelect } from "@/components/app/form";
 import { money, moneyLamp, when, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
@@ -52,11 +51,7 @@ export default function MoneyPage() {
         <Kpi label="PayPal balance" value={d.balances.length ? d.balances.map((b) => `${b.currency} ${Number(b.value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`).join(" · ") : "—"} hint={d.paypal.readable ? "Sandbox merchant, read live" : "Not readable"} />
       </div>
       <Section id="moves" title="Every money move" hint="Read back from PayPal, newest first.">
-        <Tabs value={f} onValueChange={setF} className="mb-3">
-          <TabsList className="h-auto flex-wrap bg-surface-2">
-            {["all", "pay_link", "invoice", "plan", "refund"].map((k) => <TabsTrigger key={k} value={k} className="min-h-10 px-3">{k === "all" ? "All" : `${KIND[k]}s`}<span className="ml-1 text-xs text-ink-2 num">{d.moves.filter((m) => k === "all" || m.kind === k).length}</span></TabsTrigger>)}
-          </TabsList>
-        </Tabs>
+        <Segmented className="mb-3" label="Show money moves" value={f} onChange={setF} options={["all", "pay_link", "invoice", "plan", "refund"].map((k) => ({ v: k, label: <>{k === "all" ? "All" : `${KIND[k]}s`}<span className="ml-1 text-xs num">{d.moves.filter((m) => k === "all" || m.kind === k).length}</span></> }))} />
         {moves.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
             {moves.map((m) => (

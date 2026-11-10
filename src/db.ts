@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { config } from "./config.js";
 
@@ -12,24 +14,66 @@ export interface Db extends Queryable {
   kind: "pglite" | "postgres";
 }
 
+/**
+ * Private demo workspaces (spec A1). Each visitor's copy of the studio lives in its own Postgres schema, and the
+ * workspace a piece of work belongs to travels with it in AsyncLocalStorage: every query made inside
+ * `inWorkspace(id, fn)` runs with `search_path` set to that schema, so the existing queries need no change and one
+ * visitor's rows, approvals, clock, faults and kill switches can never reach another's. Outside a workspace, queries
+ * run in the app's own schema: the shared showcase studio plus the registry tables (workspaces, ws_refs).
+ */
+const wsContext = new AsyncLocalStorage<{ ws: string | null }>();
+export const currentWs = (): string | null => wsContext.getStore()?.ws ?? null;
+export function inWorkspace<T>(ws: string | null, fn: () => T): T {
+  return wsContext.run({ ws }, fn);
+}
+export const WS_ID = /^[a-z0-9]{10}$/;
+export function wsSchemaName(ws: string): string {
+  if (!WS_ID.test(ws)) throw new Error(`Bad workspace id: ${ws}`);
+  return `cbws_${ws}`;
+}
+/** A secret that names the workspace it belongs to (customer link token, access key): `cbt_w<ws>_<random>`. */
+export function scopedSecret(prefix: string): string {
+  const ws = currentWs();
+  return `${prefix}_${ws ? `w${ws}_` : ""}${randomBytes(24).toString("base64url")}`;
+}
+/** The search_path the connection starts with (Render: the app's own schema via ?options=-c search_path=callback). */
+let basePath = "public";
+const wantedPath = () => {
+  const ws = currentWs();
+  return ws ? `"${wsSchemaName(ws)}"` : basePath;
+};
+
 async function openPglite(path: string | null): Promise<Db> {
   const { PGlite } = await import("@electric-sql/pglite");
   if (path) mkdirSync(path, { recursive: true });
   const pg = path ? new PGlite(path) : new PGlite();
   await pg.waitReady;
+  let pathNow = String((await pg.query<{ search_path: string }>("SHOW search_path")).rows[0]?.search_path ?? "public");
+  basePath = pathNow;
+  // One connection: every statement goes through one queue, and the search_path is switched inside the queue, so a
+  // query can never run under another workspace's path.
   let chain: Promise<unknown> = Promise.resolve();
+  const run = <T>(fn: () => Promise<T>): Promise<T> => {
+    const want = wantedPath();
+    const p = chain.then(async () => {
+      if (pathNow !== want) {
+        await pg.exec(`SET search_path TO ${want}`);
+        pathNow = want;
+      }
+      return fn();
+    });
+    chain = p.catch(() => undefined);
+    return p;
+  };
   return {
     kind: "pglite",
-    query: async (sql, params) => ({ rows: (await pg.query(sql, params as any[])).rows as any[] }),
-    exec: async (sql) => {
+    query: (sql, params) => run(async () => ({ rows: (await pg.query(sql, params as any[])).rows as any[] })),
+    exec: (sql) => run(async () => {
       await pg.exec(sql);
-    },
-    tx: (fn) => {
-      const run = chain.then(() => pg.transaction(async (t) => fn({ query: async (s, p) => ({ rows: (await t.query(s, p as any[])).rows as any[] }) })));
-      chain = run.catch(() => undefined);
-      return run as any;
-    },
+    }),
+    tx: (fn) => run(() => pg.transaction(async (t) => fn({ query: async (s, p) => ({ rows: (await t.query(s, p as any[])).rows as any[] }) }))) as any,
     close: async () => {
+      await chain;
       await pg.close();
     },
   };
@@ -39,14 +83,35 @@ async function openPostgres(url: string): Promise<Db> {
   const pgmod = await import("pg");
   const Pool = (pgmod as any).default?.Pool ?? (pgmod as any).Pool;
   const pool = new Pool({ connectionString: url, ssl: /localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: false }, max: 10 });
+  {
+    const c = await pool.connect();
+    try {
+      basePath = String((await c.query("SHOW search_path")).rows[0]?.search_path ?? "public");
+    } finally {
+      c.release();
+    }
+  }
+  // Each pooled connection remembers the path it was last set to; a query switches it only when it differs.
+  const onClient = async <T>(fn: (c: any) => Promise<T>): Promise<T> => {
+    const want = wantedPath();
+    const c = await pool.connect();
+    try {
+      if (c.__cbPath !== want) {
+        await c.query(`SET search_path TO ${want}`);
+        c.__cbPath = want;
+      }
+      return await fn(c);
+    } finally {
+      c.release();
+    }
+  };
   return {
     kind: "postgres",
-    query: async (sql, params) => ({ rows: (await pool.query(sql, params)).rows }),
-    exec: async (sql) => {
-      await pool.query(sql);
-    },
-    tx: async (fn) => {
-      const client = await pool.connect();
+    query: (sql, params) => onClient(async (c) => ({ rows: (await c.query(sql, params)).rows })),
+    exec: (sql) => onClient(async (c) => {
+      await c.query(sql);
+    }),
+    tx: (fn) => onClient(async (client) => {
       try {
         await client.query("BEGIN");
         const out = await fn({ query: async (s: string, p?: unknown[]) => ({ rows: (await client.query(s, p)).rows }) });
@@ -55,10 +120,8 @@ async function openPostgres(url: string): Promise<Db> {
       } catch (e) {
         await client.query("ROLLBACK");
         throw e;
-      } finally {
-        client.release();
       }
-    },
+    }),
     close: async () => {
       await pool.end();
     },
@@ -199,13 +262,43 @@ CREATE TABLE IF NOT EXISTS guard_settings (
 ALTER TABLE obligations ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT '';
 -- A cancelled class that came from a booking paid by PayPal points back at it, so the refund goes to that capture.
 ALTER TABLE obligations ADD COLUMN IF NOT EXISTS source_id TEXT;
+-- Sample rows (spec 0.2 rule 4): seeded calls that never happened carry the flag and a visible "Sample" chip.
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS is_sample BOOLEAN NOT NULL DEFAULT false;
+-- How a payment was made: a link the customer approves on PayPal, or the demo's saved sandbox wallet.
+ALTER TABLE pay_links ADD COLUMN IF NOT EXISTS via TEXT NOT NULL DEFAULT 'link';
+CREATE INDEX IF NOT EXISTS obligations_biz ON obligations(business_id, created_at);
+CREATE INDEX IF NOT EXISTS customers_biz ON customers(business_id, name);
+CREATE INDEX IF NOT EXISTS events_biz ON events(business_id, at DESC);
+CREATE INDEX IF NOT EXISTS agent_runs_started ON agent_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS channel_messages_at ON channel_messages(created_at DESC);
+`;
+
+/** Every table of a studio, children first: what a showcase rebuild or a full reset empties. */
+export const APP_TABLES = ["voice_events", "callbacks", "pay_links", "invoices", "instalment_plans", "refunds", "calls", "obligations", "policies", "call_history", "customers", "people", "events", "demo_faults", "webhook_events", "jobs_queue", "ai_calls", "agent_trace", "agent_runs", "audit_chain", "kill_switches", "approvals", "passkeys", "provenance", "channel_messages", "party_links", "push_subscriptions", "judge_sessions", "eval_runs", "guard_settings", "businesses"];
+
+/** Registry tables: only in the app's own schema, never inside a workspace schema. */
+export const REGISTRY = `
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'visitor' CHECK (kind IN ('visitor','showcase')), created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL, ip_hash TEXT NOT NULL DEFAULT '', seed_version INTEGER NOT NULL DEFAULT 1,
+  seed_state TEXT NOT NULL DEFAULT 'seeding' CHECK (seed_state IN ('seeding','ready','failed')), seed_note TEXT NOT NULL DEFAULT '',
+  checklist JSONB NOT NULL DEFAULT '{}', join_token TEXT UNIQUE
+);
+CREATE INDEX IF NOT EXISTS workspaces_seen ON workspaces(last_seen_at);
+-- Which workspace an outside id belongs to (a PayPal order or capture, a phone call), for webhooks that carry no custom_id.
+CREATE TABLE IF NOT EXISTS ws_refs (ref TEXT PRIMARY KEY, ws_id TEXT NOT NULL, kind TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS ws_refs_ws ON ws_refs(ws_id);
+CREATE TABLE IF NOT EXISTS ws_starts (ip_hash TEXT NOT NULL, at TIMESTAMPTZ NOT NULL DEFAULT now());
 `;
 
 let shared: Db | null = null;
 
 export async function openDb(opts: { memory?: boolean } = {}): Promise<Db> {
   const db = opts.memory ? await openPglite(null) : config.databaseUrl ? await openPostgres(config.databaseUrl) : await openPglite(config.pglitePath);
-  await db.exec(SCHEMA);
+  await inWorkspace(null, async () => {
+    await db.exec(SCHEMA);
+    await db.exec(REGISTRY);
+  });
   return db;
 }
 
@@ -216,4 +309,15 @@ export async function getDb(): Promise<Db> {
 
 export function setDb(db: Db) {
   shared = db;
+}
+
+/** Creates (or recreates) a workspace's schema with the app's tables. */
+export async function createWorkspaceSchema(db: Db, ws: string) {
+  const name = wsSchemaName(ws);
+  await inWorkspace(null, () => db.exec(`DROP SCHEMA IF EXISTS "${name}" CASCADE; CREATE SCHEMA "${name}"`));
+  await inWorkspace(ws, () => db.exec(SCHEMA));
+}
+
+export async function dropWorkspaceSchema(db: Db, ws: string) {
+  await inWorkspace(null, () => db.exec(`DROP SCHEMA IF EXISTS "${wsSchemaName(ws)}" CASCADE`));
 }

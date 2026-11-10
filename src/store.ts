@@ -1,4 +1,5 @@
 /** Typed reads of the core records. Writes live in the services. */
+import { config } from "./config.js";
 import type { Queryable } from "./db.js";
 import { GtError } from "./lib/util.js";
 import type { Consent } from "./core/consent.js";
@@ -74,7 +75,7 @@ export interface CallState {
   closed?: boolean;
   outcome?: string | null;
   turns?: number;
-  brain?: "model" | "rules";
+  brain?: "model" | "rules" | "none";
 }
 export interface Call {
   id: string;
@@ -182,7 +183,10 @@ export async function callsOf(q: Queryable, businessId: string, opts: { status?:
 }
 export async function callAttempts(q: Queryable, customerId: string, now: Date): Promise<{ attempts_today: number; last_attempt_at: Date | null }> {
   const dayStart = new Date(now.getTime() - 24 * 3600_000);
-  const r = (await q.query<{ n: string; last: Date | null }>("SELECT count(*) FILTER (WHERE started_at > $2) AS n, max(started_at) AS last FROM calls WHERE customer_id = $1 AND started_at IS NOT NULL", [customerId, dayStart])).rows[0];
+  // In the demo only finished calls count (spec B2, C3): a call a visitor opened and left, a sample call, or one the
+  // worker ended as abandoned does not use up the customer's one call a day.
+  const demo = config.demoMode ? " AND status = 'ended' AND coalesce(outcome, '') NOT IN ('abandoned', 'ai_failed') AND NOT is_sample" : "";
+  const r = (await q.query<{ n: string; last: Date | null }>(`SELECT count(*) FILTER (WHERE started_at > $2) AS n, max(started_at) AS last FROM calls WHERE customer_id = $1 AND started_at IS NOT NULL${demo}`, [customerId, dayStart])).rows[0];
   return { attempts_today: Number(r?.n ?? 0), last_attempt_at: r?.last ? new Date(r.last) : null };
 }
 

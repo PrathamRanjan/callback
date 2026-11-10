@@ -28,7 +28,7 @@ export default function Try() {
     setBusy(who);
     try {
       const info = data ?? (await getJson<DemoInfo>("/api/app/demo")); // a fast click can beat the first load
-      if (!info.seeded) await act("/demo/reset", { pin: "1" });
+      void info;
       await act("/demo/signin-as", { role: who === "staff" ? "staff" : "owner" });
       await reload();
       if (who === "customer") {
@@ -57,7 +57,7 @@ export default function Try() {
     <PublicShell>
       <div className="mx-auto max-w-[720px] px-4 py-10">
         <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>Who do you want to be?</h1>
-        <p className="mt-2 text-ink-2">{data?.business?.name ?? "The demo studio"} is a seeded demo studio in Sydney. Payments go through the real PayPal sandbox; nothing real is charged.</p>
+        <p className="mt-2 text-ink-2">{data?.business?.name ?? "The demo studio"} is a demo studio in Sydney. Your first tap builds your own private copy of it (a few seconds): nobody else sees what you do, and it is removed after two days without a visit. Payments go through the real PayPal sandbox; nothing real is charged.</p>
         {data && !data.demo ? <p className="mt-3 rounded-[8px] bg-hold-soft p-3 text-sm">Demo mode is off on this server. Sign in with your access key below.</p> : null}
         <ul className="mt-6 grid gap-3">
           {people.map((p) => (

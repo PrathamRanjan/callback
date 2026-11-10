@@ -10,7 +10,8 @@ import { useData, useTitle } from "@/lib/hooks";
 interface PortalData {
   business: { name: string }; first_name: string; tz: string; verify_code: string | null; last_call_at: string | null;
   open: { id: string; kind: string; title: string; note: string; balance_cents: number; owed_to_you_cents: number; discount_cents: number; status: string; due_local: string | null; appointment_local: string | null; paid_by_paypal: boolean; plans: { id: string; label: string }[] }[];
-  settled: { id: string; title: string; status: string; cents: number }[];
+  settled: { id: string; title: string; status: string; cents: number; capture_id: string | null; via_wallet: boolean }[];
+  demo_wallet: boolean;
   messages: { body: string; channel: string; created_at: string }[];
   calls: { dnc: boolean; consent: { granted_on: string; revoked: boolean } | null; hours: { start: string; end: string }; slots: { at: string; label: string }[] };
   telegram: string;
@@ -81,7 +82,13 @@ export default function PortalPage() {
                         <ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "credit" }} variant="outline" icon={<Gift />} onDone={reload} className="h-12 flex-1">Keep as class credit</ActButton>
                       </>
                     ) : o.balance_cents > 0 ? (
-                      <ActButton path={`/c/${token}/pay/${o.id}`} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} with PayPal</ActButton>
+                      <div className="grid w-full gap-2">
+                        {d.demo_wallet ? (
+                          <span data-tour="portal-wallet"><ActButton path={`/c/${token}/wallet/${o.id}`} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} as the demo customer (saved PayPal, no login)</ActButton></span>
+                        ) : null}
+                        <ActButton path={`/c/${token}/pay/${o.id}`} variant={d.demo_wallet ? "outline" : "default"} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} on PayPal's own page</ActButton>
+                        {d.demo_wallet ? <p className="text-xs text-ink-2">Demo: the first button pays from the demo's saved sandbox PayPal wallet, so no PayPal sign-in is needed. It is a real sandbox payment; nothing real is charged.</p> : null}
+                      </div>
                     ) : <StateChip s={moneyLamp(o.status)}>{word(o.status)}</StateChip>}
                   </div>
                   {o.kind === "class_cancel" && !o.paid_by_paypal ? <p className="mt-2 text-xs text-ink-2">You paid outside PayPal, so a refund comes back the same way you paid.</p> : null}
@@ -122,7 +129,7 @@ export default function PortalPage() {
             {d.settled.length ? (
               <>
                 <h2 className="mt-8 text-xl font-semibold">Done</h2>
-                <ul className="mt-3 divide-y divide-line rounded-[10px] border border-line bg-surface">{d.settled.map((s) => <li key={s.id} className="flex items-center gap-3 px-4 py-3 text-sm"><span className="lamp" data-s={moneyLamp(s.status)} aria-hidden="true" /><span className="flex-1">{s.title}</span><span className="text-ink-2">{word(s.status)}</span><span className="num font-medium">{money(s.cents)}</span></li>)}</ul>
+                <ul className="mt-3 divide-y divide-line rounded-[10px] border border-line bg-surface">{d.settled.map((s) => <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="lamp" data-s={moneyLamp(s.status)} aria-hidden="true" /><span className="flex-1">{s.title}</span><span className="text-ink-2">{word(s.status)}</span><span className="num font-medium">{money(s.cents)}</span>{s.capture_id ? <span className="basis-full text-xs text-ink-2">PayPal capture <span className="font-mono">{s.capture_id}</span>{s.via_wallet ? ", paid from the demo's saved sandbox wallet" : ""}</span> : null}</li>)}</ul>
               </>
             ) : null}
             <p className="mt-8 text-xs text-ink-2">This page is only for you. {d.business.name} will never ask for a password, a one-time code or your card number.</p>

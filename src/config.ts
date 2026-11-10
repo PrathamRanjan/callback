@@ -21,7 +21,21 @@ export const config = {
     clientId: process.env.PAYPAL_CLIENT_ID || "",
     clientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
     webhookId: process.env.PAYPAL_WEBHOOK_ID || "",
+    /** Vault v3 payment token of the demo's saved sandbox buyer wallet (spec A2.1). Demo workspaces only. */
+    demoVaultToken: process.env.PAYPAL_DEMO_VAULT_TOKEN || "",
+    demoVaultEmail: process.env.PAYPAL_DEMO_VAULT_EMAIL || "",
   },
+  /** Private demo workspaces (spec A1): limits that keep a shared free database and the model bill bounded. */
+  workspaces: {
+    /** On by default in demo mode: every "Try the demo" tap gets its own studio. Tests of the single studio turn it off. */
+    enabled: bool(process.env.CB_WORKSPACES, bool(process.env.CB_DEMO_MODE, true)),
+    maxLive: num(process.env.CB_MAX_WORKSPACES, 40),
+    idleHours: num(process.env.CB_WORKSPACE_IDLE_HOURS, 48),
+    startsPerHour: num(process.env.CB_WORKSPACE_STARTS_PER_HOUR, 5),
+  },
+  /** Operator key for the global reset and the wallet re-approval page. Without it those pages are closed. */
+  adminKey: process.env.CB_ADMIN_KEY || "",
+  commit: (process.env.RENDER_GIT_COMMIT || process.env.CB_COMMIT || "").slice(0, 12),
   currency: (process.env.CB_CURRENCY || "USD").toUpperCase(),
   sessionSecret: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
   demoMode: bool(process.env.CB_DEMO_MODE, true),
@@ -29,13 +43,20 @@ export const config = {
   workerIntervalMs: num(process.env.CB_WORKER_INTERVAL_MS, 2000),
   /** Model provider (roadmap B.1). OpenAI Responses API with strict JSON schemas; "none" = the scripted rules agent. */
   ai: {
-    provider: (process.env.AI_PROVIDER || (process.env.OPENAI_API_KEY ? "openai" : "none")) as "openai" | "none",
+    /**
+     * "openai" is the only provider a deployed server runs. "rules" is the deterministic test and offline-evaluation arm
+     * (spec A11): it never runs on the deployed app and is never labelled as AI. "none" means no model: AI steps show
+     * an honest failure instead of a stand-in.
+     */
+    provider: (process.env.AI_PROVIDER || (process.env.OPENAI_API_KEY ? "openai" : "none")) as "openai" | "rules" | "none",
     openaiKey: process.env.OPENAI_API_KEY || "",
     openaiBaseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/$/, ""),
     models: {
-      read: process.env.OPENAI_MODEL_READ || "gpt-5.5",
-      classify: process.env.OPENAI_MODEL_CLASSIFY || "gpt-5.4-mini",
-      vision: process.env.OPENAI_MODEL_VISION || "gpt-5.6-luna",
+      // Spec A5.1: reading and drafting on gpt-6.1-sol (backup gpt-6-sol), small wording jobs on gpt-6-luna.
+      read: process.env.OPENAI_MODEL_READ || "gpt-6.1-sol",
+      readBackup: process.env.OPENAI_MODEL_READ_BACKUP || "gpt-6-sol",
+      classify: process.env.OPENAI_MODEL_CLASSIFY || "gpt-6-luna",
+      vision: process.env.OPENAI_MODEL_VISION || "gpt-6.1-sol",
       realtime: process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
     },
   },

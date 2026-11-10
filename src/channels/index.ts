@@ -6,6 +6,7 @@
  */
 import { config, mayContactForReal } from "../config.js";
 import type { Queryable } from "../db.js";
+import { noteRef } from "../services/wsrefs.js";
 import { getDb } from "../db.js";
 import { enqueue } from "../jobs.js";
 import { newId } from "../lib/ids.js";
@@ -118,6 +119,8 @@ export async function receive(channel: Channel, address: string, text: string, b
 export async function link(channel: Channel, address: string, party: Party, partyId: string) {
   const db = await getDb();
   await db.query("INSERT INTO party_links (id, channel, address, party, party_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (channel, address) DO UPDATE SET party = EXCLUDED.party, party_id = EXCLUDED.party_id", [newId("lnk"), channel, address, party, partyId]);
+  // A Telegram chat linked inside a private demo: later messages and button taps from it are answered in that demo.
+  if (channel === "telegram") await noteRef("telegram.chat", `tg:${address}`);
 }
 
 export async function conversation(address: string, limit = 50) {

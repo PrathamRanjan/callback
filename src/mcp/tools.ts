@@ -74,6 +74,11 @@ export function buildOwnerServer(businessId: string, agentId: string): McpServer
     const db = await getDb();
     const run = await startRun({ actor: "agent", agentId, subject: "Draft policy", entity: "business", entityId: businessId }, db);
     const compiled = await compilePolicy(t, run.id);
+    if (compiled.ai_error) {
+      await run.step({ actor: "code", tool: "policy.compile", gate: "denied", result: { ai_failed: true } });
+      await run.end("failed");
+      return text({ error: "The AI model couldn't read this policy text. Nothing was changed. Try again in a moment." });
+    }
     const bt = backtest(await history(businessId, db), compiled.rules, await guardSettings(businessId, db));
     await run.step({ actor: "code", tool: "policy.compile", result: { source: compiled.source, refused: compiled.refused } });
     await run.end("done");

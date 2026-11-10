@@ -14,6 +14,7 @@ import { newId, requestKey } from "../lib/ids.js";
 import { GtError } from "../lib/util.js";
 import { paypal, toValue, UnknownOutcomeError } from "../paypal/index.js";
 import { balanceOf, logEvent, obligationById, type Customer, type Obligation } from "../store.js";
+import { noteRef, wsCustomId } from "./wsrefs.js";
 import type { Run } from "../trace.js";
 
 export interface Ctx {
@@ -44,7 +45,8 @@ export async function sendPayLink(ctx: Ctx, o: Obligation, customer: Customer): 
   await ctx.q.query("INSERT INTO pay_links (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7)", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
   const pp = paypal();
   try {
-    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: o.id, description: o.title.slice(0, 120), brand: ctx.businessName, returnUrl: `${customerUrl(customer)}?paid=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
+    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: o.title.slice(0, 120), brand: ctx.businessName, returnUrl: `${customerUrl(customer)}?paid=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
+    await noteRef("paypal.order", order.id);
     await ctx.q.query("UPDATE pay_links SET paypal_order_id = $2, approve_url = $3, status = 'sent' WHERE id = $1", [id, order.id, order.approveUrl]);
     await ctx.q.query("UPDATE obligations SET paypal_order_id = $2, status = CASE WHEN status IN ('open','link_sent') THEN 'link_sent' ELSE status END WHERE id = $1", [o.id, order.id]);
     await textCustomer(customer, `${ctx.businessName}: here is your secure PayPal link for ${o.title} ($${toValue(cents)}): ${order.approveUrl ?? customerUrl(customer)}`, "obligation", o.id, ctx.q);
@@ -53,6 +55,54 @@ export async function sendPayLink(ctx: Ctx, o: Obligation, customer: Customer): 
     return { payLinkId: id, approveUrl: order.approveUrl, cents };
   } catch (e) {
     await ctx.q.query("UPDATE pay_links SET status = $2 WHERE id = $1", [id, e instanceof UnknownOutcomeError ? "unknown" : "failed"]);
+    throw e;
+  }
+}
+
+/**
+ * "Pay as the demo customer (saved PayPal, no login)" (spec A2.1). Demo only: the order is paid from the demo's saved
+ * sandbox wallet (a Vault v3 payment token), so a judge sees real order and capture ids without a PayPal login. The
+ * order call's own answer changes nothing; only the order read back from PayPal marks the item paid. `booking` pays
+ * for a class the seed says was already paid for, so a later refund goes back to a real PayPal capture.
+ */
+export async function payFromDemoWallet(ctx: Ctx, o: Obligation, customer: Customer, opts: { booking?: boolean } = {}): Promise<{ orderId: string; captureId: string; cents: number }> {
+  if (!config.demoMode) throw new GtError("The saved demo wallet only pays inside the demo.", "not_demo", 403);
+  const vaultId = config.paypal.demoVaultToken;
+  if (!vaultId) throw new GtError("The demo's saved PayPal wallet is not set up. Use “Pay on PayPal's own page” instead.", "no_wallet", 409);
+  const cents = opts.booking ? o.settled_cents : balanceOf(o);
+  if (cents <= 0) throw new GtError("Nothing is owed on this item.", "nothing_owed");
+  if (opts.booking && o.capture_id) return { orderId: o.paypal_order_id ?? "", captureId: o.capture_id, cents };
+  await gate({ action: "charge", agentScope: ctx.agentScope, entity: "obligation", entityId: o.id, businessId: ctx.businessId, cents, trustedCents: [cents], personInitiated: true }, ctx.run, ctx.q);
+  const requestId = requestKey("wallet", o.id, cents, o.discount_cents, opts.booking ? "booking" : "balance");
+  const existing = (await ctx.q.query<{ id: string; status: string; paypal_order_id: string | null }>("SELECT id, status, paypal_order_id FROM pay_links WHERE request_id = $1", [requestId])).rows[0];
+  if (existing?.status === "paid" && existing.paypal_order_id) {
+    const fresh = await obligationById(ctx.q, o.id);
+    return { orderId: existing.paypal_order_id, captureId: fresh.capture_id ?? "", cents };
+  }
+  if (existing) await ctx.q.query("DELETE FROM pay_links WHERE id = $1", [existing.id]);
+  const id = newId("pl");
+  await ctx.q.query("INSERT INTO pay_links (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id, via) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7,'demo_wallet')", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
+  const pp = paypal();
+  try {
+    const created = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, customId: o.id, payment_source: "paypal.vault_id (saved demo wallet)" }, pp_request_id: requestId }, () => pp.createVaultOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: o.title.slice(0, 120), brand: ctx.businessName, vaultId }, requestId), (r) => ({ id: r.id, status: r.status }));
+    await noteRef("paypal.order", created.id);
+    // Read back: the order as PayPal holds it now decides what is recorded.
+    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.get", args: { orderId: created.id } }, () => pp.getOrder(created.id), (r) => ({ status: r.status, capture: r.purchase_units?.[0]?.payments?.captures?.[0]?.status ?? null }));
+    const cap = order.purchase_units?.[0]?.payments?.captures?.[0];
+    if (order.status !== "COMPLETED" || !cap || cap.status !== "COMPLETED") {
+      await ctx.q.query("UPDATE pay_links SET paypal_order_id = $2, status = $3 WHERE id = $1", [id, created.id, `paypal_${String(cap?.status ?? order.status).toLowerCase()}`]);
+      throw new GtError(`PayPal did not complete the payment (order ${created.id} is ${order.status}${cap ? `, capture ${cap.status}` : ""}). Nothing is marked paid.`, "not_completed", 502);
+    }
+    const paid = Math.round(Number(cap.amount.value) * 100);
+    await noteRef("paypal.capture", cap.id);
+    await ctx.q.query("UPDATE pay_links SET paypal_order_id = $2, status = 'paid' WHERE id = $1", [id, created.id]);
+    if (opts.booking) await ctx.q.query("UPDATE obligations SET capture_id = $2, paypal_order_id = $3 WHERE id = $1", [o.id, cap.id, created.id]);
+    else await ctx.q.query("UPDATE obligations SET status = 'paid', capture_id = $2, paypal_order_id = $3, settled_cents = settled_cents + $4 WHERE id = $1", [o.id, cap.id, created.id, paid]);
+    await logEvent(ctx.q, { businessId: ctx.businessId, customerId: customer.id, callId: ctx.callId, type: "payment.captured", summary: `$${toValue(paid)} paid from the demo's saved sandbox wallet for ${o.title} (PayPal capture ${cap.id})`, actor: "paypal", data: { orderId: created.id, captureId: cap.id, via: "demo_wallet" } });
+    await appendAudit("money.captured", "obligation", o.id, { captureId: cap.id, orderId: created.id, cents: paid, via: "demo_wallet" }, ctx.q);
+    return { orderId: created.id, captureId: cap.id, cents: paid };
+  } catch (e) {
+    if (!(e instanceof GtError)) await ctx.q.query("UPDATE pay_links SET status = $2 WHERE id = $1", [id, e instanceof UnknownOutcomeError ? "unknown" : "failed"]);
     throw e;
   }
 }
@@ -70,8 +120,9 @@ export async function createInvoice(ctx: Ctx, o: Obligation, customer: Customer,
   await ctx.q.query("INSERT INTO invoices (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7)", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
   const pp = paypal();
   try {
-    const inv = await ctx.run.timed({ actor: "paypal", tool: "invoices.create", args: { cents, reference: o.id }, pp_request_id: requestId }, () => pp.createInvoice({ recipientEmail: customer.email || "customer@example.com", amountCents: cents, currency: config.currency, description: o.title, reference: o.id, dueDays, businessName: ctx.businessName }, requestId), (r) => ({ id: r.id, status: r.status }));
+    const inv = await ctx.run.timed({ actor: "paypal", tool: "invoices.create", args: { cents, reference: o.id }, pp_request_id: requestId }, () => pp.createInvoice({ recipientEmail: customer.email || "customer@example.com", amountCents: cents, currency: config.currency, description: o.title, reference: wsCustomId(o.id), dueDays, businessName: ctx.businessName }, requestId), (r) => ({ id: r.id, status: r.status }));
     await ctx.run.timed({ actor: "paypal", tool: "invoices.send", args: { id: inv.id }, pp_request_id: requestId + "-send" }, () => pp.sendInvoice(inv.id, requestId + "-send"), () => ({ sent: true }));
+    await noteRef("paypal.invoice", inv.id);
     await ctx.q.query("UPDATE invoices SET paypal_invoice_id = $2, href = $3, status = 'sent' WHERE id = $1", [id, inv.id, inv.href ?? null]);
     await ctx.q.query("UPDATE obligations SET paypal_invoice_id = $2, status = 'invoiced' WHERE id = $1", [o.id, inv.id]);
     await logEvent(ctx.q, { businessId: ctx.businessId, customerId: customer.id, callId: ctx.callId, type: "invoice.sent", summary: `PayPal invoice for $${toValue(cents)} sent to ${customer.name}, due in ${dueDays} days`, actor: ctx.agentScope, data: { invoiceId: inv.id } });
@@ -122,7 +173,8 @@ export async function createPlan(ctx: Ctx, o: Obligation, customer: Customer, op
   try {
     const product = await ctx.run.timed({ actor: "paypal", tool: "catalog.products.create", args: { name: o.title }, pp_request_id: requestId + "-prod" }, () => pp.createProduct(`${ctx.businessName}: ${o.title}`.slice(0, 120), requestId + "-prod"));
     const plan = await ctx.run.timed({ actor: "paypal", tool: "billing.plans.create", args: { per: option.per_cents, cycles: option.instalments }, pp_request_id: requestId + "-plan" }, () => pp.createPlan({ productId: product.id, name: `${option.instalments} payments for ${o.title}`.slice(0, 120), description: option.label, price: toValue(option.per_cents), currency: config.currency, intervalUnit: option.interval_unit, intervalCount: option.interval_count, totalCycles: option.instalments }, requestId + "-plan"), (r) => ({ id: r.id, status: r.status }));
-    const sub = await ctx.run.timed({ actor: "paypal", tool: "billing.subscriptions.create", args: { planId: plan.id }, pp_request_id: requestId + "-sub" }, () => pp.createSubscription({ planId: plan.id, customId: o.id, brandName: ctx.businessName, returnUrl: `${customerUrl(customer)}?plan=1`, cancelUrl: customerUrl(customer), subscriberEmail: customer.email || undefined, subscriberName: customer.name }, requestId + "-sub"), (r) => ({ id: r.id, status: r.status }));
+    const sub = await ctx.run.timed({ actor: "paypal", tool: "billing.subscriptions.create", args: { planId: plan.id }, pp_request_id: requestId + "-sub" }, () => pp.createSubscription({ planId: plan.id, customId: wsCustomId(o.id), brandName: ctx.businessName, returnUrl: `${customerUrl(customer)}?plan=1`, cancelUrl: customerUrl(customer), subscriberEmail: customer.email || undefined, subscriberName: customer.name }, requestId + "-sub"), (r) => ({ id: r.id, status: r.status }));
+    await noteRef("paypal.subscription", sub.id);
     await ctx.q.query("UPDATE instalment_plans SET paypal_plan_id = $2, subscription_id = $3, approve_url = $4, status = 'awaiting_approval' WHERE id = $1", [id, plan.id, sub.id, sub.approveUrl]);
     await ctx.q.query("UPDATE obligations SET subscription_id = $2, status = 'planned' WHERE id = $1", [o.id, sub.id]);
     await textCustomer(customer, `${ctx.businessName}: your payment plan (${option.label}) is ready to approve: ${sub.approveUrl ?? customerUrl(customer)}`, "obligation", o.id, ctx.q);
@@ -164,6 +216,7 @@ export async function settleCancelledClass(ctx: Ctx, o: Obligation, choice: "ref
   const pp = paypal();
   try {
     const r = await ctx.run.timed({ actor: "paypal", tool: "payments.captures.refund", args: { captureId: o.capture_id, cents }, pp_request_id: requestId }, () => pp.refundCapture(o.capture_id!, cents, config.currency, `Cancelled: ${o.title}`.slice(0, 120), requestId), (x) => ({ id: x.id, status: x.status }));
+    await noteRef("paypal.refund", r.id);
     await ctx.q.query("UPDATE refunds SET paypal_refund_id = $2, status = $3 WHERE id = $1", [id, r.id, r.status.toLowerCase()]);
     await ctx.q.query("UPDATE obligations SET status = 'refunded' WHERE id = $1", [o.id]);
     await logEvent(ctx.q, { businessId: ctx.businessId, customerId: o.customer_id, callId: ctx.callId, type: "class.refunded", summary: `$${toValue(cents)} refunded for ${o.title}`, actor: ctx.agentScope, data: { refundId: r.id } });

@@ -91,6 +91,33 @@ export class FakePayPal implements PayPalApi {
     });
   }
 
+  /** Vault ids the fake accepts; anything else is refused like PayPal refuses a removed token. */
+  vaultIds = new Set<string>(["FAKE-VAULT-TOKEN"]);
+  async createVaultOrder(input: OrderInput & { vaultId: string }, requestId: string) {
+    this.bodies.push({ method: "createVaultOrder", body: input });
+    return this.run("createVaultOrder", requestId, () => {
+      if (!this.vaultIds.has(input.vaultId)) throw new PayPalError("The specified payment token was not found", 422, "INVALID_PAYMENT_TOKEN", "fake", null);
+      const id = rid("OR");
+      const o: FakeOrder = { id, status: "CREATED", cents: input.amountCents, currency: input.currency, customId: input.customId };
+      this.orders.set(id, o);
+      this.newCapture(o);
+      return { id, status: "COMPLETED" };
+    });
+  }
+  async getPaymentToken(id: string) {
+    return this.run("getPaymentToken", null, () => (this.vaultIds.has(id) ? { id, customer: { id: "FAKECUST" }, payment_source: { paypal: { email_address: "buyer@example.com" } } } : this.notFound("Payment token")));
+  }
+  async createSetupToken(_input: { returnUrl: string; cancelUrl: string }, requestId: string) {
+    return this.run("createSetupToken", requestId, () => ({ id: rid("ST"), approveUrl: `${this.approveBase}/vault/approve` }));
+  }
+  async createPaymentToken(setupTokenId: string, requestId: string) {
+    return this.run("createPaymentToken", requestId, () => {
+      const id = `PT${setupTokenId}`;
+      this.vaultIds.add(id);
+      return { id, customer: { id: "FAKECUST" } };
+    });
+  }
+
   async getOrder(id: string) {
     return this.run("getOrder", null, () => {
       const o = this.orders.get(id) ?? this.notFound("Order");

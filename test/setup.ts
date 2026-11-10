@@ -11,7 +11,8 @@ export const NOW = new Date("2026-03-04T02:00:00Z");
 
 export async function freshWorld(opts: { plan?: boolean } = {}): Promise<{ db: Db; fake: FakePayPal; seeded: Seeded }> {
   installChannelHandlers();
-  (config.ai as any).provider = "none";
+  (config.ai as any).provider = "rules"; // the deterministic test arm (spec A11); never the deployed app
+  (config.workspaces as any).enabled = false;
   const db = await openDb({ memory: true });
   setDb(db);
   const fake = new FakePayPal();

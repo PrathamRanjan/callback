@@ -4,7 +4,7 @@ import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "./index.css";
-import { StrictMode, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from "react";
+import { StrictMode, Suspense, lazy, useCallback, useEffect, useState, type ReactNode, useContext } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
@@ -54,14 +54,22 @@ function SessionProvider({ children }: { children: ReactNode }) {
 }
 
 /** Signed-in pages. Without a session the visitor goes to the persona picker, then back here. */
+// Uses the one session the provider loaded (spec B2 C1: it used to fetch it again on every page). Before sending
+// a visitor to /try it checks once more, so a sign-in made a moment ago in another tab is not lost.
 function RequireSession({ children }: { children: ReactNode }) {
   const loc = useLocation();
-  const [state, setState] = useState<"checking" | "in" | "out">("checking");
+  const { session, loading, reload } = useContext(SessionCtx);
+  const [rechecked, setRechecked] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const signedOut = Boolean(session) && !session?.me;
   useEffect(() => {
-    getJson<Session>("/api/app/session").then((s) => setState(s.me ? "in" : "out")).catch(() => setState("in"));
-  }, [loc.pathname]);
-  if (state === "checking") return <div className="mx-auto max-w-[900px] p-6"><Rows n={3} /></div>;
-  if (state === "out") return <Navigate to={`/try?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
+    if (loading || !signedOut || rechecked) return;
+    setRechecked(true);
+    setChecking(true);
+    void reload().finally(() => setChecking(false));
+  }, [loading, signedOut, rechecked, reload]);
+  if (loading || checking || (signedOut && !rechecked)) return <div className="mx-auto max-w-[900px] p-6"><Rows n={3} /></div>;
+  if (signedOut) return <Navigate to={`/try?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
   return <>{children}</>;
 }
 

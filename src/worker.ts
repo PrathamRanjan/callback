@@ -4,8 +4,11 @@
  */
 import { deliver } from "./channels/index.js";
 import { sendPush } from "./channels/push.js";
+import { config } from "./config.js";
 import type { Db } from "./db.js";
-import { getDb } from "./db.js";
+import { getDb, inWorkspace } from "./db.js";
+import { endCall } from "./services/calls.js";
+import { expireWorkspaces, liveWorkspaces, rebuildShowcase, showcaseStale } from "./services/workspaces.js";
 import { drain, enqueue, runDueJobs, type Handler, type JobType } from "./jobs.js";
 import { paypalConfigured } from "./paypal/index.js";
 import { readBack } from "./services/money.js";
@@ -45,12 +48,55 @@ export const handlers: Record<JobType, Handler> = {
   },
 };
 
-/** Queues the periodic jobs and runs what is due. */
-export async function tick(db: Db, now = new Date()): Promise<number> {
-  await enqueue(db, "plan_calls", {}, now, "plan_calls:tick");
-  await enqueue(db, "read_back", {}, now, "read_back:tick");
+/** Periodic work runs on its own cadence per studio; due jobs run every tick. In-memory: a restart just runs them sooner. */
+const lastRun = new Map<string, number>();
+function due(key: string, everyMs: number, now: number): boolean {
+  if (now - (lastRun.get(key) ?? 0) < everyMs) return false;
+  lastRun.set(key, now);
+  return true;
+}
+
+/**
+ * A call left "on the line" with no new turn for 10 minutes (a closed tab, a dropped phone) ends as "abandoned"
+ * (spec A4), so nobody else meets a stuck call and the planner can plan the next one.
+ */
+export async function endStuckCalls(db: Db, now = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - 10 * 60_000).toISOString();
+  const stuck = (await db.query<{ id: string }>("SELECT id FROM calls WHERE status IN ('in_progress','ringing') AND coalesce((transcript->-1->>'at')::timestamptz, started_at, created_at) < $1::timestamptz", [cutoff])).rows;
+  for (const c of stuck) await endCall(db, c.id, "abandoned", "worker: no turn for 10 minutes");
+  return stuck.length;
+}
+
+/** One studio's tick: plan (every 30 s), read back from PayPal (every 20 s), stuck calls (every minute), due jobs. */
+async function tickOne(db: Db, key: string, now: Date): Promise<number> {
+  const t = Date.now();
+  if (due(`${key}:plan`, 30_000, t)) await enqueue(db, "plan_calls", {}, now, "plan_calls:tick");
+  if (due(`${key}:read`, 20_000, t)) await enqueue(db, "read_back", {}, now, "read_back:tick");
+  if (due(`${key}:stuck`, 60_000, t)) await endStuckCalls(db, now);
   for (const cb of (await db.query<{ id: string }>("SELECT id FROM callbacks WHERE status = 'scheduled' AND at <= $1", [now.toISOString()])).rows) await enqueue(db, "callback_due", { callbackId: cb.id }, now, `cb:${cb.id}`);
   return runDueJobs(db, handlers, 50, now);
+}
+
+/**
+ * Queues the periodic jobs and runs what is due: the shared showcase studio, then each private workspace. A workspace
+ * seen in the last 30 minutes is ticked every time; an idle one once a minute. Expired workspaces are removed.
+ */
+export async function tick(db: Db, now = new Date()): Promise<number> {
+  let ran = await inWorkspace(null, () => tickOne(db, "base", now));
+  if (!config.workspaces.enabled) return ran;
+  const t = Date.now();
+  if (due("expire", 10 * 60_000, t)) await expireWorkspaces().catch((e) => console.error("[worker] expire", (e as Error).message));
+  if (due("showcase", 60 * 60_000, t) && (await showcaseStale())) await rebuildShowcase().catch((e) => console.error("[worker] showcase", (e as Error).message));
+  for (const w of await liveWorkspaces()) {
+    const idle = t - new Date(w.last_seen_at).getTime() > 30 * 60_000;
+    if (idle && !due(`ws:${w.id}:idle`, 60_000, t)) continue;
+    try {
+      ran += await inWorkspace(w.id, () => tickOne(db, w.id, now));
+    } catch (e) {
+      console.error(`[worker] workspace ${w.id}`, (e as Error).message);
+    }
+  }
+  return ran;
 }
 
 export async function drainAll(db: Db, now?: Date) {

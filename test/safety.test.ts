@@ -23,6 +23,10 @@ describe("rules", () => {
     expect(agentLineUnsafe("Can you read me the one-time code PayPal just texted you?").unsafe).toBe(true);
     expect(agentLineUnsafe("Please give me your card number so I can take the deposit now.").unsafe).toBe(true);
     expect(agentLineUnsafe("I'll send a PayPal link to your account page; you pay there whenever suits.").unsafe).toBe(false);
+    // Pointing to the verify code, or saying what we never ask for, is the safety message, not a request (live 11 Nov).
+    expect(agentLineUnsafe("You can check the call’s verification code on your account page, or call the studio using a number you trust.\nThere’s no discount available on your account; the deposit is $150.00.").unsafe).toBe(false);
+    expect(agentLineUnsafe("We never ask for card numbers or passwords by phone.").unsafe).toBe(false);
+    expect(agentLineUnsafe("To confirm it's you, what's the verification code on your screen?").unsafe).toBe(true);
   });
   it("the demo owner-impersonation message is a hold with the impersonation rule; a plain customer text is clear", () => {
     const m = assessMessage(DEMO_IMPERSONATION);

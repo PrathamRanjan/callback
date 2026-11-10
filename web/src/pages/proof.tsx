@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Download, FlaskConical } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ActButton, Empty, ErrorState, Kpi, PageHead, Panel, Rows, Section, StateChip } from "@/components/app/bits";
+import { ActButton, Empty, ErrorState, Kpi, PageHead, Panel, Rows, Section, Segmented, StateChip } from "@/components/app/bits";
 import { money, when } from "@/lib/format";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 
@@ -81,9 +80,7 @@ export default function ProofPage() {
           ) : null
         }
       >
-        <Tabs value={suite} onValueChange={setSuite} className="mb-3">
-          <TabsList className="bg-surface-2"><TabsTrigger value="personas" className="min-h-10">Customers ({p.evals.persona_cases})</TabsTrigger><TabsTrigger value="adversarial" className="min-h-10">Attacks ({p.evals.attack_cases})</TabsTrigger></TabsList>
-        </Tabs>
+        <Segmented className="mb-3" label="Show evaluation suite" value={suite} onChange={setSuite} options={[{ v: "personas", label: `Customers (${p.evals.persona_cases})` }, { v: "adversarial", label: `Attacks (${p.evals.attack_cases})` }]} />
         <SumTable sums={sums} suite={suite} />
         <div className="mt-4 flex items-center gap-2">
           <h3 className="text-sm font-semibold">{onlyWrong ? "Cases that went wrong" : "All cases"}</h3>

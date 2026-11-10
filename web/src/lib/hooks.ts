@@ -14,6 +14,9 @@ export function useData<T>(path: string | null, opts: { poll?: number } = {}): L
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(Boolean(path));
   const ctl = useRef<AbortController | null>(null);
+  // A 401 or 403 will not change by asking again: polling stops until the path changes (a front-desk person on the
+  // owner's Needs-you page kept requesting it every 10 seconds before 10 Nov 2026).
+  const refused = useRef(false);
   const load = useCallback(async () => {
     if (!path) return;
     ctl.current?.abort();
@@ -24,8 +27,10 @@ export function useData<T>(path: string | null, opts: { poll?: number } = {}): L
       const d = await getJson<T>(path, c.signal);
       setData(d);
       setError(null);
+      refused.current = false;
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
+      if (e instanceof ApiError && (e.status === 401 || e.status === 403)) refused.current = true;
       setError(e instanceof ApiError ? e : new ApiError((e as Error).message || "Could not load.", 0));
     } finally {
       if (ctl.current === c) setLoading(false);
@@ -33,13 +38,14 @@ export function useData<T>(path: string | null, opts: { poll?: number } = {}): L
   }, [path]);
   useEffect(() => {
     setData(null);
+    refused.current = false;
     void load();
     return () => ctl.current?.abort();
   }, [load]);
   useEffect(() => {
     if (!opts.poll) return;
     const t = setInterval(() => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible" && !refused.current) void load();
     }, opts.poll);
     return () => clearInterval(t);
   }, [load, opts.poll]);
@@ -51,7 +57,8 @@ export interface Session {
   business: { name: string; tz: string; clock: string; clock_local: string; pinned: boolean } | null;
   pending: number;
   demo: boolean;
-  integrations: { paypal: string | null; brain: "model" | "rules"; brain_label: string; phone: boolean; realtime: boolean; sms: boolean; telegram: boolean; push: boolean; telegram_bot: string };
+  workspace: { private: boolean; seed_state: string; seed_note: string; expires_at: string; idle_hours: number; join_url: string | null } | null;
+  integrations: { paypal: string | null; brain: "model" | "rules" | "none"; brain_label: string; phone: boolean; realtime: boolean; sms: boolean; telegram: boolean; push: boolean; telegram_bot: string };
 }
 export const SessionCtx = createContext<{ session: Session | null; loading: boolean; reload: () => Promise<void> }>({ session: null, loading: true, reload: async () => {} });
 export const useSession = () => useContext(SessionCtx);
