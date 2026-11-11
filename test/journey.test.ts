@@ -240,6 +240,7 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     const id = (await world.db.query<{ id: string }>("SELECT id FROM calls ORDER BY created_at DESC LIMIT 1")).rows[0].id;
     for (const path of ["phone", "webrtc", "say"]) expect((await anon.postJson(`/api/app/calls/${id}/live/${path}`, {})).status).toBe(401);
     expect((await anon.postJson("/api/app/voice/dictate", {})).status).toBe(401); // voice input on Ask: signed in only
+    expect((await anon.get("/api/ops/request-ip", { accept: "application/json" })).status).toBe(403); // operator key only
     expect((await anon.postJson(`/api/app/calls/${id}/live/test-line`, {})).status).toBe(403); // the operator key first
     expect((await anon.get(`/api/app/calls/${id}/live/events`)).status).toBe(401);
     const info = await anon.get("/api/app/live", { accept: "application/json" });

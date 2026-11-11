@@ -72,6 +72,16 @@ export function liveRouter(): Router {
     return { ok: true, stream_url: streamUrl(), call: c.id, token, format: "audio/x-mulaw;rate=8000", protocol: "Twilio Media Streams (connected, start with customParameters call and token, media, stop)" };
   }));
 
+  /**
+   * Operator only: which address this server sees for the caller's own request, and the proxy headers it came with.
+   * Used to check that the per-address limits (demo starts, live voice) count each visitor, not a shared proxy.
+   */
+  r.get("/api/ops/request-ip", json(async (req) => {
+    if (!isAdmin(req)) throw new GtError("The operator key is required.", "forbidden", 403);
+    const h = (k: string) => (req.headers[k] as string | undefined) ?? null;
+    return { ip: req.ip, ips: req.ips, xff: (h("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean), cf_connecting_ip: h("cf-connecting-ip"), true_client_ip: h("true-client-ip"), x_real_ip: h("x-real-ip"), remote: req.socket.remoteAddress ?? null };
+  }));
+
   /** Push-to-talk on the Ask box (spec A7): a listen-only GPT-Live session whose transcript fills the box. */
   r.post("/api/app/voice/dictate", json(async (req) => {
     const p = await who(req);
