@@ -49,9 +49,15 @@ const J = new Client();
 const anon = (await J.get("/api/public/judge")).json;
 record("A3.1", "a stranger sees three paths, the live-versus-simulated table and the public pages", anon?.paths?.length === 3 && anon.live.length >= 10 && anon.pages.length === 6 && anon.workspace === null, `${anon?.paths?.map((p) => `${p.title} (${p.steps.length} steps, ${p.minutes} min)`).join("; ")}; ${anon?.live?.filter((r) => r.live).length} live rows, ${anon?.live?.filter((r) => !r.live).length} simulated`);
 const t0 = Date.now();
-await J.post("/demo/signin-as", { role: "owner" });
+const first = await J.post("/demo/signin-as", { role: "owner" });
 let j = (await J.get("/api/public/judge")).json;
-record("A3.1", "after the first tap: a QR code for the phone and every step points at this demo's own screens", /^<svg/.test(j?.workspace?.qr_svg ?? "") && j.paths.flatMap((p) => p.steps).every((s) => s.href), `join link ${j?.workspace?.join_url ? "present" : "missing"}; ${j?.paths?.flatMap((p) => p.steps).filter((s) => s.href).length} of ${j?.paths?.flatMap((p) => p.steps).length} steps have a screen`);
+const tapped = `first tap → HTTP ${first.status} ${decodeURIComponent(String(first.location ?? first.json?.message ?? "")).slice(0, 140)}`;
+record("A3.1", "after the first tap: a QR code for the phone and every step points at this demo's own screens", /^<svg/.test(j?.workspace?.qr_svg ?? "") && j.paths.flatMap((p) => p.steps).every((s) => s.href), `join link ${j?.workspace?.join_url ? "present" : "missing"}; ${j?.paths?.flatMap((p) => p.steps).filter((s) => s.href).length} of ${j?.paths?.flatMap((p) => p.steps).length} steps have a screen; ${tapped}`);
+if (!j?.workspace) {
+  // No private demo, so there is nothing to walk: say why and stop, rather than crash on a missing screen.
+  console.log(`| Item | Check | Result | Detail |\n|---|---|---|---|\n${rows.map((r) => `| ${r.item} | ${r.check} | ${r.ok ? "Pass" : "**Fail**"} | ${String(r.detail).replace(/\|/g, "/")} |`).join("\n")}\n\nStopped: no private demo was started (${tapped}).`);
+  process.exit(1);
+}
 const seedTicks = Object.keys(j.checklist);
 record("A3.1", "nothing is ticked before the visitor acts (the seed ticks nothing)", seedTicks.length === 0, seedTicks.length ? seedTicks.join(", ") : "0 ticks");
 
