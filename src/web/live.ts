@@ -17,7 +17,7 @@ import { checkDialable, takeDictationStart, takeLiveStart } from "../voice/limit
 import { attachSideband, createWebrtcSession, dictationSession, instructionsForCall, LiveCall, liveBus, liveCallFor, liveReady, type LiveEvent } from "../voice/live.js";
 import { recordVoiceEvent, telephonyReady, twilioCallLive, webhookAuthorised } from "../voice/telephony.js";
 import { owner, who } from "./api.js";
-import { json, page } from "./common.js";
+import { clientIp, json, page } from "./common.js";
 import { isAdmin } from "./demo.js";
 
 const fullUrl = (req: Request) => `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -51,7 +51,7 @@ export function liveRouter(): Router {
     if (!telephonyReady()) throw new GtError("No Twilio number is set on this deployment, so Callback cannot ring a phone.", "no_phone", 503);
     if (req.body?.consent !== true && req.body?.consent !== "true" && req.body?.consent !== "on") throw new GtError("Tick the box to agree to a demo call to this number first.", "consent");
     const number = checkDialable(String(req.body?.number ?? ""));
-    await takeLiveStart("phone", req.ip ?? "", number);
+    await takeLiveStart("phone", clientIp(req), number);
     const db = await getDb();
     const c = await startForLive(req.params.id, p.business_id, "phone", p.name);
     await issueStreamToken(db, c.id, "phone");
@@ -65,7 +65,7 @@ export function liveRouter(): Router {
     if (!isAdmin(req)) throw new GtError("The test line needs the operator key.", "forbidden", 403);
     const p = await owner(req);
     if (!liveReady()) throw new GtError("Live voice is not configured (OPENAI_API_KEY).", "no_model", 503);
-    await takeLiveStart("test-line", req.ip ?? "");
+    await takeLiveStart("test-line", clientIp(req));
     const db = await getDb();
     const c = await startForLive(req.params.id, p.business_id, "realtime", `${p.name} (test line)`);
     const token = await issueStreamToken(db, c.id, "test-line");
@@ -79,7 +79,7 @@ export function liveRouter(): Router {
   r.get("/api/ops/request-ip", json(async (req) => {
     if (!isAdmin(req)) throw new GtError("The operator key is required.", "forbidden", 403);
     const h = (k: string) => (req.headers[k] as string | undefined) ?? null;
-    return { ip: req.ip, ips: req.ips, xff: (h("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean), cf_connecting_ip: h("cf-connecting-ip"), true_client_ip: h("true-client-ip"), x_real_ip: h("x-real-ip"), remote: req.socket.remoteAddress ?? null };
+    return { client_ip: clientIp(req), ip: req.ip, ips: req.ips, xff: (h("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean), cf_connecting_ip: h("cf-connecting-ip"), true_client_ip: h("true-client-ip"), x_real_ip: h("x-real-ip"), remote: req.socket.remoteAddress ?? null };
   }));
 
   /** Push-to-talk on the Ask box (spec A7): a listen-only GPT-Live session whose transcript fills the box. */
@@ -88,7 +88,7 @@ export function liveRouter(): Router {
     const sdp = String(req.body?.sdp ?? "");
     if (!/^v=0/.test(sdp) || sdp.length > 20000) throw new GtError("The browser's voice offer is missing.", "bad_sdp");
     if (!liveReady()) throw new GtError("Voice input needs the live voice model, which is not configured here (OPENAI_API_KEY). Type instead.", "no_model", 503);
-    await takeDictationStart(req.ip ?? "");
+    await takeDictationStart(clientIp(req));
     const s = await createWebrtcSession("", sdp, dictationSession());
     await recordVoiceEvent("openai-live", null, "dictation.created", { session: s.sessionId, model: config.ai.models.live, by: p.role }, true);
     return { ok: true, answer: s.answer, model: config.ai.models.live, max_seconds: 60 };
@@ -99,7 +99,7 @@ export function liveRouter(): Router {
     if (!liveReady()) throw new GtError("Live voice is not configured (OPENAI_API_KEY).", "no_model", 503);
     const sdp = String(req.body?.sdp ?? "");
     if (!/^v=0/.test(sdp) || sdp.length > 20000) throw new GtError("The browser's voice offer is missing.", "bad_sdp");
-    await takeLiveStart("browser", req.ip ?? "");
+    await takeLiveStart("browser", clientIp(req));
     const c = await startForLive(req.params.id, p.business_id, "realtime", `${p.name} (browser voice)`);
     const { currentWs } = await import("../db.js");
     const s = await createWebrtcSession(await instructionsForCall(c.id), sdp);

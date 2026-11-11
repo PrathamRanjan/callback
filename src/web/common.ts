@@ -1,6 +1,22 @@
 import type { NextFunction, Request, Response } from "express";
 import { GtError } from "../lib/util.js";
 
+/**
+ * The visitor's own address, for the per-address limits (demo starts, live voice, scam checks). On Render, req.ip
+ * is one of Render's internal proxies (10.x), shared by every visitor: the chain is visitor → Cloudflare → Render's
+ * proxy → this app (measured 12 Nov 2026 with /api/ops/request-ip). Cloudflare sets CF-Connecting-IP and
+ * True-Client-IP itself, overwriting anything the visitor sends, so those name the visitor. Elsewhere, req.ip.
+ */
+export function clientIp(req: Request): string {
+  if (process.env.RENDER === "true") {
+    for (const k of ["cf-connecting-ip", "true-client-ip"]) {
+      const v = req.headers[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return req.ip ?? "";
+}
+
 export const flashOf = (req: Request) => ({
   ok: typeof req.query.ok === "string" ? req.query.ok.slice(0, 200) : undefined,
   err: typeof req.query.err === "string" ? req.query.err.slice(0, 200) : undefined,

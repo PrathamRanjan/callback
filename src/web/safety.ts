@@ -24,7 +24,7 @@ export function allowScan(ip: string, max = 30): boolean {
 }
 import { scanText, TACTIC_WORDS, TACTICS } from "../safety/rules.js";
 import { act, authed, ownerOnly } from "./auth.js";
-import { back, json } from "./common.js";
+import { back, clientIp, json } from "./common.js";
 import { html, jsonBlock, pill, raw } from "./html.js";
 import { money, ownerPage } from "./views.js";
 
@@ -79,7 +79,7 @@ export function safetyRouter() {
   r.post("/safety/scan", json(async (req) => {
     const text = String(req.body?.text ?? "").slice(0, 4000);
     if (!text.trim()) throw new GtError("Paste a message first.", "bad_request", 400);
-    if (!allowScan(req.ip ?? "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
+    if (!allowScan(clientIp(req) || "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
     const db = await getDb();
     const biz = (await db.query<{ id: string }>("SELECT id FROM businesses ORDER BY created_at LIMIT 1")).rows[0]?.id ?? null;
     const out = await scanMessage(text, { businessId: biz, q: db });

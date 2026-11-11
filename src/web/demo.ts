@@ -14,7 +14,7 @@ import { GtError } from "../lib/util.js";
 import { setWorkspaceCookie, workspaceOf } from "./workspace.js";
 import type { Request, Response } from "express";
 import { me, personByKey, signIn } from "./auth.js";
-import { back, flashOf, page } from "./common.js";
+import { back, clientIp, flashOf, page } from "./common.js";
 import { html, layout, pill } from "./html.js";
 import { ownerPage } from "./views.js";
 
@@ -41,7 +41,7 @@ async function signInWorkspace(res: Response, req: Request, w: Workspace, role: 
 async function ensureWorkspace(req: Request): Promise<{ w: Workspace; created: boolean }> {
   const have = workspaceOf(req);
   if (have) return { w: have, created: false };
-  return { w: await startWorkspace({ ip: req.ip ?? "" }), created: true };
+  return { w: await startWorkspace({ ip: clientIp(req) }), created: true };
 }
 
 export async function resetAndSeed(opts: { now?: Date; pinClock?: boolean } = {}) {
@@ -75,7 +75,7 @@ ${biz && p ? html`<div class="card"><h3>Run a scripted customer</h3><p class="sm
   r.post("/demo/start", page(async (req, res) => {
     if (!config.demoMode || !config.workspaces.enabled) return back(res, "/try", "Private demos are off on this server.", true);
     const role = req.body.role === "staff" ? "staff" : "owner";
-    const w = req.body.fresh === "1" || !workspaceOf(req) ? await startWorkspace({ ip: req.ip ?? "" }) : workspaceOf(req)!;
+    const w = req.body.fresh === "1" || !workspaceOf(req) ? await startWorkspace({ ip: clientIp(req) }) : workspaceOf(req)!;
     await signInWorkspace(res, req, w, role);
     res.redirect(role === "owner" ? "/today" : "/calls");
   }));

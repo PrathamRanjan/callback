@@ -13,7 +13,7 @@ import { createPlan, payFromDemoWallet, sendPayLink, settleCancelledClass, SPLIT
 import { markStep } from "../services/workspaces.js";
 import { balanceOf, owedToCustomer, bizById, customerByToken, logEvent, nowOf, obligationsOf, callsOf } from "../store.js";
 import { startRun } from "../trace.js";
-import { back, flashOf, json, page } from "./common.js";
+import { back, clientIp, flashOf, json, page } from "./common.js";
 import { scanMessage } from "../safety/readers.js";
 import { allowScan } from "./safety.js";
 import { html, layout, pill, raw } from "./html.js";
@@ -51,7 +51,7 @@ ${!c.dnc && c.consent ? html`<form method="post" action="/c/${c.token}/callback"
     const c = await customerByToken(db, req.params.token);
     const text = String(req.body?.text ?? "").slice(0, 4000);
     if (!text.trim()) throw new GtError("Paste the message first.", "bad_request", 400);
-    if (!allowScan(req.ip ?? "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
+    if (!allowScan(clientIp(req) || "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
     const out = await scanMessage(text, { businessId: c.business_id, q: db });
     await logEvent(db, { businessId: c.business_id, customerId: c.id, type: "safety.customer_check", summary: `${c.name.split(" ")[0]} checked a message on their page: ${out.level}`, actor: "customer", data: { level: out.level, rule: out.rule } });
     return out;
