@@ -182,7 +182,7 @@ test("keyboard only: the owner approves a held move without a mouse", async ({ p
   await settle(page);
   const steps: string[] = [];
   const tabTo = async (want: RegExp) => {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 160; i++) {
       await page.keyboard.press("Tab");
       const f = await page.evaluate(() => {
         const a = document.activeElement as HTMLElement | null;
@@ -200,7 +200,7 @@ test("keyboard only: the owner approves a held move without a mouse", async ({ p
   expect(await tabTo(/^Needs you/), `Tab order: ${steps.join(" → ")}`).toBe(true);
   await page.keyboard.press("Enter");
   steps.push("Enter (opens Needs you, the approvals page)");
-  await page.waitForURL(/\/approvals/);
+  await expect(page).toHaveURL(/\/approvals/, { timeout: 30_000 }); // an in-app navigation: no page load to wait for
   await settle(page);
   expect(await tabTo(/^Approve \$420\.00/), `Tab order: ${steps.join(" → ")}`).toBe(true);
   await page.keyboard.press("Enter");

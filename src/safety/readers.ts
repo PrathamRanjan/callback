@@ -14,6 +14,7 @@ import { config } from "../config.js";
 import type { Queryable } from "../db.js";
 import { getDb } from "../db.js";
 import { decide, verdict, type Question } from "../ai/decisions.js";
+import { aiFaultActive } from "../ai/provider.js";
 import { assessMessage, type Assessment } from "./index.js";
 import { maxLevel, type Level } from "./rules.js";
 
@@ -148,7 +149,8 @@ export async function scanMessage(text: string, opts: { businessId?: string | nu
   const onFile = await onFileFor(opts.businessId ?? null, opts.q);
   const key = createHash("sha256").update(text).update("\u0000").update(JSON.stringify(onFile)).digest("hex");
   const hit = memo.get(key);
-  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.v;
+  // A recent answer is reused, except while this demo's AI switch is off: then the AI reader really did not run.
+  if (hit && Date.now() - hit.at < 10 * 60_000 && !(await aiFaultActive())) return hit.v;
 
   const rules = assessMessage(text);
 

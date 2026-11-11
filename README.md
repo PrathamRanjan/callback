@@ -91,6 +91,8 @@ Tests: `test/safety.test.ts`; the model's measured results are on `/safety/model
 
 ## Accessibility (9 Nov 2026)
 
+> Superseded on 11 Nov by the Wave 5 section below: the checks that now run on every build (axe on 46 page views, reflow at 320 px and 200%, keyboard only, reduced motion), voice input on Ask, and /accessibility showing the dated results.
+
 `public/a11y.js` and `public/a11y.css` on every page, including the customer's: a **Display and help** button with text size, high contrast, Atkinson Hyperlegible, read-aloud, voice input (on-device where the browser supports it), plain words, bigger targets, more time and no motion. A first-visit card offers the same choices on owner pages. The profile stays in this browser's `localStorage`; typing and buttons always work without it.
 
 ## Wave 1 (11 Nov 2026): what changed, and the live checks
@@ -282,3 +284,78 @@ Run 2026-11-11T13:52:53.378Z against https://pph-callback.onrender.com (commit 2
 - A real browser microphone call over WebRTC. The routes are tested with a fake GPT-Live server.
 
 **Not done (spec B2 items 5, 6, 7):** custom voice, a proof call on the landing page, and inbound calls. **Wave 5 for Callback** (A7 accessibility and voice on Ask, A12 render.yaml, nightly robot judge, quality gate) is not started.
+
+### Wave 3 follow-up: the used-token refusal on Render (commit b90e368)
+
+The one Wave 3 failure was that a used stream token's refusal never reached the caller on Render. The socket opened, but the close frame did not arrive. Render's edge seems to drop close frames: the end-of-call close also came through as 1006. The stream now sends a plain message first, `{"event":"closing","code":1008,"reason":"not allowed"}`, which Twilio ignores. Then it closes, and cuts the socket after two seconds if the close does not finish.
+
+**Live voice check at b90e368: 19 of 19 passed.** The used token is refused with code 1008 and 0 audio frames are sent.
+
+## Wave 5 (11 Nov 2026): accessibility, voice input on Ask, the Render blueprint, the robot judge
+
+### A7 accessibility: what changed
+
+- **`e2e/a11y.spec.ts`** runs with the browser tests and fails on what the spec forbids. Each check writes its own section, with the time it ran, to `eval/a11y.json`. **`/accessibility` shows that file**, check by check, with its dates. The landing page's first screen has the line "Works with a screen reader, at 200% text, and by voice", linked to /accessibility. /judge names accessibility as one of three things to look at.
+- **Push-to-talk on Ask ("Talk instead").** A listen-only `gpt-live-1` session over WebRTC, from `POST /api/app/voice/dictate`. It is signed in only and limited to 30 a day per address. GPT-Live's transcript is typed into the box as you speak, and nothing is asked until you press Ask. The browser never plays the session's audio. There is no delegation, no tools and no sideband, so nothing acts on what is said. It stops after 60 s. Typing always works.
+- **One polite live region** (`#cb-status-live`) announces payment and hold status changes. It covers Money (polled every 20 s) and the customer's own page, which now polls too, so a payment PayPal confirms while the page is open is said once.
+- **Reflow fixes** at 320 px with the Largest text setting:
+  - Both headers wrap.
+  - The figure cards on Today, Money, Rules and Proof stack.
+  - Long buttons on the customer page and /judge wrap.
+  - Public page headings hyphenate.
+  - The landing figure shrinks to fit.
+  - The old results table on /accessibility is replaced by cards.
+- **Display and help:** each switch is `aria-labelledby` its title and `aria-describedby` its description. The close button is named "Close display and help" and is 44 px.
+
+### A7 checks on the live site (b90e368, 11 Nov 2026, 15:48–15:52 UTC)
+
+`E2E_URL=https://pph-callback.onrender.com npx playwright test e2e/a11y.spec.ts`
+
+| Check | Result | What happened |
+|---|---|---|
+| axe-core, WCAG 2.0/2.1/2.2 A and AA, on every page of every persona (a stranger, the owner, the front desk, a customer), light at 1280 px and dark at 375 px | Pass | 46 page views of 22 pages: 0 serious or critical issues, 0 minor or moderate |
+| No sideways scroll at 320 px with Largest text, nor at 200% zoom (a 640 px window, the layout width 200% zoom gives on a 1280 px screen) | Pass | 24 checks on 12 pages, 0 overflowing. The first local run found 3 to 324 px of sideways scroll on every page at 320 px with Largest text; fixed as above |
+| Nothing moves when the system asks for reduced motion | Pass | 0 running animations on /, /judge, /today and /calls |
+| Keyboard only: from a fresh load of Today, open Needs you (approvals) in the sidebar and approve a held $420.00 move | Pass | 33 Tab presses and two Enters; every focused control showed a focus ring. The order is recorded in eval/a11y.json and shown on /accessibility |
+| Display and help switches are announced with a name and a description | Pass | Stronger contrast, Easier-to-read letters, No movement and Bigger buttons all have descriptions |
+| One polite live region for payment status | Pass | 1 region |
+| Voice input on Ask: GPT-Live accepts the listen-only session, transcribes, and says nothing (`node --env-file=.env scripts/dictation-probe.mjs voice/l2.wav`; same session over WebSocket, fed a recorded question) | Pass | Transcript: "Can you just hold the deposit instead? So it's only charged if I attend". Agent words: none. GPT-Live still sent 115 frames of output audio with no words, which the browser does not play |
+
+**A7 not verified:**
+- No person has used a screen reader (VoiceOver, TalkBack or NVDA) on any of these pages. axe finds missing names and roles; it cannot say whether a page is pleasant to use.
+- No testing with disabled users.
+- No person has tried push-to-talk in a real browser with a microphone. Only the same session config was tested, over WebSocket.
+- The spec's "plain words on the device" (Chrome's Rewriter or Prompt API) and the four-language string tables are **not done**.
+
+### A12 the Render blueprint, the robot judge and the quality gate
+
+- **`render.yaml`** is the full shape:
+  - a web service, with health check `/healthz` and always-on `plan: starter`;
+  - a background worker (`node dist/worker-main.js`, new);
+  - four cron jobs: PayPal reconcile every 30 minutes, demo expiry hourly, today's plan at 07:00 Sydney, and the robot judge nightly. The first three run through `node dist/cron.js reconcile|expire|plan`, which is new;
+  - managed Postgres;
+  - preview environments per pull request;
+  - an env group listing every variable, with secrets `sync: false` and nothing secret in the file.
+- **What the blueprint checks showed:**
+  - `render blueprints validate render.yaml` returns only `need_payment_info` on the 7 paid resources, and no schema errors.
+  - Locally, `dist/cron.js` ran all three jobs (exit 0), refused an unknown job (exit 2), and `dist/worker-main.js` started, ticked and stopped on SIGTERM.
+  - **The live demo does not use this file.** It is still the one free web service with the worker inline. Applying the blueprint creates paid services, which is the owner's purchase.
+- **`.github/workflows/robot-judge.yml`** runs `scripts/live-acceptance-w2.mjs` against production. It wakes the free instance, then walks all three /judge paths as a visitor and fails if any step did not tick itself or any public page is down:
+  - take the call: a simulated call with two AI turns, a sandbox order, and a payment from the saved wallet;
+  - watch it refuse: Ask, the blocked call, and the scam checks;
+  - approve a held move.
+
+  It needs no secret. **The nightly run is off until the owner sets the repository variable `ROBOT_JUDGE_NIGHTLY=true`.** "Run workflow" works at any time.
+- **Robot judge on the live site at b90e368, run from this machine: 18 of 18 passed.** All three paths ticked every step.
+- **PayPal coverage at b90e368: 10 of 11.** The failure was a real bug that the robot judge's run exposed: the scam check keeps answers for 10 minutes, so with the AI switched off it still showed an AI answer from two minutes earlier as "clear". It now skips kept answers while the demo's AI switch is on. A test was added; it fails without the fix.
+
+### Quality gate (spec A12) for Callback, as of 11 Nov 2026
+
+| # | Gate | State |
+|---|---|---|
+| 1 | Unit and end-to-end tests pass, including workspace isolation and axe | **Met** locally: 133/133 unit (workspaces.test.ts is the isolation test) and 17 browser tests including the five accessibility checks. 1 test (screenshot capture) is skipped on purpose |
+| 2 | The off-script regression set (Part B) passes on the live site | **Met** for what this machine can run: Wave 2 checks 18/18, PayPal coverage (after the fix, below), live voice 19/19 |
+| 3 | The robot judge completes every /judge path on production | **Met** when run by hand (18/18). The nightly GitHub run waits for the owner's `ROBOT_JUDGE_NIGHTLY` variable |
+| 4 | A stranger completes one path in under three minutes on a phone | **Not met.** It needs a person; the script takes about 30 s |
+| 5 | /proof, /paypal, /ai and /accessibility show today's date and real data | **Met today** (robot judge checks /proof's run date; /accessibility shows 11 Nov). /proof stays current only if the nightly AI eval runs, which needs the owner's `OPENAI_API_KEY` secret and `AI_EVAL_NIGHTLY` variable |
+| 6 | The README's judge section, live-versus-simulated table and criteria mapping are current | **Met** for what is in this README. Owner items are listed in docs/STATE_OF_THE_UNION.md |

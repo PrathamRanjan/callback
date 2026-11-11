@@ -1,7 +1,7 @@
 {
- "at": "2026-11-11T15:42:21.219Z",
- "base": "a fresh local server (the e2e default)",
- "commit": "24cd7b1",
+ "at": "2026-11-11T15:52:29.357Z",
+ "base": "https://pph-callback.onrender.com",
+ "commit": "b90e368",
  "tags": [
   "wcag2a",
   "wcag2aa",
@@ -391,7 +391,7 @@
    "rules": []
   },
   {
-   "page": "/calls/call_uv2hxwdi3e5e4ro4",
+   "page": "/calls/call_ncmfytwzjtxmkdiu",
    "who": "owner",
    "width": 1280,
    "theme": "light",
@@ -401,7 +401,7 @@
    "rules": []
   },
   {
-   "page": "/calls/call_uv2hxwdi3e5e4ro4",
+   "page": "/calls/call_ncmfytwzjtxmkdiu",
    "who": "owner",
    "width": 375,
    "theme": "dark",
@@ -411,7 +411,7 @@
    "rules": []
   },
   {
-   "page": "/customers/cus_ad3nwkujtewzp5f6",
+   "page": "/customers/cus_ukk3hidcwuxrkqob",
    "who": "owner",
    "width": 1280,
    "theme": "light",
@@ -421,7 +421,7 @@
    "rules": []
   },
   {
-   "page": "/customers/cus_ad3nwkujtewzp5f6",
+   "page": "/customers/cus_ukk3hidcwuxrkqob",
    "who": "owner",
    "width": 375,
    "theme": "dark",
@@ -451,7 +451,7 @@
    "rules": []
   },
   {
-   "page": "/c/cbt_wsectbmueoh_W0Xs7PH4yuNtZlBziye9hnFlQu5QIHy2",
+   "page": "/c/cbt_wdfgr77wkho_6pvsjhyx6S_qM4e2eDBUGrWmV_rsAQdb",
    "who": "customer",
    "width": 1280,
    "theme": "light",
@@ -461,7 +461,7 @@
    "rules": []
   },
   {
-   "page": "/c/cbt_wsectbmueoh_W0Xs7PH4yuNtZlBziye9hnFlQu5QIHy2",
+   "page": "/c/cbt_wdfgr77wkho_6pvsjhyx6S_qM4e2eDBUGrWmV_rsAQdb",
    "who": "customer",
    "width": 375,
    "theme": "dark",
@@ -605,13 +605,13 @@
    "over_px": 0
   },
   {
-   "page": "/c/cbt_w629tbi3n8s_UPCY8sZ0IT9MFI1CIRyFqRPfOs4eY0O8",
+   "page": "/c/cbt_wvc5hnqbe7v_h33nnvYK0bac4ZfENYUhKmRQK4P3gZXX",
    "who": "customer",
    "condition": "320 px, Largest text",
    "over_px": 0
   },
   {
-   "page": "/c/cbt_w629tbi3n8s_UPCY8sZ0IT9MFI1CIRyFqRPfOs4eY0O8",
+   "page": "/c/cbt_wvc5hnqbe7v_h33nnvYK0bac4ZfENYUhKmRQK4P3gZXX",
    "who": "customer",
    "condition": "200% zoom (640 px of a 1280 px screen)",
    "over_px": 0
@@ -640,19 +640,19 @@
    "See every approval and your limits",
    "TR Tom Reyes Cancelled class Ready: Ready · Thu 12 Nov, 11:0",
    "MO Marcus Okafor Deposit Ready: Ready · Thu 12 Nov, 11:00 th",
-   "IP Ivy Park Overdue invoice Ready: Ready · Thu 12 Nov, 11:00",
-   "AR Aisha Rahman Deposit Ready: Ready · Thu 12 Nov, 11:00 the",
    "PN Priya Natarajan Deposit Ready: Ready · Thu 12 Nov, 11:00 ",
-   "LK Lena Kowalski Overdue invoice Ready: Ready · Thu 12 Nov, ",
+   "AR Aisha Rahman Deposit Ready: Ready · Thu 12 Nov, 11:00 the",
+   "IP Ivy Park Overdue invoice Ready: Ready · Thu 12 Nov, 11:00",
    "BC Ben Carter Overdue invoice Ready: Ready · Thu 12 Nov, 11:",
+   "LK Lena Kowalski Overdue invoice Ready: Ready · Thu 12 Nov, ",
    "TR Tom Reyes Overdue invoice Ready: Ready · Thu 12 Nov, 11:0",
-   "NH Noor Haddad Overdue invoice Not calling: Not calling: $12",
    "DS Dev Sharma Deposit Not calling: Not calling: deposit of $",
+   "NH Noor Haddad Overdue invoice Not calling: Not calling: $12",
    "SW Sam Whitfield Overdue invoice Not calling: Not calling: $",
    "HD Harbour Dental (Dr Lim) Overdue invoice Waiting: Declined",
-   "BC Ben Carter Overdue invoice SAMPLE Settled: paid $80.00 ow",
    "IP Ivy Park Overdue invoice SAMPLE Settled: held for owner $",
-   "AR Aisha Rahman Deposit SAMPLE Settled: paid $45.00 owed",
+   "BC Ben Carter Overdue invoice SAMPLE Settled: paid $80.00 co",
+   "AR Aisha Rahman Deposit SAMPLE Settled: paid $45.00 collecte",
    "Skip to content",
    "For judges",
    "Reset",
@@ -702,11 +702,11 @@
   "reflow_failures": 0
  },
  "sections": {
-  "axe": "2026-11-11T15:41:51.850Z",
-  "reflow": "2026-11-11T15:42:13.524Z",
-  "motion": "2026-11-11T15:42:17.155Z",
-  "keyboard": "2026-11-11T15:42:20.955Z",
-  "switches": "2026-11-11T15:42:21.191Z",
-  "live_region": "2026-11-11T15:42:21.219Z"
+  "axe": "2026-11-11T15:48:29.304Z",
+  "reflow": "2026-11-11T15:49:24.071Z",
+  "motion": "2026-11-11T15:49:33.766Z",
+  "keyboard": "2026-11-11T15:52:29.357Z",
+  "switches": "2026-11-11T15:49:50.014Z",
+  "live_region": "2026-11-11T15:49:50.045Z"
  }
 }

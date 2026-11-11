@@ -83,6 +83,16 @@ export async function disarmAiFault() {
 export function forgetAiFault() {
   aiFaultArmedAt = 0;
 }
+/**
+ * Whether the switch is on in the current demo now. Readers that keep recent AI answers check this, so a cached
+ * answer from before the switch is never shown as if the AI had just run.
+ */
+export async function aiFaultActive(): Promise<boolean> {
+  if (!config.demoMode || Date.now() - aiFaultArmedAt >= AI_FAULT_MINUTES * 60_000) return false;
+  const db = await getDb();
+  const armed = await db.query("SELECT 1 FROM demo_faults WHERE method = 'ai.model' AND created_at > now() - make_interval(mins => $1) LIMIT 1", [AI_FAULT_MINUTES]);
+  return armed.rows.length > 0;
+}
 function withAiFault(f: typeof fetch): typeof fetch {
   return async (i, init) => {
     // The database is read only while some demo on this server armed the switch in the last few minutes.

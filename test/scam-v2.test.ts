@@ -130,6 +130,25 @@ describe("A6.1 and A6.2 strictest wins, never a false all-clear", () => {
     expect(s.all_clear_allowed).toBe(false);
     expect(s.summary).toMatch(/not fully checked/);
   });
+  it("a recent answer is not reused while the demo's AI switch is off: the AI reader says it did not run", async () => {
+    const { db, seeded } = await freshWorld();
+    useModel();
+    const demo = config.demoMode;
+    (config as any).demoMode = true;
+    const { armAiFault, forgetAiFault } = await import("../src/ai/provider.js");
+    try {
+      fakeDecisions(() => 0.01);
+      const text = "Hi! Just a reminder your Pilates class is on Thursday at 6pm. See you there.";
+      expect((await scanMessage(text, { businessId: seeded.business.id, q: db })).all_clear_allowed).toBe(true); // kept for 10 minutes
+      await armAiFault();
+      const s = await scanMessage(text, { businessId: seeded.business.id, q: db });
+      expect(s.readers.decisions.level).toBe("not_run");
+      expect(s.all_clear_allowed).toBe(false);
+    } finally {
+      forgetAiFault();
+      (config as any).demoMode = demo;
+    }
+  });
   it("with no model configured the AI reader never runs and nothing is green", async () => {
     const { db, seeded } = await freshWorld();
     Object.assign(config.ai, { provider: "rules" });
