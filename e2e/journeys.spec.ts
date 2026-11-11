@@ -192,7 +192,7 @@ test("no-sign-in pages: each opens for a stranger and fits a phone", async ({ pa
   }
   await page.goto("/proof");
   await expect(page.locator("[data-case]").first()).toBeVisible();
-  await expect(page.locator("main")).toContainText("Not nightly");
+  await expect(page.locator("main")).toContainText("Run by hand with npm run eval:ai");
 });
 
 test("display and help: text size and calm mode apply and persist", async ({ page }) => {

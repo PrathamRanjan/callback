@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { AI_FAILED_LINE } from "../src/ai/agent.js";
-import { requestBody, setProviderFetch } from "../src/ai/provider.js";
+import { armAiFault, forgetAiFault, requestBody, setProviderFetch } from "../src/ai/provider.js";
 import { compilePolicy } from "../src/guard/policy.js";
 import { config } from "../src/config.js";
 import { customerSays, startCall } from "../src/services/calls.js";
@@ -93,6 +93,36 @@ describe("honest AI failure", () => {
     expect(c.transcript.at(-1)?.text).toMatch(/AI model failed on this turn/);
     expect((await callAttempts(db, c.customer_id, NOW)).attempts_today).toBe(0);
     await db.close();
+  });
+
+  it("the demo's make-the-AI-fail switch stops model calls before they reach OpenAI, and the call fails honestly", async () => {
+    const { db, seeded } = await freshWorld();
+    useModel();
+    const demo = config.demoMode;
+    (config as any).demoMode = true;
+    try {
+      const bodies = script([turn({ say: "Hi Priya, it's the studio. Is now a bad time?" }), turn({ say: "Thanks, sending the link." })]);
+      const id = await callFor(db, seeded.obligations.priya_deposit);
+      await startCall(db, id, "simulator", "test");
+      expect(bodies.length).toBe(1);
+      await armAiFault();
+      const r = await customerSays(db, id, "Yes, send it.", "test");
+      expect(bodies.length).toBe(1); // nothing reached the model while the switch was armed
+      expect(r.say).toBe(AI_FAILED_LINE);
+      const c = await callById(db, id);
+      expect(c.outcome).toBe("ai_failed");
+      const audits = (await db.query<{ ok: boolean; error: string }>("SELECT ok, error FROM ai_calls ORDER BY id DESC LIMIT 1")).rows[0];
+      expect(audits.ok).toBe(false);
+      expect(audits.error).toMatch(/Injected fault/);
+      // Old switches lapse: a row older than the window does nothing.
+      await db.query("UPDATE demo_faults SET created_at = now() - interval '10 minutes' WHERE method = 'ai.model'");
+      await compilePolicy("Only call 10am to 6pm on weekdays.");
+      expect(bodies.length).toBe(2);
+    } finally {
+      forgetAiFault();
+      (config as any).demoMode = demo;
+      await db.close();
+    }
   });
 
   it("the policy reader says when the model failed and the draft cannot be adopted", async () => {

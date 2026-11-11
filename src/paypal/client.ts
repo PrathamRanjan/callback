@@ -4,6 +4,9 @@ import { OrderInput, PayPalApi, PayPalError, PlanInput, PPBalance, PPCapture, PP
 type Json = Record<string, any>;
 
 /** Typed PayPal REST client. Writes carry PayPal-Request-Id so a retry with the same id cannot apply twice. */
+/** When this server last got a PayPal access token, and how many scopes came with it (never the token itself). */
+export const tokenSeen: { at: string | null; scopes: number } = { at: null, scopes: 0 };
+
 export class PayPalClient implements PayPalApi {
   private token: { value: string; expiresAt: number; scopes: string[]; appId?: string } | null = null;
   readonly env: "sandbox" | "live";
@@ -26,6 +29,8 @@ export class PayPalClient implements PayPalApi {
     const data = (await res.json().catch(() => ({}))) as Json;
     if (!res.ok) throw new PayPalError(String(data.error_description ?? "PayPal authentication failed"), res.status, String(data.error ?? ""), undefined, data);
     this.token = { value: String(data.access_token), expiresAt: Date.now() + Number(data.expires_in ?? 3000) * 1000, scopes: String(data.scope ?? "").split(" ").filter(Boolean), appId: data.app_id };
+    tokenSeen.at = new Date().toISOString();
+    tokenSeen.scopes = this.token.scopes.length;
     return this.token.value;
   }
 

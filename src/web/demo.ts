@@ -4,6 +4,7 @@ import { config } from "../config.js";
 import { APP_TABLES, currentWs, getDb, inWorkspace, SCHEMA } from "../db.js";
 import { personas } from "../eval/personas.js";
 import { armFault, FAULTABLE, paypalConfigured } from "../paypal/index.js";
+import { AI_FAULT_MINUTES, armAiFault, disarmAiFault } from "../ai/provider.js";
 import { customerSays, startCall } from "../services/calls.js";
 import { planCalls } from "../services/planner.js";
 import { seedDemo } from "../services/seed.js";
@@ -173,6 +174,18 @@ ${biz && p ? html`<div class="card"><h3>Run a scripted customer</h3><p class="sm
     if (!(FAULTABLE as readonly string[]).includes(method)) return back(res, "/demo", "Unknown method.", true);
     await armFault(method, req.body.kind === "lose_response" ? "lose_response" : "fail_503");
     back(res, "/demo", `Armed ${req.body.kind} on ${method}${currentWs() ? " in your demo only" : ""}.`);
+  }));
+  /** Makes every model call in this demo fail for a couple of minutes, to show the honest failure states. Owner only. */
+  r.post("/demo/fault-ai", page(async (req, res) => {
+    if (!config.demoMode) return back(res, "/demo", "Demo mode is off.", true);
+    const p = await me(req);
+    if (!p || p.role !== "owner") return back(res, "/demo", "Only the owner can make the AI fail on purpose.", true);
+    if (req.body.off === "1") {
+      await disarmAiFault();
+      return back(res, "/demo", "The AI is back on.");
+    }
+    await armAiFault();
+    back(res, "/demo", `The AI now fails${currentWs() ? " in your demo only" : ""} for ${AI_FAULT_MINUTES} minutes. Place a call or ask a question to see what happens.`);
   }));
   r.post("/demo/persona", page(async (req, res) => {
     const p = await me(req);

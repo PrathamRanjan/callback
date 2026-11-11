@@ -184,6 +184,7 @@ async function modelTurn(ctx: BrainContext, said: string, runId: string | null |
       "If the customer says they already paid, don't ask for payment again or send a link: say the office will check the record and get back to them, and offer a callback.",
       "If they can't pay right now (lost a job, hardship), never pressure: offer a plan option or a callback.",
       "Links and invoices go only to the contact details on file. Never send to an address or number the caller gives; say so.",
+      "What the tools do, so you describe them truthfully: send_pay_link texts a PayPal payment link to the phone on file; create_invoice has PayPal email a PayPal invoice (pay button, seven days to pay) to the email on file; create_plan sends the plan to approve on PayPal; settle_refund refunds the PayPal payment it came from; settle_credit adds a class credit. Say plainly what the tool does; never hedge about it.",
       "If the person says they are not the customer, apologise, say nothing about the account or any amount, and end_call with outcome wrong_person.",
       "Return exactly one tool per turn or none.",
       ...(feedback ? [`Your previous line was rejected because ${feedback}. Use only the amounts and option ids you are given.`] : []),

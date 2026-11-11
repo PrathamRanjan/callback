@@ -20,7 +20,7 @@ import { activePolicy } from "../guard/policy.js";
 import { firstBiz } from "../store.js";
 import { liveWorkspaces } from "../services/workspaces.js";
 import { PAYPAL_MCP_READ, paypalMcpReady } from "../paypal/mcp.js";
-import { paypalConfigured } from "../paypal/index.js";
+import { paypalConfigured, tokenSeen } from "../paypal/index.js";
 import { realtimeReady } from "../voice/realtime.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me } from "./auth.js";
@@ -134,7 +134,7 @@ export const PUBLIC_PAGES = [
 
 /** Families of PayPal calls, in the order a call meets them, each with where the live id comes from. */
 const PAYPAL_APIS: { api: string; endpoint: string; when: string; sql: string | null; label: string }[] = [
-  { api: "OAuth 2.0 client credentials", endpoint: "POST /v1/oauth2/token", when: "Before any PayPal call; the token is cached until it expires.", sql: null, label: "" },
+  { api: "OAuth 2.0 client credentials", endpoint: "POST /v1/oauth2/token", when: "Before any PayPal call; the token is cached until it expires.", sql: null, label: "token issued" },
   { api: "Orders v2: create", endpoint: "POST /v2/checkout/orders", when: "The customer agrees on a call (or taps Pay) and the gate allows the amount.", sql: "SELECT paypal_order_id AS id, created_at AS at FROM pay_links WHERE paypal_order_id IS NOT NULL ORDER BY created_at DESC LIMIT 1", label: "order id" },
   { api: "Orders v2: capture (incl. saved-wallet payment)", endpoint: "POST /v2/checkout/orders/{id}/capture", when: "The buyer approves, or the demo wallet pays with its vault id.", sql: "SELECT capture_id AS id, created_at AS at FROM obligations WHERE capture_id IS NOT NULL ORDER BY created_at DESC LIMIT 1", label: "capture id" },
   { api: "Invoicing v2", endpoint: "POST /v2/invoicing/invoices, …/send", when: "An overdue bill is sent as a PayPal invoice instead of a link.", sql: "SELECT paypal_invoice_id AS id, created_at AS at FROM invoices WHERE paypal_invoice_id IS NOT NULL ORDER BY created_at DESC LIMIT 1", label: "invoice id" },
@@ -208,7 +208,7 @@ export function publicRouter() {
   r.get("/api/public/proof", json(async () => {
     const ev = readJson("eval/results/ai-eval.json");
     const th = Object.values(thresholds()).map((x) => ({ name: x.name, clear_below: x.clear_below, hold_above: x.hold_above, n: x.n, precision_at_hold: x.precision_at_hold, recall_at_hold: x.recall_at_hold, calibrated_on: x.calibrated_on }));
-    return { eval: ev, thresholds: th, models: { turn: config.ai.models.read, decisions: config.ai.models.decisions, label: providerLabel() }, nightly: false, source: "eval/results/ai-eval.json, written by npm run eval:ai" };
+    return { eval: ev, thresholds: th, models: { turn: config.ai.models.read, decisions: config.ai.models.decisions, label: providerLabel() }, nightly: String(ev?.runner ?? "") === "github-actions:schedule", runner: String(ev?.runner ?? "by hand"), source: "eval/results/ai-eval.json, written by npm run eval:ai (by hand) or .github/workflows/ai-eval.yml (nightly, once switched on)" };
   }));
 
   r.get("/api/public/ai", json(async (req) => {
@@ -225,7 +225,8 @@ export function publicRouter() {
     const order: (string | null)[] = [...(w ? [w.id] : []), null, ...others];
     // A failed read is said on the page ("couldn't read"), never shown as "none yet".
     const pick = async (sql: string | null): Promise<{ live: { id: string; at: string; where: string; extra: string | null } | null; error: boolean }> => {
-      if (!sql) return { live: null, error: false };
+      // OAuth has no id to show: the time this server last got a token stands in for it (the token is never shown).
+      if (!sql) return { live: tokenSeen.at ? { id: "access token (not shown)", at: tokenSeen.at, where: "this server", extra: `${tokenSeen.scopes} scopes` } : null, error: false };
       let error = false;
       for (const ws of order) {
         const res = await inWorkspace(ws, () => db.query<any>(sql)).catch((e) => {

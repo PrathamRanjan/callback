@@ -1,0 +1,60 @@
+# Nightly AI evaluation (spec A5.6), run on GitHub's machines instead of the 512 MB Render instance.
+# It asks the live models the regression set (call turns, policy reading, and the Decisions API for the held-out
+# scam messages), then commits eval/results/ai-eval.json, which /proof renders. The commit redeploys Render.
+#
+# Off until the owner turns it on:
+#   1. Settings → Secrets and variables → Actions → New repository secret: OPENAI_API_KEY
+#   2. Same page, Variables tab: AI_EVAL_NIGHTLY = true
+# "Run workflow" (workflow_dispatch) works as soon as the secret exists.
+name: AI eval (nightly)
+on:
+  schedule:
+    - cron: "17 15 * * *" # 02:17 Sydney (AEDT), when the demo is quiet
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ai-eval
+  cancel-in-progress: false
+jobs:
+  eval:
+    if: github.event_name == 'workflow_dispatch' || vars.AI_EVAL_NIGHTLY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: The OpenAI key must be set (no silent skip)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY is not a repository secret, so the eval cannot ask the live models. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+      - name: Run the eval on the live models
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_PROVIDER: openai
+        run: node --import tsx scripts/eval-ai.ts --fresh | tee eval-run.txt
+      - name: Summary
+        run: |
+          {
+            echo "## AI eval $(date -u +%F)"
+            grep '^## ' eval-run.txt | sed 's/^## /- /'
+            echo
+            echo "Failures:"
+            grep '^FAIL' eval-run.txt | sed 's/^/- /' || echo "- none"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit the results for /proof
+        run: |
+          git config user.name "callback-eval[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add eval/results/ai-eval.json
+          if git diff --cached --quiet; then echo "No change."; exit 0; fi
+          git commit -m "Nightly AI eval $(date -u +%F)"
+          git push

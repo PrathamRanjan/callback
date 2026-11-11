@@ -49,6 +49,7 @@ interface ProofData {
   thresholds: { name: string; clear_below: number; hold_above: number; n: number; precision_at_hold: number | null; recall_at_hold: number | null; calibrated_on: string | null }[];
   models: { turn: string; decisions: string; label: string };
   nightly: boolean;
+  runner: string;
   source: string;
 }
 export function PublicProof() {
@@ -59,7 +60,7 @@ export function PublicProof() {
         {(d) => !d.eval ? <Panel className="p-4">No evaluation file is published on this server yet.</Panel> : (
           <>
             <Panel className="p-4 text-sm">
-              <p><b>Run:</b> <span className="num">{new Date(d.eval.run_at).toISOString().slice(0, 16).replace("T", " ")} UTC</span> ({when(d.eval.run_at)}). {d.nightly ? "Runs nightly." : "Not nightly: it was run by hand with npm run eval:ai and the result committed."}</p>
+              <p><b>Run:</b> <span className="num">{new Date(d.eval.run_at).toISOString().slice(0, 16).replace("T", " ")} UTC</span> ({when(d.eval.run_at)}). {d.nightly ? "Written by the nightly GitHub workflow." : d.runner.startsWith("github-actions") ? "Run by the GitHub workflow, started by hand." : "Run by hand with npm run eval:ai and committed. A nightly GitHub workflow is in the repository but stays off until the owner adds the OpenAI key as a repository secret."}</p>
               <p className="mt-1"><b>Models:</b> call turns and policy reading on {d.models.label}; scam check on {d.models.decisions} (OpenAI Decisions).</p>
               <p className="mt-1"><b>Totals:</b> {d.eval.jobs.map((j) => `${j.job}: ${j.passed}/${j.total}`).join(" · ")}</p>
               <p className="mt-1 text-ink-2">File: {d.source}</p>

@@ -88,5 +88,5 @@ export async function withMockResponse<T>(method: keyof PayPalApi, mock: unknown
   }
 }
 
-export { PayPalClient, WEBHOOK_EVENTS } from "./client.js";
+export { PayPalClient, tokenSeen, WEBHOOK_EVENTS } from "./client.js";
 export * from "./types.js";

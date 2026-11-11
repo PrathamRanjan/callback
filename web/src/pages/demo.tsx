@@ -93,6 +93,14 @@ export default function DemoPage() {
             </Panel>
           </Section>
         ) : null}
+        {owner ? (
+          <Section id="ai-fault" title="Make the AI fail" hint="For two minutes every model call in your demo fails, as if OpenAI were down. Calls end with a fixed line and the outcome ai_failed, Ask says it can't answer, and the scam check says its AI reader did not run. Nothing falls back to rules.">
+            <Panel className="flex flex-wrap gap-2 p-4">
+              <ActButton path="/demo/fault-ai" variant="outline" icon={<Zap />}>Make the AI fail for 2 minutes</ActButton>
+              <ActButton path="/demo/fault-ai" fields={{ off: "1" }} variant="ghost">Turn the AI back on</ActButton>
+            </Panel>
+          </Section>
+        ) : null}
         {owner && d.keys ? (
           <Section id="keys" title="Access keys" hint="For the MCP server and the sign-in page. Demo only; shown to the owner.">
             <Panel className="p-4">

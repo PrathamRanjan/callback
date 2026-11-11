@@ -61,10 +61,43 @@ export class NoModelError extends Error {
   }
 }
 
-export let fetchImpl: typeof fetch = (i, init) => fetch(i, init);
+/** How long the demo's "make the AI fail" switch lasts once the owner arms it. */
+export const AI_FAULT_MINUTES = 2;
+/**
+ * Demo only (spec A11: show the honest failure live without removing the key). While the owner of a demo has the
+ * switch armed, every OpenAI request from that demo answers 503 here and never reaches OpenAI. The call, Ask and the
+ * scam check then show their real failure states. The switch lives in that demo's own demo_faults table.
+ */
+let aiFaultArmedAt = 0;
+/** Arms the switch in the current demo (the caller's workspace). */
+export async function armAiFault() {
+  const db = await getDb();
+  await db.query("INSERT INTO demo_faults (method, kind) VALUES ('ai.model', 'fail_503')");
+  aiFaultArmedAt = Date.now();
+}
+export async function disarmAiFault() {
+  const db = await getDb();
+  await db.query("DELETE FROM demo_faults WHERE method = 'ai.model'");
+}
+/** Tests only: forget that any demo armed the switch. */
+export function forgetAiFault() {
+  aiFaultArmedAt = 0;
+}
+function withAiFault(f: typeof fetch): typeof fetch {
+  return async (i, init) => {
+    // The database is read only while some demo on this server armed the switch in the last few minutes.
+    if (config.demoMode && Date.now() - aiFaultArmedAt < AI_FAULT_MINUTES * 60_000 && String(i).startsWith(config.ai.openaiBaseUrl)) {
+      const db = await getDb();
+      const armed = await db.query("SELECT 1 FROM demo_faults WHERE method = 'ai.model' AND created_at > now() - make_interval(mins => $1) LIMIT 1", [AI_FAULT_MINUTES]);
+      if (armed.rows.length) return new Response(JSON.stringify({ error: { message: "Injected fault: the model is unavailable (the demo's own switch)", type: "injected" } }), { status: 503, headers: { "content-type": "application/json" } });
+    }
+    return f(i, init);
+  };
+}
+export let fetchImpl: typeof fetch = withAiFault((i, init) => fetch(i, init));
 /** Tests intercept model calls here. */
 export function setProviderFetch(f: typeof fetch | null) {
-  fetchImpl = f ?? ((i, init) => fetch(i, init));
+  fetchImpl = withAiFault(f ?? ((i, init) => fetch(i, init)));
 }
 
 export const hasOpenAI = () => config.ai.provider === "openai" && Boolean(config.ai.openaiKey);

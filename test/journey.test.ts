@@ -180,6 +180,12 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await anon.get("/demo")).status).toBe(200);
     expect((await owner.post("/demo/fault", { method: "createOrder", kind: "fail_503" })).location).toMatch(/ok=/);
     expect((await owner.post("/demo/fault", { method: "nope", kind: "fail_503" })).location).toMatch(/err=/);
+    // The AI switch: owner only; armed, then turned off again so later steps here use the model as usual.
+    expect(decodeURIComponent((await anon.post("/demo/fault-ai")).location ?? "")).toMatch(/err=Only the owner can make the AI fail/);
+    expect(decodeURIComponent((await owner.post("/demo/fault-ai")).location ?? "")).toMatch(/ok=The AI now fails for 2 minutes/);
+    expect((await world.db.query("SELECT 1 FROM demo_faults WHERE method = 'ai.model'")).rows.length).toBe(1);
+    expect(decodeURIComponent((await owner.post("/demo/fault-ai", { off: "1" })).location ?? "")).toMatch(/ok=The AI is back on/);
+    expect((await world.db.query("SELECT 1 FROM demo_faults WHERE method = 'ai.model'")).rows.length).toBe(0);
     expect((await owner.post("/demo/clock", { now: "2026-03-04T11:00:00Z" })).location).toMatch(/ok=/);
     expect((await owner.post("/demo/clock", { now: "2026-03-04T02:00:00Z" })).location).toMatch(/ok=/);
     expect((await owner.post("/demo/plan")).location).toMatch(/ok=/);
