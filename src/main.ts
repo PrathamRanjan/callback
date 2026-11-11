@@ -1,12 +1,12 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
-import { getDb } from "./db.js";
+import { getDb, inWorkspace, SCHEMA } from "./db.js";
 import { paypalConfigured } from "./paypal/index.js";
 import { providerLabel } from "./ai/provider.js";
 import { syncThresholds } from "./ai/decisions.js";
 import { telephonyReady } from "./voice/telephony.js";
 import { startInlineWorker } from "./worker.js";
-import { rebuildShowcase, showcaseStale } from "./services/workspaces.js";
+import { liveWorkspaces, rebuildShowcase, showcaseStale } from "./services/workspaces.js";
 
 // Spec A11: the deployed server runs only with its keys. No key means no AI and no money, and nothing may stand in.
 const deployed = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
@@ -19,6 +19,19 @@ if (deployed) {
 }
 const db = await getDb();
 await syncThresholds(db);
+// Private demos made by an earlier build get any new tables (the schema only adds, IF NOT EXISTS).
+if (config.workspaces.enabled) {
+  let n = 0;
+  for (const w of await liveWorkspaces()) {
+    try {
+      await inWorkspace(w.id, () => db.exec(SCHEMA));
+      n++;
+    } catch (e) {
+      console.error(`[boot] could not bring demo ${w.id} up to date: ${(e as Error).message}`);
+    }
+  }
+  if (n) console.log(`Brought ${n} private demo${n === 1 ? "" : "s"} up to date.`);
+}
 if (config.demoMode && config.workspaces.enabled && (await showcaseStale())) {
   await rebuildShowcase();
   console.log("Showcase studio built.");
