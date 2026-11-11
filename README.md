@@ -22,7 +22,7 @@ The voice agent that makes a small business's money calls: confirm tomorrow's de
 
 | Criterion | Where to see it |
 |---|---|
-| Technical | One gate for every money move (`src/guard/dryrun.ts`); the model's schema has no amount field; an Ask agent that uses Callback's own MCP server and PayPal's, with read tools only (`src/agent/ask.ts`); calibrated Decisions thresholds (`src/ai/thresholds.json`); 122 unit and flow tests, 12 browser journeys |
+| Technical | One gate for every money move (`src/guard/dryrun.ts`); the model's schema has no amount field; an Ask agent that uses Callback's own MCP server and PayPal's, with read tools only (`src/agent/ask.ts`); calibrated Decisions thresholds (`src/ai/thresholds.json`); 123 unit and flow tests, 12 browser journeys |
 | Design | The three-lane call score (voice, rules, money on one time line); the judge page; phone layouts checked at 375 px |
 | Impact | Small studios lose money to awkward calls they put off; Callback makes them inside consent, calling hours and the owner's limits, and the customer's page carries a verify code against impersonators |
 | Innovation | Code, not the model, decides money; four scam readers where green needs all of them; every AI step is visible (trace rail, `/ai`, `/proof` with failures listed) |
@@ -45,7 +45,7 @@ npm run dev                 # http://localhost:3500
 ```
 Sign in with the owner key (or press **Reset and seed** on `/demo`). Without PayPal credentials every page works and money moves fail honestly. Without an OpenAI key calls do not start and policy reading shows an error with a retry button; nothing written by rules is presented as AI (the rules brain runs only in tests and offline evals, `AI_PROVIDER=rules`). The deployed server (`RENDER=true` or `NODE_ENV=production`) refuses to start without the OpenAI key, `AI_PROVIDER=openai`, the PayPal credentials and `SESSION_SECRET`. Without Twilio the simulator carries the call. Without channel tokens every message is recorded as *simulated* on `/ops/channels`.
 
-Other scripts: `npm test` (122 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP, private workspaces, honest AI failure), `npm run e2e` (Playwright journeys), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
+Other scripts: `npm test` (123 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP, private workspaces, honest AI failure), `npm run e2e` (Playwright journeys), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
 
 ## Pages
 Signed in: `/today` plan and refusals · `/ask` the agent with its tool rail · `/calls`, `/calls/:id` transcript, options, trace, simulator, live voice · `/customers/:id` consent record · `/approvals` holds, passkey, limits, kill switches, audit chain · `/money` links, invoices, plans, refunds, read-back · `/rules` compile, backtest, earned autonomy · `/safety` scam check · `/messages` · `/evidence` evals and traces · `/trace/:id` · `/demo`. No sign-in: `/judge`, `/proof`, `/ai`, `/paypal`, `/who-can-move-money`, `/accessibility`, `/agents` · customer `/c/:token` (pay, check a message, callback, stop) · `/llms.txt`, `/skill.md`, MCP at `/mcp` (owner) and `/c/:token/mcp` (customer).
@@ -205,3 +205,51 @@ Run 2026-11-11T01:51:38.295Z against https://pph-callback.onrender.com (commit e
 - **The eval is not nightly.** It was run by hand on 11 Nov and committed.
 - **No judge sandbox buyer and a private repository.** Both are the owner's to do: create a second sandbox buyer (and set `JUDGE_BUYER_EMAIL`), and decide whether to make the repository public.
 - **A6.4** (retraining the on-device model in guard-lab) is a cross-app job and is not done here.
+
+## Leftovers from Waves 1 and 2 (11 Nov 2026, evening): what changed, and the live checks
+
+These close the open items in the two sections above where code could close them. Commit 2cc3fd6.
+
+- **/paypal now has a live sandbox id for every API.** Nothing in the app was missing: no demo had used invoices, plans or refunds yet. `scripts/live-paypal-coverage.mjs` does it in a fresh private demo, the way a visitor would:
+  - on a call, Tom asks for a PayPal invoice;
+  - on Lena's page, she splits her invoice into a plan. PayPal creates the product, the plan and the subscription, and waits for the buyer to approve on its own page;
+  - on Tom's page, he takes a refund for the cancelled class. The seed paid that class from the saved wallet, so the refund goes back to a real capture.
+  
+  The OAuth row now shows when this server last got a token (never the token itself) instead of "No id".
+- **A wrong line from the agent, found on the first live run.** The agent sent a real PayPal invoice but told Tom "I can't confirm it will be a PayPal invoice". The call model is now told what each tool really does. A new regression case, `asks_invoice`, checks it, and the call-turn set is now 8 cases.
+- **The honest AI failure can be shown live (A11).** The owner of a private demo can press "Make the AI fail for 2 minutes" on the Demo page. For those two minutes every OpenAI request from that demo gets a 503 inside the server, before anything is sent to OpenAI. The live key is untouched and other demos are unaffected. Results: a call does not start ("nothing was said to the customer"), the scam check says its AI reader did not run and never shows green, and Ask says it could not answer. Nothing falls back to rules.
+- **The nightly eval is ready but switched off.** `.github/workflows/ai-eval.yml` runs `eval:ai --fresh` on GitHub's machines, not on the 512 MB Render instance. The run asks the live models again, including the Decisions API for the 31 held-out messages; the committed thresholds are not re-tuned. It then commits `eval/results/ai-eval.json`, which redeploys the site. It stays off until the owner does two things: add `OPENAI_API_KEY` as a repository secret, and set the repository variable `AI_EVAL_NIGHTLY=true`. The result file records who ran it, so /proof says "nightly" only when the scheduled workflow wrote it. Today's committed run was by hand with `--fresh`: 8/8, 4/4 and 30/31 (the one miss is still the false hold on "my husband will pay with his own PayPal"). It was also run with only the OpenAI key set, to show the workflow needs nothing else.
+- **Tests:** vitest 123/123; Playwright 12 passed, plus the screenshot capture, which is skipped by design.
+
+**Live checks** (`node scripts/live-paypal-coverage.mjs`, against the deployed commit 2cc3fd6):
+
+| Item | Check | Result | Detail |
+|---|---|---|---|
+| A2.1 | the new demo's seed payments are confirmed by PayPal | Pass | 3 of 3 payments confirmed by PayPal |
+| A3.2 | refund of the cancelled class goes back to its PayPal capture | Pass | paid by PayPal true; Refund of $35.00 sent to the PayPal account you paid with. |
+| A3.2 | a payment plan creates a real product, plan and subscription waiting for the buyer | Pass | 2 fortnightly payments of $90.00 → https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token= |
+| A3.2 | a customer who asks for an invoice on a call gets a real PayPal invoice | Pass | call chase_invoice; agent: "Of course, Tom. PayPal will email an invoice with a pay button to the email address on file, giving you seven days to pa"; invoice INV2-JCL5-DEGG-Z5JC-9AVE |
+| A3.2 | /paypal shows a live sandbox id for invoices, plans and refunds | Pass | OAuth: access token (not shown) (29 scopes); Invoicing: INV2-JCL5-DEGG-Z5JC-9AVE; Subscriptions: I-5VRC56YFRF2H; Refund: 7RY77690YT9492312 |
+| A3.2 | /paypal: the OAuth row shows when this server last got a token (never the token) | Pass | access token (not shown) (29 scopes), 2026-11-11T13:51:44.904Z |
+| A4 | call-turn model latency measured per call (no target: recorded) | Pass | 3 call turns; median 3749 ms, slowest 4747 ms, fastest 3560 ms |
+| A11 | with the AI switched off, a call stops honestly: no rules stand-in, outcome ai_failed or not started | Pass | armed: The AI now fails in your demo only for 2 minutes. Place a ca; call planned, outcome none; place said: The AI model couldn't start this call, so nothing was said to the customer. Try again in a moment. |
+| A11 | with the AI switched off, the scam check says its AI reader did not run and never shows green | Pass | AI reader not_run (the AI check didn't answer just now); all clear allowed false; not fully checked: the AI check didn't answer just now |
+| A11 | with the AI switched off, Ask says it could not answer (no made-up answer) | Pass | POST 200; run failed; {"kind":"failed","message":"The AI couldn't finish this answer just now. Nothing was changed. Try ag |
+| A11 | switched back on, the AI reader runs again | Pass | The AI is back on.; AI reader clear |
+
+Run 2026-11-11T13:52:53.378Z against https://pph-callback.onrender.com (commit 2cc3fd6).
+
+**Wave 2 checks re-run on 2cc3fd6:** all 18 passed (`node scripts/live-acceptance-w2.mjs`; the Wave 2 table above has the same 18 checks). Path 1 took 17 s by script. The 10 Nov message was held by all three server readers; the Decisions reader took 433 ms. The judge's Ask question used 5 tools, and the PayPal question made 3 calls on PayPal's MCP server. /proof shows the fresh run. /paypal now lists a live id in all 8 rows.
+
+**What the earlier "not verified" items are now:**
+
+| Earlier item | Now |
+|---|---|
+| /paypal had no id for invoices, plans and subscriptions, or refunds | **Fixed and verified live.** Real ids are in the table above. A plan stays "waiting for the buyer" until someone approves it with a PayPal buyer login, which has not been done. |
+| The honest AI failure states, verified only in tests | **Verified live**, using the demo's own switch (four A11 rows above). |
+| A call turn took 21 s | **Measured.** Each model call takes 3.6 to 4.7 s (median 3.7 s). The 17 to 21 s is the whole scripted path: an opening line, two replies, a real PayPal order and a wallet payment. |
+| The eval is not nightly | **Ready, waiting on the owner:** the repository secret and variable described above. Until then it is run by hand. |
+| Cold start | **Still not verified.** See below. |
+| Telegram inside a private copy | **Still not verified.** Someone needs to message the bot from a Telegram account. |
+| A person trying the three-minute path on a phone | **Still not verified.** It needs a person who has never seen the app. |
+| A judge sandbox buyer; a public repository | **Still the owner's to do.** |
