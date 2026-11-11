@@ -347,15 +347,23 @@ The one Wave 3 failure was that a used stream token's refusal never reached the 
 
   It needs no secret. **The nightly run is off until the owner sets the repository variable `ROBOT_JUDGE_NIGHTLY=true`.** "Run workflow" works at any time.
 - **Robot judge on the live site at b90e368, run from this machine: 18 of 18 passed.** All three paths ticked every step.
-- **PayPal coverage at b90e368: 10 of 11.** The failure was a real bug that the robot judge's run exposed: the scam check keeps answers for 10 minutes, so with the AI switched off it still showed an AI answer from two minutes earlier as "clear". It now skips kept answers while the demo's AI switch is on. A test was added; it fails without the fix.
+- **PayPal coverage at b90e368: 10 of 11.** The failure was a real bug that the robot judge's run exposed: the scam check keeps answers for 10 minutes, so with the AI switched off it still showed an AI answer from two minutes earlier as "clear". It now skips kept answers while the demo's AI switch is on. A test was added; it fails without the fix. **At 7acc868, robot judge then PayPal coverage, in that order: 18/18 and 11/11.**
+
+### Found when the robot judge first ran on GitHub: the per-address limits were shared by every visitor (fixed in 038c84b)
+
+The first two GitHub runs were refused a demo with "This address has started 5 demos in the last hour". `GET /api/ops/request-ip` (operator key only, added for this) showed why:
+- On Render the request chain is visitor → Cloudflare → Render's proxy → the app. `req.ip`, with `trust proxy` 1, was **Render's internal proxy (10.x), the same for every visitor**.
+- So the 5-demos-an-hour limit, the live voice limits (10 a day per address, 5 phone calls) and the scam-check limit were shared by all visitors. On a busy judging day, the sixth judge in an hour could not start a demo.
+- `clientIp()` now takes Cloudflare's `CF-Connecting-IP` / `True-Client-IP` on Render. Cloudflare sets these itself, overwriting anything the visitor sends. Off Render it uses `req.ip`, and a made-up `X-Forwarded-For` changes nothing (test/client-ip.test.ts).
+- **After the fix:** the server sees the visitor's address, a demo starts from this machine again, and **the robot judge on GitHub's machines passed 18 of 18** (run 43056288904, commit 038c84b), every step of all three paths ticked.
 
 ### Quality gate (spec A12) for Callback, as of 11 Nov 2026
 
 | # | Gate | State |
 |---|---|---|
-| 1 | Unit and end-to-end tests pass, including workspace isolation and axe | **Met** locally: 133/133 unit (workspaces.test.ts is the isolation test) and 17 browser tests including the five accessibility checks. 1 test (screenshot capture) is skipped on purpose |
-| 2 | The off-script regression set (Part B) passes on the live site | **Met** for what this machine can run: Wave 2 checks 18/18, PayPal coverage (after the fix, below), live voice 19/19 |
-| 3 | The robot judge completes every /judge path on production | **Met** when run by hand (18/18). The nightly GitHub run waits for the owner's `ROBOT_JUDGE_NIGHTLY` variable |
+| 1 | Unit and end-to-end tests pass, including workspace isolation and axe | **Met** locally: 136/136 unit (workspaces.test.ts is the isolation test) and 17 browser tests including the five accessibility checks. 1 test (screenshot capture) is skipped on purpose |
+| 2 | The off-script regression set (Part B) passes on the live site | **Met** for what this machine can run: Wave 2 checks 18/18, PayPal coverage 11/11, live voice 19/19 |
+| 3 | The robot judge completes every /judge path on production | **Met**: 18/18 on GitHub's machines (run 43056288904) and 18/18 from this machine. The nightly schedule waits for the owner's `ROBOT_JUDGE_NIGHTLY=true` variable |
 | 4 | A stranger completes one path in under three minutes on a phone | **Not met.** It needs a person; the script takes about 30 s |
 | 5 | /proof, /paypal, /ai and /accessibility show today's date and real data | **Met today** (robot judge checks /proof's run date; /accessibility shows 11 Nov). /proof stays current only if the nightly AI eval runs, which needs the owner's `OPENAI_API_KEY` secret and `AI_EVAL_NIGHTLY` variable |
 | 6 | The README's judge section, live-versus-simulated table and criteria mapping are current | **Met** for what is in this README. Owner items are listed in docs/STATE_OF_THE_UNION.md |
