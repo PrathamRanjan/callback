@@ -151,7 +151,7 @@ export async function suggestAutonomy(businessId: string, q?: Queryable): Promis
   const evidence: string[] = [];
   const suggested = { ...current };
   const groups: Record<string, { pick: (a: any) => boolean; key: keyof GuardSettings; value: (a: any) => number }> = {
-    charge: { pick: (a) => ["charge", "invoice", "plan"].includes(a.action), key: "auto_charge_max_cents", value: (a) => Number(a.payload.cents ?? 0) },
+    charge: { pick: (a) => ["charge", "invoice", "plan", "hold"].includes(a.action), key: "auto_charge_max_cents", value: (a) => Number(a.payload.cents ?? 0) },
     refund: { pick: (a) => a.action === "refund", key: "auto_refund_max_cents", value: (a) => Number(a.payload.cents ?? 0) },
     discount: { pick: (a) => a.action === "discount", key: "auto_discount_max_pct", value: (a) => Number(a.payload.discountPct ?? 0) },
   };

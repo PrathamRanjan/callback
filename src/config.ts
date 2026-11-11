@@ -57,7 +57,9 @@ export const config = {
       readBackup: process.env.OPENAI_MODEL_READ_BACKUP || "gpt-6-sol",
       classify: process.env.OPENAI_MODEL_CLASSIFY || "gpt-6-luna",
       vision: process.env.OPENAI_MODEL_VISION || "gpt-6.1-sol",
-      realtime: process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
+      // Spec B2 / A10: live voice on GPT-Live (full duplex; client delegation sends every decision to our gate).
+      live: process.env.OPENAI_LIVE_MODEL || "gpt-live-1",
+      liveVoice: process.env.OPENAI_LIVE_VOICE || "marin",
       // Spec A5.2: the Decisions API (probabilities for yes/no, choice and score questions); gpt-6-luna is the only model it takes.
       decisions: process.env.OPENAI_MODEL_DECISIONS || "gpt-6-luna",
     },
@@ -68,6 +70,10 @@ export const config = {
     twilioToken: process.env.TWILIO_AUTH_TOKEN || "",
     twilioFrom: process.env.TWILIO_FROM_NUMBER || "",
     webhookSecret: process.env.VOICE_WEBHOOK_SECRET || "",
+    /** "Call my phone" (spec B2): ISO country codes it may dial, e.g. "AU,US". Empty = off (the owner decides). */
+    callMyPhoneCountries: (process.env.CB_CALL_MY_PHONE_COUNTRIES || "").split(",").map((x) => x.trim().toUpperCase()).filter(Boolean),
+    /** A live call is cut at this many seconds (spec B2: 4 minutes), by Twilio's TimeLimit and by our own timer. */
+    liveCapSeconds: Number(process.env.CB_LIVE_CAP_SECONDS || 240),
   },
   /** Channels (roadmap B.8): without tokens every message is recorded as simulated and shown in the console. */
   channels: {

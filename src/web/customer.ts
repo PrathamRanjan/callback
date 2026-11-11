@@ -92,6 +92,25 @@ ${!c.dnc && c.consent ? html`<form method="post" action="/c/${c.token}/callback"
       throw e;
     }
   }, (req) => `/c/${req.params.token}`));
+  /** Demo only (spec B2 item 3): hold the deposit on the demo's saved sandbox wallet. Charged only if they attend. */
+  r.post("/c/:token/hold/:oid", page(async (req, res) => {
+    const db = await getDb();
+    const c = await customerByToken(db, req.params.token);
+    const biz = await bizById(db, c.business_id);
+    const o = (await obligationsOf(db, c.business_id, c.id)).find((x) => x.id === req.params.oid);
+    if (!o || o.kind !== "deposit") throw new GtError("Only a deposit can be held.", "not_found", 404);
+    const run = await startRun({ actor: "customer", subject: `${c.name} held the deposit for ${o.title} from the saved demo wallet`, entity: "obligation", entityId: o.id }, db);
+    try {
+      const { holdFromDemoWallet } = await import("../services/holds.js");
+      const out = await holdFromDemoWallet({ q: db, run, businessId: biz.id, businessName: biz.name, callId: null, agentScope: `customer:${c.id}`, personInitiated: true }, o, c);
+      await run.end("done");
+      await markStep("held_deposit").catch(() => undefined);
+      back(res, `/c/${c.token}`, `${money(out.cents)} is held on the demo's saved sandbox wallet, not charged. It is charged only if you attend. PayPal order ${out.orderId}, authorization ${out.authorizationId}, read back from PayPal.`);
+    } catch (e) {
+      await run.end("failed");
+      throw e;
+    }
+  }, (req) => `/c/${req.params.token}`));
   r.post("/c/:token/settle/:oid", page(async (req, res) => {
     const db = await getDb();
     const c = await customerByToken(db, req.params.token);

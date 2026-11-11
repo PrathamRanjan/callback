@@ -34,6 +34,7 @@
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "web-push": "^4.0.0",
+    "ws": "^8.22.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -44,6 +45,7 @@
     "@types/node": "^22.20.5",
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.5",
+    "@types/ws": "^8.18.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"

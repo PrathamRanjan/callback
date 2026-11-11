@@ -10,7 +10,7 @@ import { useData, useTitle } from "@/lib/hooks";
 
 interface PortalData {
   business: { name: string }; first_name: string; tz: string; verify_code: string | null; last_call_at: string | null;
-  open: { id: string; kind: string; title: string; note: string; balance_cents: number; owed_to_you_cents: number; discount_cents: number; status: string; due_local: string | null; appointment_local: string | null; paid_by_paypal: boolean; plans: { id: string; label: string }[] }[];
+  open: { id: string; kind: string; title: string; note: string; balance_cents: number; owed_to_you_cents: number; discount_cents: number; status: string; due_local: string | null; appointment_local: string | null; paid_by_paypal: boolean; plans: { id: string; label: string }[]; hold: { status: string; cents: number; authorization_id: string | null; expires_at: string | null } | null }[];
   settled: { id: string; title: string; status: string; cents: number; capture_id: string | null; via_wallet: boolean }[];
   demo_wallet: boolean;
   messages: { body: string; channel: string; created_at: string }[];
@@ -82,8 +82,16 @@ export default function PortalPage() {
                         <span className="flex flex-1" data-tour="portal-refund"><ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "refund" }} icon={<Undo2 />} onDone={reload} className="h-12 flex-1">Refund {money(o.owed_to_you_cents)}{o.paid_by_paypal ? " to PayPal" : ""}</ActButton></span>
                         <ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "credit" }} variant="outline" icon={<Gift />} onDone={reload} className="h-12 flex-1">Keep as class credit</ActButton>
                       </>
+                    ) : o.hold?.status === "authorized" ? (
+                      <div className="w-full rounded-[10px] border border-line bg-surface-2 p-3 text-sm" role="status">
+                        <StateChip s="live">{money(o.hold.cents)} held, not charged</StateChip>
+                        <p className="mt-2 text-ink-2">It is charged only if you attend, and released if you cancel in time. PayPal authorization <span className="font-mono">{o.hold.authorization_id}</span>{o.hold.expires_at ? `, valid until ${o.hold.expires_at.slice(0, 10)}` : ""}.</p>
+                      </div>
                     ) : o.balance_cents > 0 ? (
                       <div className="grid w-full gap-2">
+                        {d.demo_wallet && o.kind === "deposit" ? (
+                          <span data-tour="portal-hold"><ActButton path={`/c/${token}/hold/${o.id}`} variant="outline" icon={<ShieldCheck />} onDone={reload} className="h-12 w-full">Hold {money(o.balance_cents)} instead: charged only if you attend (demo wallet)</ActButton></span>
+                        ) : null}
                         {d.demo_wallet ? (
                           <span data-tour="portal-wallet"><ActButton path={`/c/${token}/wallet/${o.id}`} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} as the demo customer (saved PayPal, no login)</ActButton></span>
                         ) : null}

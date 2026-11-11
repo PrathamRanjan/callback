@@ -1,33 +1,35 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { postJson } from "./api";
 
 /**
- * Live voice: OpenAI Realtime over WebRTC, the same protocol as the server-rendered page. The browser gets a
- * short-lived client secret, streams the microphone, and every function call the model makes is executed on the
- * server through the money gate (/calls/:id/tool); the gate's result goes back to the model.
+ * Talk in the browser (spec B2 item 1): WebRTC straight to GPT-Live (gpt-live-1). The browser sends its offer to
+ * this app, which creates the session with the OpenAI key (never sent to the browser), attaches its own sideband
+ * connection and returns the answer. Every turn that needs the account goes from GPT-Live to the server, through
+ * the same brain, gate and PayPal calls as a typed turn; the browser only carries the audio.
  */
 export function useLiveVoice(callId: string, onChange: () => void) {
   const [state, setState] = useState<"off" | "starting" | "on" | "error">("off");
   const [note, setNote] = useState("");
   const pc = useRef<RTCPeerConnection | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
-  const handled = useRef(new Set<string>());
 
   const stop = () => {
     pc.current?.getSenders().forEach((s) => s.track?.stop());
     pc.current?.close();
     pc.current = null;
     setState("off");
-    setNote("Stopped.");
+    setNote("Live voice stopped.");
     onChange();
   };
+  useEffect(() => () => pc.current?.close(), []);
 
   const start = async () => {
     if (pc.current) return stop();
     setState("starting");
-    setNote("Opening a secure voice session…");
+    setNote("Asking for your microphone…");
     try {
-      const s = await postJson<{ client_secret: string; model: string }>(`/voice/realtime/session/${callId}`);
+      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("This browser can't do live voice. Type instead, or use Call my phone.");
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       const conn = new RTCPeerConnection();
       pc.current = conn;
       if (!audio.current) {
@@ -37,53 +39,39 @@ export function useLiveVoice(callId: string, onChange: () => void) {
       conn.ontrack = (e) => {
         if (audio.current) audio.current.srcObject = e.streams[0];
       };
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
       mic.getTracks().forEach((t) => conn.addTrack(t, mic));
+      // GPT-Live's event channel. The server watches the same session on its sideband and acts there; the browser
+      // only notes when the session ends.
       const dc = conn.createDataChannel("oai-events");
-      dc.onmessage = async (ev) => {
-        let msg: any;
+      dc.onmessage = (ev) => {
         try {
-          msg = JSON.parse(ev.data);
-        } catch {
-          return;
-        }
-        if (msg.type === "conversation.item.input_audio_transcription.completed" && msg.transcript) {
-          void postJson(`/calls/${callId}/speech`, { text: msg.transcript }).then(onChange).catch(() => {});
-        }
-        if ((msg.type === "response.output_audio_transcript.done" || msg.type === "response.audio_transcript.done") && msg.transcript) {
-          void postJson(`/calls/${callId}/speech`, { who: "agent", text: msg.transcript }).then(onChange).catch(() => {});
-        }
-        if (msg.type === "response.function_call_arguments.done" || (msg.type === "response.output_item.done" && msg.item?.type === "function_call")) {
-          const item = msg.item ?? msg;
-          // Each function call arrives twice (arguments.done, then output_item.done): run it once.
-          if (!item.call_id || handled.current.has(item.call_id)) return;
-          handled.current.add(item.call_id);
-          let args = {};
-          try {
-            args = JSON.parse(item.arguments || "{}");
-          } catch {
-            /* empty args */
+          const m = JSON.parse(ev.data);
+          if (m.type === "session.closed") {
+            setNote("The call ended.");
+            setTimeout(stop, 500);
           }
-          setNote(`Checking with the money gate: ${item.name}`);
-          const out = await postJson<{ ended?: boolean }>(`/calls/${callId}/tool`, { name: item.name, arguments: args, call_id: item.call_id }).catch((e) => ({ ok: false, error: (e as Error).message }) as any);
-          dc.send(JSON.stringify({ type: "conversation.item.create", item: { type: "function_call_output", call_id: item.call_id, output: JSON.stringify(out) } }));
-          dc.send(JSON.stringify({ type: "response.create" }));
-          onChange();
-          if (out?.ended) setTimeout(stop, 2500);
+        } catch {
+          /* not JSON */
         }
       };
-      dc.onopen = () => {
-        setState("on");
-        setNote("Connected. Speak as the customer.");
-        dc.send(JSON.stringify({ type: "session.update", session: { type: "realtime", audio: { input: { transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } } } }));
-        dc.send(JSON.stringify({ type: "response.create" }));
+      conn.onconnectionstatechange = () => {
+        if (conn.connectionState === "connected") {
+          setState("on");
+          setNote("Connected to gpt-live-1. Speak as the customer; the agent talks first.");
+          onChange();
+        } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) {
+          setState("error");
+          setNote("The voice connection dropped. The call record is kept; start a new call to try again.");
+        }
       };
+      setNote("Connecting to the voice model…");
       const offer = await conn.createOffer();
       await conn.setLocalDescription(offer);
-      const sdp = await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(s.model)}`, { method: "POST", headers: { Authorization: `Bearer ${s.client_secret}`, "content-type": "application/sdp" }, body: offer.sdp });
-      if (!sdp.ok) throw new Error(`The voice service refused the connection (${sdp.status}).`);
-      await conn.setRemoteDescription({ type: "answer", sdp: await sdp.text() });
+      const r = await postJson<{ answer: string; model: string }>(`/api/app/calls/${callId}/live/webrtc`, { sdp: offer.sdp });
+      await conn.setRemoteDescription({ type: "answer", sdp: r.answer });
+      onChange();
     } catch (e) {
+      pc.current?.getSenders().forEach((s) => s.track?.stop());
       pc.current?.close();
       pc.current = null;
       setState("error");
@@ -91,4 +79,49 @@ export function useLiveVoice(callId: string, onChange: () => void) {
     }
   };
   return { state, note, start, stop };
+}
+
+export interface LiveSignal { p: Record<string, number>; fired: string[] }
+export interface LiveLine { who: "customer" | "agent" | "owner"; text: string; at: string; by?: string }
+
+/**
+ * The owner listens (spec B2 item 4): server-sent events from this app with the live call as it happens: what each
+ * side is saying now, finished lines, the transcript decisions with their probabilities, and any correction.
+ */
+export function useLiveEvents(callId: string, enabled: boolean) {
+  const [connected, setConnected] = useState(false);
+  const [live, setLive] = useState(false);
+  const [partial, setPartial] = useState<{ customer: string; agent: string }>({ customer: "", agent: "" });
+  const [lines, setLines] = useState<LiveLine[]>([]);
+  const [signals, setSignals] = useState<LiveSignal | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
+  useEffect(() => {
+    if (!enabled || typeof EventSource === "undefined") return;
+    const es = new EventSource(`/api/app/calls/${callId}/live/events`, { withCredentials: true });
+    es.onopen = () => setConnected(true);
+    es.onerror = () => setConnected(false);
+    es.onmessage = (ev) => {
+      let e: any;
+      try {
+        e = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      if (e.kind === "partial") setPartial((p) => ({ ...p, [e.who]: e.text ?? "" }));
+      else if (e.kind === "line") {
+        setLines((l) => [...l.slice(-40), { who: e.who, text: e.text ?? "", at: e.at, by: e.data?.by }]);
+        setPartial((p) => ({ ...p, [e.who === "owner" ? "agent" : e.who]: "" }));
+      } else if (e.kind === "signal") setSignals(e.data as LiveSignal);
+      else if (e.kind === "status" || e.kind === "guard") {
+        setNotes((n) => [...n.slice(-6), e.text ?? ""]);
+        if (e.kind === "status") {
+          if (typeof e.data?.live === "boolean") setLive(e.data.live);
+          else if (/connected/i.test(e.text ?? "")) setLive(true);
+          else if (/ended/i.test(e.text ?? "")) setLive(false);
+        }
+      }
+    };
+    return () => es.close();
+  }, [callId, enabled]);
+  return { connected, live, partial, lines, signals, notes };
 }

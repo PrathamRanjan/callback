@@ -21,7 +21,7 @@ import { firstBiz } from "../store.js";
 import { liveWorkspaces } from "../services/workspaces.js";
 import { PAYPAL_MCP_READ, paypalMcpReady } from "../paypal/mcp.js";
 import { paypalConfigured, tokenSeen } from "../paypal/index.js";
-import { realtimeReady } from "../voice/realtime.js";
+import { liveReady } from "../voice/live.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me } from "./auth.js";
 import { json } from "./common.js";
@@ -63,7 +63,7 @@ export function liveTable() {
     row("Scam check: rules and place-to-pay code", true, "always on, in code", ""),
     row("Scam check: on-device model", true, "runs in the visitor's browser (MiniLM); shows \"not run\" if it can't load", ""),
     row("Ask agent (tool loop)", ai, `${providerLabel()}, at most 8 steps`, "refuses with 503: no answer is written by rules"),
-    row("Live voice in the browser (WebRTC)", realtimeReady(), config.ai.models.realtime, "hidden; the simulator is shown"),
+    row("Live voice: talk in the browser (WebRTC) and call my phone (Twilio Media Streams)", liveReady(), config.ai.models.live, "hidden; typing is shown"),
     // In demo mode Twilio rings only numbers on the allowlist; the demo customers' numbers are always simulated.
     ...(config.demoMode
       ? [

@@ -27,9 +27,11 @@ export async function candidates(q: Queryable, businessId: string, now?: Date): 
   const pol = await activePolicy(businessId, q);
   const custs = new Map((await customersOf(q, businessId)).map((c) => [c.id, c]));
   const out: Candidate[] = [];
+  // A deposit with money held on it (spec B2 item 3) needs no call: it is charged if they attend.
+  const held = new Set((await q.query<{ obligation_id: string }>("SELECT obligation_id FROM holds WHERE business_id = $1 AND status = 'authorized'", [businessId])).rows.map((r) => r.obligation_id));
   for (const o of await obligationsOf(q, businessId)) {
     const c = custs.get(o.customer_id);
-    if (!c) continue;
+    if (!c || held.has(o.id)) continue;
     let reason: string | null = null;
     if (o.kind === "deposit" && ["open", "link_sent"].includes(o.status) && o.appointment_at && new Date(o.appointment_at).getTime() - at.getTime() < 36 * 3600_000 && balanceOf(o) > 0) reason = `deposit of $${(balanceOf(o) / 100).toFixed(2)} unpaid, appointment in ${Math.max(1, Math.round((new Date(o.appointment_at).getTime() - at.getTime()) / 3600_000))} h`;
     if (o.kind === "invoice" && ["open", "link_sent", "invoiced"].includes(o.status) && o.due_at && at.getTime() - new Date(o.due_at).getTime() > 7 * 86400_000 && balanceOf(o) > 0) reason = `$${(balanceOf(o) / 100).toFixed(2)} overdue by ${Math.floor((at.getTime() - new Date(o.due_at).getTime()) / 86400_000)} days`;

@@ -76,7 +76,7 @@ describe("grounding", () => {
 });
 
 describe("rules brain", () => {
-  const ctx = (line: string | null, over: Partial<BrainContext> = {}): BrainContext => ({ business: "B", customer_first_name: "Tom", note: "", purpose: "chase_invoice", item: "Invoice", balance_text: "$220.00", due_text: "due", tone: "warm", turn: line === null ? 0 : 2, done: { link_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false }, options: { discounts: [{ id: "disc5", label: "5%" }, { id: "disc10", label: "10%" }], plans: [{ id: "plan2", label: "2" }, { id: "plan3", label: "3" }], slots: [{ id: "slot1", label: "Thu" }] }, transcript: line ? [{ who: "customer", text: line }] : [], last_customer_line: line, ...over });
+  const ctx = (line: string | null, over: Partial<BrainContext> = {}): BrainContext => ({ business: "B", customer_first_name: "Tom", note: "", purpose: "chase_invoice", item: "Invoice", balance_text: "$220.00", due_text: "due", tone: "warm", turn: line === null ? 0 : 2, done: { link_sent: false, hold_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false }, options: { discounts: [{ id: "disc5", label: "5%" }, { id: "disc10", label: "10%" }], plans: [{ id: "plan2", label: "2" }, { id: "plan3", label: "3" }], slots: [{ id: "slot1", label: "Thu" }] }, transcript: line ? [{ who: "customer", text: line }] : [], last_customer_line: line, ...over });
   it("opens, offers the smallest discount first, picks only existing options", () => {
     expect(rulesBrain(ctx(null)).tool).toBe("none");
     const d = rulesBrain(ctx("Can I get 30% off?"));

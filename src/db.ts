@@ -172,6 +172,13 @@ CREATE TABLE IF NOT EXISTS pay_links (
   id TEXT PRIMARY KEY, business_id TEXT NOT NULL, obligation_id TEXT NOT NULL REFERENCES obligations(id), call_id TEXT, paypal_order_id TEXT, approve_url TEXT,
   amount_cents INTEGER NOT NULL, status TEXT NOT NULL, request_id TEXT UNIQUE NOT NULL, run_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Holds (spec B2 item 3): an AUTHORIZE order for a deposit, captured when the customer attends or voided on a timely cancel.
+CREATE TABLE IF NOT EXISTS holds (
+  id TEXT PRIMARY KEY, business_id TEXT NOT NULL, obligation_id TEXT NOT NULL REFERENCES obligations(id), call_id TEXT, amount_cents INTEGER NOT NULL,
+  paypal_order_id TEXT, authorization_id TEXT, capture_id TEXT, approve_url TEXT, via TEXT NOT NULL DEFAULT 'link',
+  status TEXT NOT NULL CHECK (status IN ('creating','link_sent','authorized','captured','voided','expired','failed','unknown')),
+  request_id TEXT UNIQUE NOT NULL, run_id TEXT, expires_at TEXT, decided_at TIMESTAMPTZ, decided_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS invoices (
   id TEXT PRIMARY KEY, business_id TEXT NOT NULL, obligation_id TEXT NOT NULL REFERENCES obligations(id), call_id TEXT, paypal_invoice_id TEXT, amount_cents INTEGER NOT NULL,
   status TEXT NOT NULL, href TEXT, request_id TEXT UNIQUE NOT NULL, run_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -284,7 +291,7 @@ CREATE INDEX IF NOT EXISTS channel_messages_at ON channel_messages(created_at DE
 `;
 
 /** Every table of a studio, children first: what a showcase rebuild or a full reset empties. */
-export const APP_TABLES = ["proposals", "voice_events", "callbacks", "pay_links", "invoices", "instalment_plans", "refunds", "calls", "obligations", "policies", "call_history", "customers", "people", "events", "demo_faults", "webhook_events", "jobs_queue", "ai_calls", "agent_trace", "agent_runs", "audit_chain", "kill_switches", "approvals", "passkeys", "provenance", "channel_messages", "party_links", "push_subscriptions", "judge_sessions", "eval_runs", "guard_settings", "businesses"];
+export const APP_TABLES = ["holds", "proposals", "voice_events", "callbacks", "pay_links", "invoices", "instalment_plans", "refunds", "calls", "obligations", "policies", "call_history", "customers", "people", "events", "demo_faults", "webhook_events", "jobs_queue", "ai_calls", "agent_trace", "agent_runs", "audit_chain", "kill_switches", "approvals", "passkeys", "provenance", "channel_messages", "party_links", "push_subscriptions", "judge_sessions", "eval_runs", "guard_settings", "businesses"];
 
 /** Registry tables: only in the app's own schema, never inside a workspace schema. */
 export const REGISTRY = `
@@ -299,6 +306,9 @@ CREATE INDEX IF NOT EXISTS workspaces_seen ON workspaces(last_seen_at);
 CREATE TABLE IF NOT EXISTS ws_refs (ref TEXT PRIMARY KEY, ws_id TEXT NOT NULL, kind TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS ws_refs_ws ON ws_refs(ws_id);
 CREATE TABLE IF NOT EXISTS ws_starts (ip_hash TEXT NOT NULL, at TIMESTAMPTZ NOT NULL DEFAULT now());
+-- Live voice starts (spec B2: one call per number an hour, five per address a day), keyed by salted hashes only.
+CREATE TABLE IF NOT EXISTS live_starts (key TEXT NOT NULL, kind TEXT NOT NULL, at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS live_starts_key ON live_starts(key, at);
 `;
 
 let shared: Db | null = null;

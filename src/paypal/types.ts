@@ -20,7 +20,7 @@ export interface PPRefund {
 export interface PPOrder {
   id: string;
   status: "CREATED" | "SAVED" | "APPROVED" | "VOIDED" | "COMPLETED" | "PAYER_ACTION_REQUIRED";
-  purchase_units?: { reference_id?: string; custom_id?: string; amount?: PPMoney; payments?: { captures?: PPCapture[]; refunds?: PPRefund[] } }[];
+  purchase_units?: { reference_id?: string; custom_id?: string; amount?: PPMoney; payments?: { captures?: PPCapture[]; refunds?: PPRefund[]; authorizations?: PPAuthorization[] } }[];
   links?: { href: string; rel: string; method?: string }[];
 }
 
@@ -30,6 +30,17 @@ export interface OrderInput {
   customId: string;
   description: string;
   brand?: string;
+  /** CAPTURE (default): paid now. AUTHORIZE: a hold on the payer's funds, captured or voided later (spec B2 item 3). */
+  intent?: "CAPTURE" | "AUTHORIZE";
+}
+
+/** An authorization (a hold): CREATED until captured or voided; PayPal lets it be captured for up to 29 days. */
+export interface PPAuthorization {
+  id: string;
+  status: "CREATED" | "CAPTURED" | "DENIED" | "PARTIALLY_CAPTURED" | "VOIDED" | "PENDING" | "EXPIRED";
+  amount: PPMoney;
+  custom_id?: string;
+  expiration_time?: string;
 }
 
 export interface PPInvoice {
@@ -98,6 +109,11 @@ export interface PayPalApi {
   createPaymentToken(setupTokenId: string, requestId: string): Promise<{ id: string; customer?: { id?: string } }>;
   getOrder(id: string): Promise<PPOrder>;
   captureOrder(id: string, requestId: string): Promise<PPOrder>;
+  /** Holds (intent AUTHORIZE): authorize a buyer-approved order; then capture the authorization or void it. */
+  authorizeOrder(id: string, requestId: string): Promise<PPOrder>;
+  getAuthorization(id: string): Promise<PPAuthorization>;
+  captureAuthorization(authorizationId: string, amountCents: number, currency: string, requestId: string): Promise<PPCapture>;
+  voidAuthorization(authorizationId: string, requestId: string): Promise<void>;
   getCapture(id: string): Promise<PPCapture>;
   refundCapture(captureId: string, amountCents: number | null, currency: string, note: string, requestId: string): Promise<PPRefund>;
   getRefund(id: string): Promise<PPRefund>;

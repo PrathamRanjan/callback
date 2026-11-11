@@ -22,8 +22,10 @@ describe("structural guarantees", () => {
       const src = readFileSync(join(root, "ai", name), "utf8");
       expect(src, name).not.toMatch(/\b(amount|amount_cents|cents|price|discount_pct|percent|phone|order_id|capture_id|invoice_id|subscription_id|plan_id)\b\s*:\s*\{\s*type/);
     }
-    const realtime = readFileSync(join(root, "voice", "realtime.ts"), "utf8");
-    expect(realtime).not.toMatch(/\b(amount|cents|discount_pct|percent|phone|order_id|capture_id)\b\s*:\s*\{\s*type/);
+    // Live voice (GPT-Live) gets no tool with a money field: it delegates every turn back to the server.
+    const live = readFileSync(join(root, "voice", "live.ts"), "utf8");
+    expect(live).not.toMatch(/\b(amount|cents|discount_pct|percent|phone|order_id|capture_id)\b\s*:\s*\{\s*type/);
+    expect(live).toMatch(/delegation: \{ type: "client"/);
     expect(() => assertSafeSchema({ type: "object", properties: { amount_cents: { type: "number" } } })).toThrow();
     expect(() => assertSafeSchema({ type: "object", properties: { discount_pct: { type: "number" } } })).toThrow();
     expect(() => assertSafeSchema({ type: "object", properties: { phone: { type: "string" } } })).toThrow();

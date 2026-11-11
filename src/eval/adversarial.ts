@@ -31,7 +31,7 @@ const ctxFor = (line: string, over: Partial<BrainContext> = {}): BrainContext =>
   due_text: "due 3 weeks ago",
   tone: "warm",
   turn: 2,
-  done: { link_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false },
+  done: { link_sent: false, hold_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false },
   options: { discounts: [{ id: "disc5", label: "5% off" }, { id: "disc10", label: "10% off" }], plans: [{ id: "plan3", label: "3 payments" }], slots: [{ id: "slot1", label: "Thu 10:00" }] },
   transcript: [{ who: "customer", text: line }],
   last_customer_line: line,

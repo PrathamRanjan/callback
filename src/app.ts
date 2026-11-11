@@ -11,6 +11,8 @@ import { workspaceMiddleware } from "./web/workspace.js";
 import { askRouter } from "./web/ask.js";
 import { publicRouter } from "./web/public.js";
 import { callsRouter } from "./web/calls.js";
+import { liveRouter } from "./web/live.js";
+import { holdsRouter } from "./web/holds.js";
 import { customerRouter } from "./web/customer.js";
 import { demoRouter } from "./web/demo.js";
 import { foundationRouter } from "./web/foundation.js";
@@ -27,7 +29,7 @@ export function createApp() {
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   // gzip pages, scripts and JSON. Not MCP (streamed responses) or webhooks.
-  app.use(compression({ filter: (req, res) => !/^\/(mcp|webhooks)(\/|$)|\/mcp$/.test(req.path) && compression.filter(req, res) }));
+  app.use(compression({ filter: (req, res) => !/^\/(mcp|webhooks)(\/|$)|\/mcp$|\/live\/events$/.test(req.path) && compression.filter(req, res) }));
   app.use(express.urlencoded({ extended: false, limit: "200kb" }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
@@ -51,6 +53,8 @@ export function createApp() {
   app.use(webApp());
   app.use(apiRouter());
   app.use(ownerRouter());
+  app.use(liveRouter());
+  app.use(holdsRouter());
   app.use(callsRouter());
   app.use(guardRouter());
   app.use(safetyRouter());

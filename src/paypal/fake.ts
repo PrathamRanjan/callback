@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { OrderInput, PayPalApi, PayPalError, PlanInput, PPBalance, PPCapture, PPInvoice, PPOrder, PPRefund, PPSubscription, PPTransaction, SubscriptionInput, toValue, UnknownOutcomeError } from "./types.js";
+import { OrderInput, PayPalApi, PayPalError, PlanInput, PPAuthorization, PPBalance, PPCapture, PPInvoice, PPOrder, PPRefund, PPSubscription, PPTransaction, SubscriptionInput, toValue, UnknownOutcomeError } from "./types.js";
 
 const rid = (p: string) => `${p}${randomBytes(6).toString("hex").toUpperCase()}`;
 
-type FakeOrder = PPOrder & { cents: number; currency: string; customId: string };
+type FakeOrder = PPOrder & { cents: number; currency: string; customId: string; intent?: "CAPTURE" | "AUTHORIZE" };
 type FakeCapture = PPCapture & { refundedCents: number; cents: number };
 
 /** In-memory PayPal: orders, captures, refunds, invoices, products, plans, subscriptions. Idempotent on PayPal-Request-Id. */
@@ -11,6 +11,7 @@ export class FakePayPal implements PayPalApi {
   readonly env = "sandbox" as const;
   orders = new Map<string, FakeOrder>();
   captures = new Map<string, FakeCapture>();
+  authorizations = new Map<string, PPAuthorization & { cents: number }>();
   refunds = new Map<string, PPRefund & { captureId: string }>();
   invoices = new Map<string, PPInvoice & { recipient: string }>();
   products = new Set<string>();
@@ -78,6 +79,53 @@ export class FakePayPal implements PayPalApi {
     return c;
   }
 
+  private newAuthorization(o: FakeOrder) {
+    const a = { id: rid("AU"), status: "CREATED" as const, amount: { value: toValue(o.cents), currency_code: o.currency }, custom_id: o.customId, expiration_time: new Date(Date.now() + 29 * 86400_000).toISOString(), cents: o.cents };
+    this.authorizations.set(a.id, a);
+    o.status = "COMPLETED";
+    o.purchase_units = [{ reference_id: o.customId, custom_id: o.customId, amount: a.amount, payments: { authorizations: [{ id: a.id, status: a.status, amount: a.amount, custom_id: a.custom_id, expiration_time: a.expiration_time }] } }];
+    return a;
+  }
+
+  async authorizeOrder(id: string, requestId: string) {
+    this.bodies.push({ method: "authorizeOrder", body: { id } });
+    return this.run("authorizeOrder", requestId, () => {
+      const o = this.orders.get(id) ?? this.notFound("Order");
+      if (o.intent !== "AUTHORIZE") throw new PayPalError("Order intent is CAPTURE", 422, "ACTION_DOES_NOT_MATCH_INTENT", "fake", null);
+      if (o.status !== "APPROVED") throw new PayPalError("Payer has not approved the order", 422, "ORDER_NOT_APPROVED", "fake", null);
+      this.newAuthorization(o);
+      return { id: o.id, status: o.status, purchase_units: o.purchase_units } as PPOrder;
+    });
+  }
+  async getAuthorization(id: string) {
+    return this.run("getAuthorization", null, () => {
+      const a = this.authorizations.get(id) ?? this.notFound("Authorization");
+      return { id: a.id, status: a.status, amount: a.amount, custom_id: a.custom_id, expiration_time: a.expiration_time };
+    });
+  }
+  async captureAuthorization(authorizationId: string, amountCents: number, currency: string, requestId: string) {
+    this.bodies.push({ method: "captureAuthorization", body: { authorizationId, amountCents } });
+    return this.run("captureAuthorization", requestId, () => {
+      const a = this.authorizations.get(authorizationId) ?? this.notFound("Authorization");
+      if (a.status !== "CREATED") throw new PayPalError(`Authorization is ${a.status}`, 422, "AUTHORIZATION_ALREADY_CAPTURED", "fake", null);
+      if (amountCents > a.cents) throw new PayPalError("Amount above the authorization", 422, "CANNOT_CAPTURE_MORE_THAN_AUTHORIZED", "fake", null);
+      a.status = "CAPTURED";
+      const fee = Math.round(amountCents * 0.039) + 30;
+      const c: FakeCapture = { id: rid("CA"), status: "COMPLETED", amount: { value: toValue(amountCents), currency_code: currency }, custom_id: a.custom_id, refundedCents: 0, cents: amountCents, seller_receivable_breakdown: { gross_amount: { value: toValue(amountCents), currency_code: currency }, paypal_fee: { value: toValue(fee), currency_code: currency }, net_amount: { value: toValue(amountCents - fee), currency_code: currency } } };
+      this.captures.set(c.id, c);
+      return { id: c.id, status: c.status, amount: c.amount, custom_id: c.custom_id } as PPCapture;
+    });
+  }
+  async voidAuthorization(authorizationId: string, requestId: string) {
+    this.bodies.push({ method: "voidAuthorization", body: { authorizationId } });
+    await this.run("voidAuthorization", requestId, () => {
+      const a = this.authorizations.get(authorizationId) ?? this.notFound("Authorization");
+      if (a.status !== "CREATED") throw new PayPalError(`Authorization is ${a.status}`, 422, "PREVIOUSLY_VOIDED", "fake", null);
+      a.status = "VOIDED";
+      return null;
+    });
+  }
+
   async verifyCredentials() {
     return this.run("verifyCredentials", null, () => ({ appId: "FAKE", scopes: ["payments", "invoicing", "subscriptions"] }));
   }
@@ -86,7 +134,7 @@ export class FakePayPal implements PayPalApi {
     this.bodies.push({ method: "createOrder", body: input });
     return this.run("createOrder", requestId, () => {
       const id = rid("OR");
-      this.orders.set(id, { id, status: "PAYER_ACTION_REQUIRED", cents: input.amountCents, currency: input.currency, customId: input.customId, purchase_units: [{ custom_id: input.customId, amount: { value: toValue(input.amountCents), currency_code: input.currency } }] });
+      this.orders.set(id, { id, status: "PAYER_ACTION_REQUIRED", cents: input.amountCents, currency: input.currency, customId: input.customId, intent: input.intent ?? "CAPTURE", purchase_units: [{ custom_id: input.customId, amount: { value: toValue(input.amountCents), currency_code: input.currency } }] });
       return { id, status: "PAYER_ACTION_REQUIRED", approveUrl: `${this.approveBase}/checkout?token=${id}&return=${encodeURIComponent(input.returnUrl)}` };
     });
   }
@@ -98,9 +146,10 @@ export class FakePayPal implements PayPalApi {
     return this.run("createVaultOrder", requestId, () => {
       if (!this.vaultIds.has(input.vaultId)) throw new PayPalError("The specified payment token was not found", 422, "INVALID_PAYMENT_TOKEN", "fake", null);
       const id = rid("OR");
-      const o: FakeOrder = { id, status: "CREATED", cents: input.amountCents, currency: input.currency, customId: input.customId };
+      const o: FakeOrder = { id, status: "CREATED", cents: input.amountCents, currency: input.currency, customId: input.customId, intent: input.intent ?? "CAPTURE" };
       this.orders.set(id, o);
-      this.newCapture(o);
+      if (o.intent === "AUTHORIZE") this.newAuthorization(o);
+      else this.newCapture(o);
       return { id, status: "COMPLETED" };
     });
   }

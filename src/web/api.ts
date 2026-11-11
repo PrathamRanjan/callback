@@ -30,7 +30,7 @@ import { optionsFor, SPLITTABLE } from "../services/money.js";
 import { candidates } from "../services/planner.js";
 import { balanceOf, bizById, callById, callsOf, customerById, customerByToken, customersOf, eventsOf, firstBiz, nowOf, obligationById, obligationsOf, owedToCustomer, type Obligation } from "../store.js";
 import { loadRun, recentRuns } from "../trace.js";
-import { realtimeReady } from "../voice/realtime.js";
+import { liveCallFor, liveReady } from "../voice/live.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me, type Me } from "./auth.js";
 import { workspaceOf } from "./workspace.js";
@@ -64,12 +64,12 @@ export function appJson(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-async function who(req: Request): Promise<Me> {
+export async function who(req: Request): Promise<Me> {
   const p = await me(req);
   if (!p) throw new GtError("Sign in first.", "unauthorized", 401);
   return p;
 }
-async function owner(req: Request): Promise<Me> {
+export async function owner(req: Request): Promise<Me> {
   const p = await who(req);
   if (p.role !== "owner") throw new GtError("Only the owner can see this.", "forbidden", 403);
   return p;
@@ -119,7 +119,7 @@ export function apiRouter(): Router {
         const w = workspaceOf(req);
         return w ? { private: true, seed_state: w.seed_state, seed_note: w.seed_note, expires_at: w.expires_at, idle_hours: config.workspaces.idleHours, join_url: w.join_token ? `${config.appUrl}/demo/join/${w.join_token}` : null } : null;
       })(),
-      integrations: { paypal: paypalConfigured() ? config.paypal.env : null, brain: brainKind(), brain_label: providerLabel(), phone: telephonyReady(), realtime: realtimeReady(), sms: smsReady(), telegram: telegramReady(), push: pushReady(), telegram_bot: config.channels.telegramBot },
+      integrations: { paypal: paypalConfigured() ? config.paypal.env : null, brain: brainKind(), brain_label: providerLabel(), phone: telephonyReady(), live_voice: liveReady(), sms: smsReady(), telegram: telegramReady(), push: pushReady(), telegram_bot: config.channels.telegramBot },
     };
   }));
 
@@ -190,18 +190,22 @@ export function apiRouter(): Router {
     const invoices = o ? (await db.query<any>("SELECT id, amount_cents, paypal_invoice_id, status, created_at FROM invoices WHERE obligation_id = $1 ORDER BY created_at", [o.id])).rows : [];
     const plans = o ? (await db.query<any>("SELECT id, option, subscription_id, approve_url, status, created_at FROM instalment_plans WHERE obligation_id = $1 ORDER BY created_at", [o.id])).rows : [];
     const refunds = o ? (await db.query<any>("SELECT id, amount_cents, paypal_refund_id, status, created_at FROM refunds WHERE obligation_id = $1 ORDER BY created_at", [o.id])).rows : [];
+    const holds = o ? (await db.query<any>("SELECT id, amount_cents, paypal_order_id, authorization_id, approve_url, status, via, created_at FROM holds WHERE obligation_id = $1 AND status NOT IN ('creating') ORDER BY created_at", [o.id])).rows : [];
     const approvals = (await pendingApprovals(p.business_id)).filter((a) => a.payload?.agentScope === `agent:${c.id}` || (o && a.payload?.entityId === o.id));
     return {
       call: { id: c.id, status: c.status, purpose: c.purpose, outcome: c.outcome, reason: c.reason, mode: c.mode, transcript: c.transcript, state: c.state, consent_ok: c.consent_ok, hours_ok: c.hours_ok, breaches: c.breaches, collected_cents: c.collected_cents, started_at: c.started_at, ended_at: c.ended_at, run_id: c.run_id, verify_code: (c.state as any)?.verify_code ?? null, is_sample: Boolean((c as any).is_sample) },
       customer: { id: cu.id, name: cu.name, tz: cu.tz, dnc: cu.dnc, consent: cu.consent, token: p.role === "owner" ? cu.token : null, phone_live: telephonyReady() && mayContactForReal(cu.phone) },
       item: o ? { id: o.id, title: o.title, kind: o.kind, note: o.note, amount_cents: o.amount_cents, discount_cents: o.discount_cents, settled_cents: o.settled_cents, balance_cents: balanceOf(o), owed_to_customer_cents: owedToCustomer(o), status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, cu.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, cu.tz) : null, captured: Boolean(o.capture_id), paypal_order_id: o.paypal_order_id, paypal_invoice_id: o.paypal_invoice_id, subscription_id: o.subscription_id } : null,
       offers: opts ? { discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label, pct: d.pct })), plans: opts.plans.map((x) => ({ id: x.id, label: x.label })), slots: callbackSlots(now, cu.tz, pol.rules).map((s) => ({ id: s.id, label: s.label })) } : null,
-      money: { links, invoices, plans: plans.map((x: any) => ({ ...x, option: typeof x.option === "string" ? JSON.parse(x.option) : x.option })), refunds },
+      money: { links, invoices, plans: plans.map((x: any) => ({ ...x, option: typeof x.option === "string" ? JSON.parse(x.option) : x.option })), refunds, holds },
       approvals: approvals.map((a) => ({ id: a.id, action: a.action, status: a.status, cents: a.payload?.cents ?? null, reason: a.payload?.reason ?? "", safety_reasons: a.payload?.safety_reasons ?? [] })),
       trace: trace ? trace.steps.map((s: any) => ({ seq: s.step ?? s.seq, actor: s.actor, tool: s.tool, gate: s.gate, policy: s.policy, args: s.args, result: s.result, pp_request_id: s.pp_request_id, pp_debug_id: s.pp_debug_id, duration_ms: s.duration_ms, at: s.at })) : [],
       events: events.map((e: any) => ({ at: e.at, type: e.type, summary: e.summary, actor: e.actor })),
       samples: personas().filter((x) => x.purpose === c.purpose).slice(0, 6).flatMap((x) => x.lines.slice(0, 1)),
-      voice: { realtime: realtimeReady(), brain: brainKind() },
+      voice: { live: liveReady(), model: config.ai.models.live, on_now: Boolean(liveCallFor(c.id)), transport: (c.state as any)?.live_transport ?? null, phone: telephonyReady() && liveReady() && config.voice.callMyPhoneCountries.length > 0, phone_countries: config.voice.callMyPhoneCountries, phone_why_off: !telephonyReady() ? "No Twilio number is set on this deployment." : !config.voice.callMyPhoneCountries.length ? "The operator has not chosen which countries the demo may dial (CB_CALL_MY_PHONE_COUNTRIES)." : null, cap_seconds: config.voice.liveCapSeconds, brain: brainKind() },
+      signals: (c.state as any)?.signals ?? null,
+      approval_cards: approvals.filter((a) => a.status === "pending").map((a) => approvalView(a, new Map(o ? [[o.id, o]] : []), new Map([[cu.id, cu]]), [c])),
+      passkey: await hasPasskey(p.business_id, db),
     };
   }));
 
@@ -275,12 +279,14 @@ export function apiRouter(): Router {
     const invs = await q("SELECT * FROM invoices WHERE business_id = $1 ORDER BY created_at DESC LIMIT 40");
     const plans = await q("SELECT * FROM instalment_plans WHERE business_id = $1 ORDER BY created_at DESC LIMIT 40");
     const refunds = await q("SELECT * FROM refunds WHERE business_id = $1 ORDER BY created_at DESC LIMIT 40");
+    const holds = await q("SELECT * FROM holds WHERE business_id = $1 ORDER BY created_at DESC LIMIT 40");
     const hooks = (await db.query<any>("SELECT event_type, verified, received_at FROM webhook_events ORDER BY received_at DESC LIMIT 20")).rows;
     const moves = [
       ...links.map((x: any) => ({ kind: "pay_link", id: x.id, at: x.created_at, cents: Number(x.amount_cents), paypal_id: x.paypal_order_id, status: x.status, approve_url: x.approve_url, ...who(x.obligation_id), call_id: x.call_id })),
       ...invs.map((x: any) => ({ kind: "invoice", id: x.id, at: x.created_at, cents: Number(x.amount_cents), paypal_id: x.paypal_invoice_id, status: x.status, approve_url: x.href, ...who(x.obligation_id), call_id: x.call_id })),
       ...plans.map((x: any) => { const opt = typeof x.option === "string" ? JSON.parse(x.option) : x.option; return { kind: "plan", id: x.id, at: x.created_at, cents: Number(opt?.per_cents ?? 0) * Number(opt?.instalments ?? 1), label: opt?.label, paypal_id: x.subscription_id, status: x.status, approve_url: x.approve_url, ...who(x.obligation_id), call_id: x.call_id }; }),
       ...refunds.map((x: any) => ({ kind: "refund", id: x.id, at: x.created_at, cents: Number(x.amount_cents), paypal_id: x.paypal_refund_id, status: x.status, approve_url: null, ...who(x.obligation_id), call_id: x.call_id })),
+      ...holds.filter((x: any) => !["creating", "failed"].includes(x.status)).map((x: any) => ({ kind: "hold", id: x.id, at: x.created_at, cents: Number(x.amount_cents), paypal_id: x.authorization_id ?? x.paypal_order_id, status: x.status === "authorized" ? "held" : x.status, approve_url: x.status === "link_sent" ? x.approve_url : null, ...who(x.obligation_id), call_id: x.call_id })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
     const captures = obls.filter((o) => o.capture_id).map((o) => ({ item: o.title, customer: custs.get(o.customer_id)?.name ?? "", capture_id: o.capture_id, cents: o.settled_cents, status: o.status }));
     let balances: { currency: string; value: string }[] = [];
@@ -293,7 +299,7 @@ export function apiRouter(): Router {
     }
     return {
       totals: { owed_cents: obls.filter(OPEN).filter((o) => o.kind !== "class_cancel").reduce((s, o) => s + balanceOf(o), 0), paid_cents: obls.filter((o) => o.status === "paid").reduce((s, o) => s + o.settled_cents, 0), owed_back_cents: obls.reduce((s, o) => s + owedToCustomer(o), 0), refunded_cents: refunds.filter((x: any) => !["failed", "creating"].includes(x.status)).reduce((s: number, x: any) => s + Number(x.amount_cents), 0) },
-      moves, captures, hooks, balances, paypal: { configured: paypalConfigured(), env: config.paypal.env, readable: paypalReadable }, webhook_events: WEBHOOK_EVENTS, faultable: FAULTABLE,
+      moves, captures, hooks, balances, holds: holds.map((x: any) => ({ id: x.id, status: x.status, cents: Number(x.amount_cents), order_id: x.paypal_order_id, authorization_id: x.authorization_id, capture_id: x.capture_id, expires_at: x.expires_at, via: x.via, decided_at: x.decided_at, ...who(x.obligation_id), call_id: x.call_id, appointment_at: byId.get(x.obligation_id)?.appointment_at ?? null })), paypal: { configured: paypalConfigured(), env: config.paypal.env, readable: paypalReadable }, webhook_events: WEBHOOK_EVENTS, faultable: FAULTABLE,
     };
   }));
 
@@ -380,10 +386,12 @@ export function apiRouter(): Router {
     // Payment plans the owner's rules allow for each open invoice. The numbers come from the rules, never typed in.
     const plans = new Map<string, { id: string; label: string }[]>();
     for (const o of obls.filter(OPEN)) if (o.kind === "invoice" && SPLITTABLE.has(o.status)) plans.set(o.id, (await optionsFor(db, c.business_id, o)).plans.map((p) => ({ id: p.id, label: p.label })));
+    const holdBy = new Map<string, any>();
+    for (const h of (await db.query<any>("SELECT obligation_id, status, amount_cents, authorization_id, expires_at FROM holds WHERE business_id = $1 AND status IN ('link_sent','authorized','captured','voided') ORDER BY created_at", [c.business_id])).rows) holdBy.set(h.obligation_id, h);
     return {
       business: { name: biz.name }, first_name: c.name.split(" ")[0], tz: c.tz,
       verify_code: (lastCall?.state as any)?.verify_code ?? null, last_call_at: lastCall?.started_at ?? null,
-      open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id), plans: plans.get(o.id) ?? [] })),
+      open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id), plans: plans.get(o.id) ?? [], hold: holdBy.get(o.id) ? { status: holdBy.get(o.id).status, cents: Number(holdBy.get(o.id).amount_cents), authorization_id: holdBy.get(o.id).authorization_id, expires_at: holdBy.get(o.id).expires_at } : null })),
       settled: await Promise.all(obls.filter((o) => !OPEN(o)).map(async (o) => ({ id: o.id, title: o.title, status: o.status, cents: o.settled_cents, capture_id: o.capture_id, via_wallet: o.paypal_order_id ? (await db.query("SELECT 1 FROM pay_links WHERE paypal_order_id = $1 AND via = 'demo_wallet'", [o.paypal_order_id])).rows.length > 0 : false }))),
       demo_wallet: config.demoMode && Boolean(config.paypal.demoVaultToken),
       messages: msgs,

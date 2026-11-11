@@ -58,7 +58,7 @@ export interface Session {
   pending: number;
   demo: boolean;
   workspace: { private: boolean; seed_state: string; seed_note: string; expires_at: string; idle_hours: number; join_url: string | null } | null;
-  integrations: { paypal: string | null; brain: "model" | "rules" | "none"; brain_label: string; phone: boolean; realtime: boolean; sms: boolean; telegram: boolean; push: boolean; telegram_bot: string };
+  integrations: { paypal: string | null; brain: "model" | "rules" | "none"; brain_label: string; phone: boolean; live_voice: boolean; sms: boolean; telegram: boolean; push: boolean; telegram_bot: string };
 }
 export const SessionCtx = createContext<{ session: Session | null; loading: boolean; reload: () => Promise<void> }>({ session: null, loading: true, reload: async () => {} });
 export const useSession = () => useContext(SessionCtx);

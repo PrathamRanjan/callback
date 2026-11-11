@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Mic, MicOff, PhoneCall, PhoneOff, Play, RefreshCw, Send, SkipForward, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, PhoneCall, PhoneOff, Play, RefreshCw, Send, SkipForward, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,19 +12,23 @@ import { SampleChip } from "@/components/app/call-row";
 import { act } from "@/lib/api";
 import { callLamp, LAMP_LABEL, money, moneyLamp, outcomeWord, PURPOSE, PURPOSE_VERB, when, word } from "@/lib/format";
 import { useData, useSession, useTitle } from "@/lib/hooks";
-import { useLiveVoice } from "@/lib/voice";
+import { LiveCallPanel, SignalStrip, TakeTheCall, type LiveVoiceInfo, type SignalState } from "@/components/app/live-call";
+import type { Approval } from "@/components/app/approval";
 
 interface CallData {
   call: { id: string; status: string; purpose: string; outcome: string | null; reason: string | null; mode: string | null; transcript: Turn[]; consent_ok: boolean | null; hours_ok: boolean | null; breaches: number; collected_cents: number; started_at: string | null; ended_at: string | null; run_id: string | null; verify_code: string | null; is_sample?: boolean };
   customer: { id: string; name: string; tz: string; dnc: boolean; consent: any; token: string | null; phone_live: boolean };
   item: { id: string; title: string; kind: string; note: string; amount_cents: number; discount_cents: number; settled_cents: number; balance_cents: number; owed_to_customer_cents: number; status: string; due_local: string | null; appointment_local: string | null; captured: boolean; paypal_order_id: string | null; paypal_invoice_id: string | null; subscription_id: string | null } | null;
   offers: { discounts: { id: string; label: string; pct: number }[]; plans: { id: string; label: string }[]; slots: { id: string; label: string }[] } | null;
-  money: { links: any[]; invoices: any[]; plans: any[]; refunds: any[] };
+  money: { links: any[]; invoices: any[]; plans: any[]; refunds: any[]; holds: any[] };
   approvals: { id: string; action: string; status: string; cents: number | null; reason: string }[];
   trace: Step[];
   events: { at: string; type: string; summary: string; actor: string }[];
   samples: string[];
-  voice: { realtime: boolean; brain: string };
+  voice: LiveVoiceInfo & { brain: string };
+  signals: SignalState | null;
+  approval_cards: Approval[];
+  passkey: boolean;
 }
 interface DemoData { personas: { id: string; purpose: string }[] }
 
@@ -44,6 +48,7 @@ function MoneyTimeline({ d, owner, onChange }: { d: CallData; owner: boolean; on
     ...d.money.invoices.map((x) => ({ k: "Invoice", id: x.paypal_invoice_id, cents: Number(x.amount_cents), status: x.status, url: null, at: x.created_at })),
     ...d.money.plans.map((x) => ({ k: `Plan${x.option?.label ? `: ${x.option.label}` : ""}`, id: x.subscription_id, cents: Number(x.option?.per_cents ?? 0) * Number(x.option?.instalments ?? 1), status: x.status, url: x.approve_url, at: x.created_at })),
     ...d.money.refunds.map((x) => ({ k: "Refund", id: x.paypal_refund_id, cents: Number(x.amount_cents), status: x.status, url: null, at: x.created_at })),
+    ...(d.money.holds ?? []).map((x) => ({ k: x.status === "authorized" ? "Hold: held, not charged" : x.status === "captured" ? "Hold: charged (attended)" : x.status === "voided" ? "Hold: released" : "Hold link", id: x.authorization_id ?? x.paypal_order_id, cents: Number(x.amount_cents), status: x.status === "authorized" ? "held" : x.status, url: x.status === "link_sent" ? x.approve_url : null, at: x.created_at })),
   ].sort((a, b) => String(a.at).localeCompare(String(b.at)));
   return (
     <Panel className="p-4" data-tour="money-lane-m">
@@ -89,7 +94,6 @@ export default function CallPage() {
   const [text, setText] = useState(() => new URLSearchParams(window.location.search).get("say")?.slice(0, 500) ?? ""); // /judge prefills the line
   const [sending, setSending] = useState(false);
   const [persona, setPersona] = useState("");
-  const voice = useLiveVoice(id, () => void reload());
   useTitle(d ? `Call: ${d.customer.name}` : "Call");
 
   if (error && !d) return <ErrorState error={error} retry={reload} />;
@@ -125,7 +129,7 @@ export default function CallPage() {
         kicker={<span className="inline-flex flex-wrap items-center gap-2"><StateChip s={s}>{c.status === "ended" ? outcomeWord(c.outcome) || "Ended" : LAMP_LABEL[s]}</StateChip><span>{PURPOSE[c.purpose]} · {d.item?.title}</span>{c.is_sample ? <SampleChip /> : null}</span>}
         happened={c.status === "ended" ? `Call ended${c.ended_at ? ` ${when(c.ended_at)}` : ""}: ${outcomeWord(c.outcome) || "no outcome"}.${c.collected_cents ? ` ${money(c.collected_cents)} collected.` : ""}` : c.status === "blocked" ? `Not calling: ${c.reason}.` : live ? "The call is on the line." : "Planned. Nothing has been said yet."}
         needs={d.approvals.some((a) => a.status === "pending") ? <Link to="/approvals" className="font-medium text-hold underline underline-offset-4">A money move is waiting for you</Link> : undefined}
-        next={canStart ? `${PURPOSE_VERB[c.purpose]}: ${money(cents)}.` : live ? "Type what the customer says, or play a persona." : undefined}
+        next={canStart ? `${PURPOSE_VERB[c.purpose]}: ${money(cents)}.` : live ? (d.voice.on_now ? "Live voice is on: follow it below, approve anything held, or step in." : "Type what the customer says, or play a persona.") : undefined}
         actions={
           <>
             {canStart ? (
@@ -145,7 +149,11 @@ export default function CallPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div className="min-w-0">
-          {live ? (
+          {canStart && owner ? (
+            <TakeTheCall callId={id} voice={d.voice} onChange={() => void reload()} typeButton={<ActButton path={`/calls/${id}/place`} fields={{ mode: "simulator" }} icon={<Play />} onDone={reload}>Start typing</ActButton>} />
+          ) : null}
+          {live && owner ? <LiveCallPanel callId={id} voice={d.voice} approvals={d.approval_cards ?? []} passkey={d.passkey} onChange={() => void reload()} /> : null}
+          {live && !d.voice.on_now ? (
             <Panel className="mb-6 p-4" data-tour="call-sim">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <Lamp s="live" showLabel label="On the line" />
@@ -157,13 +165,7 @@ export default function CallPage() {
                 <Textarea id="say" value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Yes, send me the link." className="min-h-[72px] text-base" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void say(text); } }} />
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit" disabled={sending || !text.trim()} aria-busy={sending}><Send /> Say it</Button>
-                  {owner && d.voice.realtime ? (
-                    <Button type="button" variant="outline" onClick={voice.start} aria-pressed={voice.state === "on"} disabled={voice.state === "starting"}>
-                      {voice.state === "on" ? <MicOff /> : <Mic />}{voice.state === "on" ? "Stop live voice" : "Talk with your voice"}
-                    </Button>
-                  ) : null}
                 </div>
-                {voice.note ? <p role="status" className="text-sm text-ink-2">{voice.note}</p> : null}
               </form>
               {d.samples.length ? (
                 <div className="mt-3">
@@ -191,6 +193,7 @@ export default function CallPage() {
 
           <Section id="score" title="Call score" hint="Voice, rules and money on one time line.">
             <CallScore transcript={c.transcript} trace={d.trace} empty={canStart ? "Start the call to see it unfold here." : undefined} />
+            {!canStart ? <div className="mt-3"><SignalStrip s={d.signals} /></div> : null}
             {c.run_id ? <Link to={`/trace/${c.run_id}`} className="mt-2 inline-block text-sm font-medium text-brand underline-offset-4 hover:underline">Open the full trace</Link> : null}
           </Section>
         </div>

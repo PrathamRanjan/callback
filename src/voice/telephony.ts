@@ -63,6 +63,16 @@ export async function placeCall(callId: string, by: string, mode: "phone" | "sim
   }
   if (!mayContactForReal(customer.phone)) throw new GtError(`Demo mode only dials numbers the operator has listed (CB_LIVE_CONTACT_ALLOWLIST); ${customer.name}'s number is not one. Use the simulator.`, "not_allowlisted");
   const r = await startCall(db, callId, "phone", by);
+  const { liveReady } = await import("./live.js");
+  if (liveReady()) {
+    // A listed customer's own phone, on live voice: the same bridge as "call my phone".
+    const { issueStreamToken } = await import("./bridge.js");
+    const { noteRef } = await import("../services/wsrefs.js");
+    await issueStreamToken(db, callId, "phone");
+    await noteRef("call", callId);
+    const sid = await twilioCallLive(callId, customer.phone);
+    return { mode: "phone", providerCallId: sid, opening: r.opening };
+  }
   const res = await fetchImpl(`https://api.twilio.com/2010-04-01/Accounts/${config.voice.twilioSid}/Calls.json`, {
     method: "POST",
     headers: { Authorization: "Basic " + Buffer.from(`${config.voice.twilioSid}:${config.voice.twilioToken}`).toString("base64"), "content-type": "application/x-www-form-urlencoded" },
@@ -76,6 +86,29 @@ export async function placeCall(callId: string, by: string, mode: "phone" | "sim
   await db.query("UPDATE calls SET provider_call_id = $2, status = 'ringing' WHERE id = $1", [callId, data.sid]);
   await recordVoiceEvent("twilio", callId, "placed", { sid: data.sid, status: data.status }, true);
   return { mode: "phone", providerCallId: data.sid ?? null, opening: r.opening };
+}
+
+/**
+ * Rings a phone for a live GPT-Live call (spec B2): Twilio fetches /webhooks/voice/live/:id, which streams the audio
+ * to /voice/stream. Twilio's own TimeLimit cuts the line 20 seconds after the agent's four-minute goodbye.
+ */
+export async function twilioCallLive(callId: string, to: string): Promise<string> {
+  const db = await getDb();
+  const res = await fetchImpl(`https://api.twilio.com/2010-04-01/Accounts/${config.voice.twilioSid}/Calls.json`, {
+    method: "POST",
+    headers: { Authorization: "Basic " + Buffer.from(`${config.voice.twilioSid}:${config.voice.twilioToken}`).toString("base64"), "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ To: to, From: config.voice.twilioFrom, Url: hook(`/webhooks/voice/live/${callId}`), StatusCallback: hook(`/webhooks/voice/status/${callId}`), StatusCallbackEvent: "initiated ringing answered completed", TimeLimit: String(config.voice.liveCapSeconds + 20) }).toString(),
+  });
+  const data = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok) {
+    const { endCall } = await import("../services/calls.js");
+    await recordVoiceEvent("twilio", callId, "place.failed", { status: res.status, code: data.code ?? null, message: data.message ?? null }, true);
+    await endCall(db, callId, "no_answer", "twilio");
+    throw new GtError(`Twilio did not place the call: ${data.message ?? res.status}. Nothing rang.`, "twilio", 502);
+  }
+  await db.query("UPDATE calls SET provider_call_id = $2, status = 'ringing' WHERE id = $1", [callId, data.sid]);
+  await recordVoiceEvent("twilio", callId, "placed", { sid: data.sid, status: data.status, live: true }, true);
+  return String(data.sid ?? "");
 }
 
 /** First TwiML: the opening line already recorded by startCall. */

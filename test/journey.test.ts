@@ -236,46 +236,34 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     const events = (await world.db.query<any>("SELECT kind, verified FROM voice_events ORDER BY at")).rows;
     expect(events.map((e: any) => e.kind)).toEqual(expect.arrayContaining(["twiml", "speech", "status:completed", "call.ended"]));
   });
-  it("realtime session and tool routes refuse without a key / owner", async () => {
-    const seededCall = (await world.db.query<{ id: string }>("SELECT id FROM calls ORDER BY created_at DESC LIMIT 1")).rows[0];
-    expect((await anon.postJson(`/voice/realtime/session/${seededCall.id}`, {})).status).toBe(401);
-    expect((await anon.postJson(`/calls/${seededCall.id}/tool`, { name: "send_pay_link" })).status).toBe(401);
-    expect((await anon.postJson(`/calls/${seededCall.id}/speech`, { text: "hi" })).status).toBe(401);
-  });
-  it("live voice: a transcript is recorded only, and a repeated function call runs once (10 Nov 2026 regression)", async () => {
-    const c = (await world.db.query<{ id: string }>("SELECT id FROM calls WHERE status = 'planned' AND purpose = 'confirm_deposit' LIMIT 1")).rows[0];
-    expect(c).toBeTruthy();
+  it("live voice and hold routes refuse without sign-in, the operator key or a live session (spec B2)", async () => {
+    const id = (await world.db.query<{ id: string }>("SELECT id FROM calls ORDER BY created_at DESC LIMIT 1")).rows[0].id;
+    for (const path of ["phone", "webrtc", "say"]) expect((await anon.postJson(`/api/app/calls/${id}/live/${path}`, {})).status).toBe(401);
+    expect((await anon.postJson(`/api/app/calls/${id}/live/test-line`, {})).status).toBe(403); // the operator key first
+    expect((await anon.get(`/api/app/calls/${id}/live/events`)).status).toBe(401);
+    const info = await anon.get("/api/app/live", { accept: "application/json" });
+    expect(info.json).toMatchObject({ voice: false, model: "gpt-live-1", phone: false });
+    // TwiML for a call with no stream token: hang up, never stream.
+    const tw = await anon.req("POST", `/webhooks/voice/live/${id}`, { form: { CallSid: "CAx" } });
+    expect(tw.text).toContain("<Hangup/>");
+    expect(tw.text).not.toContain("<Stream");
+    // Holds: only the owner settles one; the customer's hold needs a deposit and the demo wallet.
+    expect((await anon.post("/holds/hld_none/capture")).location).toMatch(/^\/login/);
+    expect((await anon.post("/holds/hld_none/void")).location).toMatch(/^\/login/);
     const judge = new Client(srv.base);
     expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
-    const { startCall } = await import("../src/services/calls.js");
-    await startCall(world.db, c.id, "simulator", "test");
-    const runId = (await world.db.query<{ run_id: string }>("SELECT run_id FROM calls WHERE id = $1", [c.id])).rows[0].run_id;
-    const steps = async (tool: string) => Number((await world.db.query<{ n: string }>("SELECT count(*) AS n FROM agent_trace WHERE run_id = $1 AND tool = $2", [runId, tool])).rows[0].n);
-    const brains = async () => (await steps("brain.model")) + (await steps("brain.rules"));
-    const opening = await brains(); // the opening line, from startCall
-    // The customer's words: recorded, never decided on by the text brain (it used to send its own pay link).
-    const sp = await judge.postJson(`/calls/${c.id}/speech`, { text: "Yes, please send me the link to pay the deposit." });
-    expect(sp.status).toBe(200);
-    expect(await steps("speech")).toBe(1);
-    expect(await brains()).toBe(opening);
-    expect(await steps("gate.charge")).toBe(0);
-    expect((await judge.postJson(`/calls/${c.id}/speech`, { who: "agent", text: "I'll send the secure link now." })).status).toBe(200);
-    // The same OpenAI function call reported twice runs once.
-    const first = await judge.postJson(`/calls/${c.id}/tool`, { name: "send_pay_link", arguments: {}, call_id: "fc_test_1" });
-    expect(first.json.ok).toBe(true);
-    const again = await judge.postJson(`/calls/${c.id}/tool`, { name: "send_pay_link", arguments: {}, call_id: "fc_test_1" });
-    expect(again.json.duplicate).toBe(true);
-    expect(await steps("gate.charge")).toBe(1);
-    const t = (await world.db.query<{ transcript: any[] }>("SELECT transcript FROM calls WHERE id = $1", [c.id])).rows[0].transcript;
-    expect(t.map((x: any) => x.who)).toEqual(expect.arrayContaining(["customer", "agent"]));
-    expect(t.some((x: any) => /live voice: tool call/.test(x.text))).toBe(false);
-    expect(await steps("speech")).toBe(1); // the silent tool call adds no speech step
-    // A transcript that lands just after the call ended is still kept, without reopening the finished run.
-    expect((await judge.postJson(`/calls/${c.id}/tool`, { name: "end_call", arguments: { outcome: "paid_link" }, call_id: "fc_test_2" })).json.ended).toBe(true);
-    expect((await judge.postJson(`/calls/${c.id}/speech`, { text: "Thanks, bye." })).json.ok).toBe(true);
-    const after = (await world.db.query<{ transcript: any[]; run_id: string }>("SELECT transcript, run_id FROM calls WHERE id = $1", [c.id])).rows[0];
-    expect(after.transcript.at(-1).text).toBe("Thanks, bye.");
-    expect((await world.db.query<{ status: string }>("SELECT status FROM agent_runs WHERE id = $1", [after.run_id])).rows[0].status).not.toBe("running");
+    expect((await judge.post("/holds/hld_none/capture")).status).toBe(404);
+    expect((await judge.postJson(`/api/app/calls/${id}/live/say`, { text: "hello" })).status).toBe(400);
+    const ac = new AbortController();
+    const ev = await fetch(`${srv.base}/api/app/calls/${id}/live/events`, { headers: { cookie: [...judge.cookies].map(([k, v]) => `${k}=${v}`).join("; ") }, signal: ac.signal });
+    expect(ev.headers.get("content-type")).toContain("text/event-stream");
+    const first = new TextDecoder().decode((await ev.body!.getReader().read()).value);
+    expect(first).toContain("No live voice on this call yet");
+    ac.abort();
+    const dep = world.seeded.obligations.priya_deposit;
+    const r = await anon.post(`/c/${world.seeded.customers.priya.token}/hold/${dep}`);
+    // Earlier steps in this journey moved Priya's item on, so this is refused one way or another; never a 5xx.
+    expect([302, 303, 404]).toContain(r.status);
   });
   it("ask: a question streams its steps, and a proposal can be dismissed (spec A5.3)", async () => {
     const savedAi = { provider: config.ai.provider, key: config.ai.openaiKey };

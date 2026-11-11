@@ -1,22 +1,19 @@
 /**
  * Call pages: the list, one call with its transcript, the in-app simulator (type as the customer or pick a persona
- * line), the live-voice session (OpenAI Realtime over WebRTC) and its tool callback, and the Twilio voice webhooks.
+ * line) and the Twilio voice webhooks. Live voice (GPT-Live: call my phone, talk in the browser) is in live.ts.
  */
 import { Router, type Request } from "express";
 import { fmtLocal } from "../core/time.js";
 import { mayContactForReal } from "../config.js";
 import { getDb } from "../db.js";
 import { GtError } from "../lib/util.js";
-import { customerSays, endCall, recordLiveSpeech, skipCall, startCall } from "../services/calls.js";
+import { customerSays, endCall, skipCall } from "../services/calls.js";
 
-/** OpenAI function-call ids already executed (per call), so a repeated event cannot run a tool twice. */
-const toolCallsSeen = new Set<string>();
 import { optionsFor } from "../services/money.js";
 import { personas } from "../eval/personas.js";
 import { balanceOf, owedToCustomer, callById, callsOf, customerById, customersOf, eventsOf, nowOf, obligationById, obligationsOf } from "../store.js";
 import { loadRun, renderTrace } from "../trace.js";
-import { realtimeReady, realtimeInstructions, realtimeTools, mintClientSecret } from "../voice/realtime.js";
-import { executeRealtimeTool } from "../voice/tools.js";
+import { liveReady } from "../voice/live.js";
 import { gatherTwiml, openingTwiml, placeCall, recordVoiceEvent, statusEvent, telephonyReady, webhookAuthorised } from "../voice/telephony.js";
 import { callbackSlots } from "../core/plans.js";
 import { activePolicy } from "../guard/policy.js";
@@ -62,7 +59,7 @@ ${calls.length ? html`<div class="rows">${calls.map((c) => { const cu = custs.ge
 <div class="convo" id="transcript">${c.transcript.length ? c.transcript.map((t) => t.who === "customer" ? html`<div class="bubble cust">${t.quarantined?.length ? html`<span class="quarantined" title="Kept away from the agent's instructions">${t.quarantined.join(" ")}</span> ` : ""}${t.text}</div>${messageFlag(t.text, "Callback never moves money somewhere new because of what's said on a call. Refunds only go back to the account that paid.")}` : html`<div class="bubble agent">${t.text}${t.tool ? html`<span class="tool-chip">${raw(icon("zap"))}${t.tool.replace(/_/g, " ")}</span>` : ""}</div>`) : html`<div class="empty">This call hasn't started.</div>`}</div>
 ${["planned", "blocked"].includes(c.status) ? html`<form method="post" action="/calls/${c.id}/place" class="row" style="margin-top:1rem"><button class="btn primary lg" type="submit" name="mode" value="simulator">${raw(icon("phone"))}Start the call</button>${telephonyReady() && mayContactForReal(cu.phone) ? html`<button class="btn" type="submit" name="mode" value="phone" onclick="return confirm('This dials the customer\'s real phone number through Twilio. Continue?')">Dial their real phone</button>` : ""}</form>${c.status === "blocked" ? html`<p class="small muted">Blocked calls are checked again when you start them; if consent or hours still fail, nothing rings.</p>` : ""}<details class="small" style="margin-top:.5rem"><summary>Skip this call</summary><form method="post" action="/calls/${c.id}/skip" class="row" style="margin-top:.5rem"><label class="sr" for="skipr">Reason</label><input id="skipr" name="reason" placeholder="Skip because…" required style="max-width:20rem"><button class="btn" type="submit">Skip</button></form></details>` : ""}
 ${live ? html`<form method="post" action="/calls/${c.id}/say" class="stack say-form"><label for="say">Speak as ${cu.name.split(" ")[0]}</label><div class="row"><input name="text" id="say" autocomplete="off" placeholder="Type what the customer says…" required autofocus style="flex:1"><button class="btn primary" type="submit">Send</button></div>${sample.length ? html`<div class="chips">${sample.map((s) => s.lines.slice(0, 2).map((l) => html`<button class="chip" type="submit" name="text" value="${l}" formnovalidate>${l.slice(0, 40)}${l.length > 40 ? "…" : ""}</button>`))}</div>` : ""}</form>
-<div class="row" style="margin-top:.75rem"><form method="post" action="/calls/${c.id}/end" class="inline"><button class="btn danger" type="submit">Hang up</button></form>${realtimeReady() ? html`<button class="btn" type="button" id="rt-start" data-call="${c.id}">${raw(icon("mic"))}Talk with your voice</button><span id="rt-status" class="small muted" aria-live="polite"></span><audio id="rt-audio" autoplay></audio>` : ""}</div>` : ""}
+<div class="row" style="margin-top:.75rem"><form method="post" action="/calls/${c.id}/end" class="inline"><button class="btn danger" type="submit">Hang up</button></form>${liveReady() ? html`<a class="btn" href="/calls/${c.id}">${raw(icon("mic"))}Live voice is on the call page</a>` : ""}</div>` : ""}
 </section>
 ${events.length ? html`<section class="card"><details><summary><b>What happened on this call</b> <span class="muted small">${events.length} event${events.length === 1 ? "" : "s"}</span></summary><ul class="feed">${events.map((e: any) => html`<li><span class="small muted">${fmtDate(e.at)}</span> ${e.summary}</li>`)}</ul></details></section>` : ""}
 </div>
@@ -72,7 +69,7 @@ ${opts && (opts.discounts.length || opts.plans.length) ? html`<h3>Offers your po
 <section class="card"><h2>Checked before dialling</h2><ul class="checklist">${check(c.consent_ok, "Consent on file", "No consent: won't call", "Consent not checked yet")}${check(c.hours_ok, `Inside calling hours in ${cu.tz.split("/").pop()?.replace(/_/g, " ")}`, `Outside calling hours in ${cu.tz.split("/").pop()?.replace(/_/g, " ")}`, "Calling hours not checked yet")}${check(!cu.dnc, "Not on do-not-call", "On the do-not-call list", "")}</ul></section>
 <section class="card"><details><summary><b>Trace</b> <span class="muted small">every step and check</span></summary>${trace ? html`${renderTrace(trace.steps, { compact: true })}<p class="small"><a href="/trace/${c.run_id}">Open the full trace</a></p>` : html`<p class="muted small">No run yet.</p>`}</details></section>
 </div></div>`;
-    res.send(await ownerPage(req, p, `Call: ${cu.name}`, body, { scripts: live && realtimeReady() ? raw(`<script src="/static/call.js" defer></script>`) : undefined }));
+    res.send(await ownerPage(req, p, `Call: ${cu.name}`, body, {}));
   }));
 
   r.post("/calls/:id/place", act(async (req, res, p) => {
@@ -94,6 +91,8 @@ ${opts && (opts.discounts.length || opts.plans.length) ? html`<h3>Offers your po
     const db = await getDb();
     const c = await callById(db, req.params.id, p.business_id);
     await endCall(db, c.id, null, p.name);
+    const { liveCallFor } = await import("../voice/live.js");
+    liveCallFor(c.id)?.close();
     back(res, `/calls/${c.id}`, "Call ended.");
   }));
   r.post("/calls/:id/skip", act(async (req, res, p) => {
@@ -101,53 +100,6 @@ ${opts && (opts.discounts.length || opts.plans.length) ? html`<h3>Offers your po
     await callById(db, req.params.id, p.business_id);
     await skipCall(db, req.params.id, String(req.body.reason ?? "skipped").slice(0, 200), p.name);
     back(res, `/calls/${req.params.id}`, "Skipped.");
-  }));
-
-  /* ---------------- live voice (OpenAI Realtime) ---------------- */
-  r.post("/voice/realtime/session/:id", json(async (req) => {
-    const p = await requireOwner(req);
-    const db = await getDb();
-    const c = await callById(db, req.params.id, p.business_id);
-    if (c.status !== "in_progress") throw new GtError("Start the call first.", "bad_state");
-    const cu = await customerById(db, c.customer_id);
-    const o = c.obligation_id ? await obligationById(db, c.obligation_id) : null;
-    const opts = o ? await optionsFor(db, p.business_id, o) : { discounts: [], plans: [], balance: 0 };
-    const pol = await activePolicy(p.business_id, db);
-    const options = { discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label })), plans: opts.plans.map((d) => ({ id: d.id, label: d.label })), slots: callbackSlots(await nowOf(db, p.business_id), cu.tz, pol.rules).map((s) => ({ id: s.id, label: s.label })) };
-    const bal = o ? (o.kind === "class_cancel" ? o.settled_cents : balanceOf(o)) : 0;
-    const instructions = realtimeInstructions({ business: p.business_name, customer_first_name: cu.name.split(" ")[0], purpose: c.purpose, item: o?.title ?? "your account", balance_text: money(bal), due_text: o?.due_at ? `due ${fmtLocal(o.due_at, cu.tz)}` : o?.appointment_at ? `on ${fmtLocal(o.appointment_at, cu.tz)}` : "", tone: "warm and brief", options });
-    const secret = await mintClientSecret(instructions, realtimeTools(options));
-    if (!secret) throw new GtError("Live voice is not configured (OPENAI_API_KEY).", "no_model", 503);
-    await recordVoiceEvent("openai-realtime", c.id, "session", { model: secret.model, expires_at: secret.expires_at }, true);
-    return { client_secret: secret.value, model: secret.model, expires_at: secret.expires_at };
-  }));
-  r.post("/calls/:id/tool", json(async (req) => {
-    const p = await requireOwner(req);
-    const db = await getDb();
-    await callById(db, req.params.id, p.business_id);
-    const name = String(req.body?.name ?? "");
-    const args = (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {}) as Record<string, unknown>;
-    // The realtime API reports each function call twice (arguments.done, then output_item.done); a call id runs once.
-    const oaiId = typeof req.body?.call_id === "string" ? `${req.params.id}:${req.body.call_id.slice(0, 100)}` : null;
-    if (oaiId && toolCallsSeen.has(oaiId)) return { ok: true, result: "already done", duplicate: true };
-    if (oaiId) {
-      toolCallsSeen.add(oaiId);
-      if (toolCallsSeen.size > 5000) toolCallsSeen.delete(toolCallsSeen.values().next().value!);
-    }
-    const out = await executeRealtimeTool(db, req.params.id, name, args, typeof req.body?.transcript === "string" ? req.body.transcript.slice(0, 1000) : undefined);
-    if ("error" in out) return { ok: false, error: out.error };
-    return { ok: true, result: out.tool_result ?? "done", gate: out.gate, ended: out.ended, outcome: out.outcome, say: out.say || null };
-  }));
-  r.post("/calls/:id/speech", json(async (req) => {
-    // The live model's transcript of a line (the customer's or its own), recorded only: the live model acts through
-    // /tool, so the text brain must not make a second decision on the same words.
-    const p = await requireOwner(req);
-    const db = await getDb();
-    const c = await callById(db, req.params.id, p.business_id);
-    const text = String(req.body?.text ?? "").slice(0, 1000);
-    if (!text.trim()) return { ok: false };
-    const out = await recordLiveSpeech(db, c.id, req.body?.who === "agent" ? "agent" : "customer", text);
-    return { ok: true, quarantined: out.quarantined };
   }));
 
   /* ---------------- Twilio voice webhooks ---------------- */

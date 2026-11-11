@@ -19,6 +19,7 @@ const WHAT: Record<string, (a: Approval) => string> = {
   invoice: (a) => `Send ${first(a)} a PayPal invoice for ${money(a.cents)}.`,
   plan: (a) => `Offer ${first(a)} a PayPal instalment plan${a.instalments ? ` in ${a.instalments} payments` : ""}${a.cents ? ` totalling ${money(a.cents)}` : ""}.`,
   discount: (a) => `Take ${a.discount_pct ? `${a.discount_pct}%` : money(a.cents)} off what ${first(a)} owes.`,
+  hold: (a) => `Text ${first(a)} a PayPal link to hold ${money(a.cents)} for their booking: charged only if they attend.`,
   refund: (a) => (a.item?.captured ? `Refund ${money(a.cents)} through PayPal to the account ${first(a)} paid with.` : `Record a ${money(a.cents)} refund for ${first(a)}; it was paid outside PayPal, so you pay it back by hand.`),
 };
 const UNDO: Record<string, string> = {
@@ -26,6 +27,7 @@ const UNDO: Record<string, string> = {
   invoice: "Nothing is charged until they pay. You can cancel the invoice in PayPal.",
   plan: "Nothing is taken until they agree in PayPal. Either of you can cancel the plan there.",
   discount: "It only lowers the balance. Add a new charge to put the amount back.",
+  hold: "Nothing is charged until you press Attended: charge on Money. Release frees it at once.",
   refund: "A sent refund can't be pulled back. That's why it waits for you.",
 };
 const first = (a: Approval) => a.customer?.name.split(" ")[0] ?? "the customer";

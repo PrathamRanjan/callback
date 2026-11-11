@@ -20,7 +20,9 @@ const useModel = () => Object.assign(config.ai, { provider: "openai", openaiKey:
 /** A fake Responses API: each call returns the next scripted text (or an HTTP status). */
 function script(replies: (string | number)[]) {
   const bodies: any[] = [];
-  setProviderFetch((async (_u: any, init: any) => {
+  setProviderFetch((async (u: any, init: any) => {
+    // The transcript questions (Decisions API) are answered "no" here and are not part of the scripted turns.
+    if (String(u).endsWith("/v1/decisions")) return new Response(JSON.stringify({ model: "gpt-6-luna", answers: JSON.parse(init.body).questions.map((q: any) => ({ type: "predicate", name: q.name, probability: 0 })) }), { status: 200 });
     bodies.push(JSON.parse(init.body));
     const r = replies.shift() ?? 500;
     if (typeof r === "number") return new Response("upstream down", { status: r });

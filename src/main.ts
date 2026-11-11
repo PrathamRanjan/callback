@@ -5,6 +5,7 @@ import { paypalConfigured } from "./paypal/index.js";
 import { providerLabel } from "./ai/provider.js";
 import { syncThresholds } from "./ai/decisions.js";
 import { telephonyReady } from "./voice/telephony.js";
+import { attachVoiceBridge } from "./voice/bridge.js";
 import { startInlineWorker } from "./worker.js";
 import { liveWorkspaces, rebuildShowcase, showcaseStale } from "./services/workspaces.js";
 
@@ -37,7 +38,8 @@ if (config.demoMode && config.workspaces.enabled && (await showcaseStale())) {
   console.log("Showcase studio built.");
 }
 const app = createApp();
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Callback on ${config.appUrl} (port ${config.port}) · db ${db.kind} · PayPal ${paypalConfigured() ? config.paypal.env : "not configured"} · brain ${providerLabel()} · phone ${telephonyReady() ? "Twilio" : "simulator"}`);
 });
+attachVoiceBridge(server);
 if (config.inlineWorker) startInlineWorker(db, config.workerIntervalMs);

@@ -33,7 +33,7 @@ export function workspaceMiddleware() {
     try {
       let ws: string | null = wsFromSecret(secretInRequest(req));
       let fromCookie = false;
-      const voice = /^\/webhooks\/voice\/(?:twiml|gather|status)\/([^/]+)/.exec(req.path);
+      const voice = /^\/webhooks\/voice\/(?:twiml|gather|status|live)\/([^/]+)/.exec(req.path);
       if (!ws && voice) ws = await wsForRef(voice[1]);
       if (!ws && !req.path.startsWith("/webhooks/")) {
         ws = unsign(req.cookies?.[WS_COOKIE]);

@@ -275,6 +275,10 @@ export async function readBack(q: Queryable, businessId: string, run?: Run): Pro
       if (run) await run.step({ actor: "paypal", tool: "read_back.error", args: { obligation: o.id }, result: { error: (e as Error).message.slice(0, 200) } });
     }
   }
+  if (run) {
+    const { readBackHolds } = await import("./holds.js");
+    changed += await readBackHolds(q, businessId, run);
+  }
   for (const pl of (await q.query<any>("SELECT * FROM pay_links WHERE business_id = $1 AND status = 'unknown'", [businessId])).rows) {
     // Lost response on createOrder: PayPal may hold an order; we cannot search orders by request id, so the link stays 'unknown' and the owner sees it.
     void pl;

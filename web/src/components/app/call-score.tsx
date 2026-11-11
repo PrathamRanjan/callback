@@ -53,7 +53,7 @@ function stepNode(s: Step, lane: Lane) {
     const a = s.result ?? {};
     return (
       <div>
-        <div className="flex items-center gap-1.5 text-sm font-medium"><Bot className="size-3.5" aria-hidden="true" />{s.tool === "brain.model" ? "The model proposed" : s.tool === "brain.realtime" ? "Live voice proposed" : "Rules brain chose"}</div>
+        <div className="flex items-center gap-1.5 text-sm font-medium"><Bot className="size-3.5" aria-hidden="true" />{s.tool === "brain.model" ? "The model proposed" : s.tool === "signals.act" ? "Code acted on a transcript decision" : "Rules brain chose"}</div>
         <div className="text-xs text-ink-2">{a.tool && a.tool !== "none" ? `tool ${a.tool}` : "no money tool"}{a.reason ? ` · ${String(a.reason).slice(0, 120)}` : ""}</div>
       </div>
     );

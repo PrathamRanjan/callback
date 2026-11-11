@@ -21,7 +21,7 @@ import { assessCallMove } from "../safety/index.js";
 import { notifyParty } from "../channels/index.js";
 import { markStep } from "../services/wsrefs.js";
 
-export type MoneyAction = "charge" | "invoice" | "plan" | "discount" | "refund";
+export type MoneyAction = "charge" | "invoice" | "plan" | "discount" | "refund" | "hold";
 
 export interface MoneyMove {
   action: MoneyAction;
@@ -250,6 +250,11 @@ export async function decideApproval(id: string, approve: boolean, method: "clic
   if (approve) {
     const { carryOutApproved } = await import("../services/approvals.js");
     followUp = await carryOutApproved(payload, by).catch((e) => ({ done: false, message: `Approved, but the follow-up failed: ${(e as Error).message.slice(0, 120)}` }));
+  } else {
+    // Declined while the customer waits on a live call: the agent says so at once.
+    const { liveHooks } = await import("../services/approvals.js");
+    const scope = String(payload.agentScope ?? "");
+    if (scope.startsWith("agent:") && liveHooks.isLive(scope.slice(6))) liveHooks.announce(scope.slice(6), "Thanks for waiting. The owner couldn't agree to that one, so the original terms stand, and nothing has been charged.");
   }
   return { status: approve ? "approved" : "declined", payload, replayed: false, followUp };
 }

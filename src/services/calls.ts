@@ -23,6 +23,7 @@ import { balanceOf, bizById, callAttempts, callById, customerById, logEvent, now
 import { resumeRun, Run, startRun } from "../trace.js";
 import { markStep } from "./wsrefs.js";
 import { applyDiscount, createInvoice, createPlan, optionsFor, sendPayLink, settleCancelledClass, type Ctx } from "./money.js";
+import { actionFor, markSignalsNotRun, readTurn, recordSignals } from "../voice/signals.js";
 
 const first = (name: string) => name.split(/\s+/)[0].replace(/[(),]/g, "");
 
@@ -86,7 +87,7 @@ async function brainContext(q: Queryable, call: Call, customer: Customer, turn: 
     due_text: due,
     tone,
     turn,
-    done: { link_sent: Boolean(s.link_sent), invoice_sent: Boolean(s.invoice_sent), discount_applied: Boolean(s.discount_pct), plan_sent: Boolean(s.plan_id), callback_set: Boolean(s.callback_at), settled: Boolean(s.closed) },
+    done: { link_sent: Boolean(s.link_sent), hold_sent: Boolean(s.hold_sent), invoice_sent: Boolean(s.invoice_sent), discount_applied: Boolean(s.discount_pct), plan_sent: Boolean(s.plan_id), callback_set: Boolean(s.callback_at), settled: Boolean(s.closed) },
     options: {
       discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label })),
       plans: opts.plans.map((p) => ({ id: p.id, label: p.label })),
@@ -108,35 +109,54 @@ export interface TurnResult {
 }
 
 /** The customer said something. Returns what the agent says back (and did). */
-export async function customerSays(q: Queryable, callId: string, rawText: string, by = "customer"): Promise<TurnResult> {
+/**
+ * `signals`: "read" asks the transcript questions through the Decisions API before the brain runs (typed and gathered
+ * calls); "native" means GPT-Live's own transcript triggers already answered them for this turn (live voice).
+ */
+export async function customerSays(q: Queryable, callId: string, rawText: string, by = "customer", opts: { signals?: "read" | "native" } = {}): Promise<TurnResult> {
   const call = await callById(q, callId);
   if (call.status !== "in_progress") throw new GtError(`Call is ${call.status}.`, "bad_state");
-  // Realtime path: a function call from the live model arrives as a marker line; the tool is forced, the speech (if any) is recorded.
-  let forced: { tool: Tool; option_id: string | null; outcome: Outcome | null } | null = null;
-  let text = rawText;
-  const fm = /^\u0001tool:([a-z_]+):([^:\u0001]*):([^\u0001]*)\u0001([\s\S]*)$/.exec(rawText);
-  if (fm) {
-    forced = { tool: (TOOLS as readonly string[]).includes(fm[1]) ? (fm[1] as Tool) : "none", option_id: fm[2] || null, outcome: fm[3] && (OUTCOMES as readonly string[]).includes(fm[3]) ? (fm[3] as Outcome) : null };
-    text = fm[4] || "(live voice: tool call)";
-  }
+  // Control characters never reach the transcript or the brain (the old realtime path used them as a tool marker).
+  const text = rawText.replace(/[\u0000-\u0008\u000b-\u001f]/g, "");
   const customer = await customerById(q, call.customer_id);
   const run = await resumeRun(call.run_id!, q);
   const qn = quarantine(text);
-  // A live-voice tool call with no words attached: the customer's speech is recorded separately (recordLiveSpeech), so
-  // no placeholder line goes into the transcript or the trace.
-  const silent = Boolean(fm && !fm[4]);
+  const silent = false;
   if (!silent) await register(`call:${call.id}`, "speech", text, "obligation", call.obligation_id ?? call.id, q);
   const transcript: Turn[] = silent ? [...call.transcript] : [...call.transcript, { who: "customer", text: text.slice(0, 1000), at: new Date().toISOString(), quarantined: qn.quarantined }];
   const turn = (call.state.turns ?? 0) + 1;
   if (!silent) await run.step({ actor: "customer", tool: "speech", args: { turn, text: text.slice(0, 300) }, policy: qn.quarantined.length ? "quarantine" : null, gate: "n/a", result: { quarantined: qn.quarantined, money_mentions: qn.money_mentions } });
   if (qn.quarantined.length) await logEvent(q, { businessId: call.business_id, customerId: customer.id, callId: call.id, type: "speech.quarantined", summary: `Instruction-shaped line quarantined: "${qn.quarantined[0].slice(0, 80)}"`, actor: "guard" });
 
-  const ctx = await brainContext(q, call, customer, turn, transcript);
-  const d: Decision = forced ? { say: "", tool: forced.tool, option_id: forced.option_id, outcome: forced.outcome, reason: "realtime function call", brain: "model", quarantined: qn.quarantined } : await decide(ctx, run.id);
-  await run.step({ actor: d.brain === "model" ? "model" : "code", tool: forced ? "brain.realtime" : `brain.${d.brain}`, args: { turn }, result: { say: d.say, tool: d.tool, option_id: d.option_id, outcome: d.outcome, reason: d.reason, model: d.model ?? null } });
+  // Decisions on the transcript (spec B2 item 2): code acts on them before the brain gets the turn.
+  if (!silent && opts.signals !== "native") {
+    const lastAgent = [...call.transcript].reverse().find((t) => t.who === "agent")?.text ?? null;
+    const sr = await readTurn(lastAgent, text, run.id);
+    if (sr.error) {
+      await markSignalsNotRun(q, call.id, sr.error);
+      await run.step({ actor: "model", tool: "signals.not_run", args: { turn }, gate: "n/a", result: { why: sr.error } });
+    } else {
+      const out = await recordSignals(q, call.id, sr.answers, `Decisions API (${sr.model})`);
+      await run.step({ actor: "model", tool: "signals.read", args: { turn, model: sr.model }, gate: "n/a", result: { fired: out.newly, p: sr.answers } });
+    }
+  }
+  const signalled = actionFor(((await callById(q, call.id)).state as any).signals?.fired ?? {});
+  const ctx = { ...(await brainContext(q, call, customer, turn, transcript)), steer: signalled.steer };
+  const d: Decision = signalled.end
+      ? { say: signalled.end.say, tool: "end_call", option_id: null, outcome: signalled.end.outcome, reason: `transcript decision: ${signalled.end.outcome}`, brain: "code", quarantined: qn.quarantined }
+      : await decide(ctx, run.id);
+  // A disputed item: code refuses every collection tool, whatever the brain picked.
+  if (signalled.stopCollection && ["send_pay_link", "hold_deposit", "create_invoice", "apply_discount", "create_plan"].includes(d.tool)) {
+    await run.step({ actor: "code", tool: "signals.collection_stopped", args: { picked: d.tool }, gate: "denied", result: { reason: "the customer disputes this item; the owner reviews it first" } });
+    d.tool = "none";
+    d.option_id = null;
+    d.say = "I've noted that you dispute this. The office will check the record and get back to you, and we won't ask for payment until then. Would a callback help?";
+  }
+  await run.step({ actor: d.brain === "model" ? "model" : "code", tool: d.brain === "code" ? "signals.act" : `brain.${d.brain}`, args: { turn }, result: { say: d.say, tool: d.tool, option_id: d.option_id, outcome: d.outcome, reason: d.reason, model: d.model ?? null } });
   if (d.brain === "model") await markStep("ai_turn").catch(() => undefined);
 
-  const state = { ...call.state, turns: turn, brain: d.brain };
+  const fresh = await callById(q, call.id);
+  const state = { ...fresh.state, turns: turn, brain: d.brain === "code" ? (fresh.state.brain ?? "model") : d.brain };
   let say = d.say;
   let toolResult: string | null = d.failed ? "The AI model failed on this turn, so code ended the call with a fixed line. The reason is in the trace." : null;
   let gate: TurnResult["gate"] = "n/a";
@@ -154,6 +174,17 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
         toolResult = `Pay link for $${(r.cents / 100).toFixed(2)} texted`;
       }
       gate = "allowed";
+    } else if (d.tool === "hold_deposit" && o) {
+      if (!state.hold_sent) {
+        const { sendHoldLink } = await import("./holds.js");
+        const r = await sendHoldLink(ctxMoney, o, customer);
+        state.hold_sent = true;
+        toolResult = `Hold link for $${(r.cents / 100).toFixed(2)} texted (charged only if they attend)`;
+        // Code decides money: the spoken line about the hold names the amount from the record, never the brain's.
+        say = `Done. I've texted you a PayPal link to hold $${(r.cents / 100).toFixed(2)} for ${o.title}. It's charged only if you attend, and released if you cancel in time.`;
+      }
+      gate = "allowed";
+      outcome = outcome ?? "hold_sent";
     } else if (d.tool === "create_invoice" && o) {
       if (!state.invoice_sent) {
         const r = await createInvoice(ctxMoney, o, customer);
@@ -204,7 +235,10 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     if (e instanceof HeldForApproval) {
       gate = "held";
       toolResult = `Held for the owner: ${e.message}`;
-      say = `I'll need ${bizName}'s owner to confirm that; they'll be in touch shortly, and nothing has been charged. ` + (d.tool === "apply_discount" ? "Meanwhile the original amount stands." : "");
+      // On live voice the owner can approve while the customer waits (spec B2 item 4); the agent says the result then.
+      say = opts.signals === "native"
+        ? `One moment while I check that with ${bizName}'s owner. Nothing has been charged.`
+        : `I'll need ${bizName}'s owner to confirm that; they'll be in touch shortly, and nothing has been charged. ` + (d.tool === "apply_discount" ? "Meanwhile the original amount stands." : "");
     } else if (e instanceof GateDenied) {
       gate = "denied";
       toolResult = `Refused by the guard: ${e.message}`;
@@ -228,9 +262,10 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     await q.query("UPDATE calls SET breaches = breaches + 1 WHERE id = $1", [call.id]);
     say = `Let me correct that: we never ask for codes, passwords or card details on a call. Anything to pay goes through the PayPal link on your account page. ${nextLine(ctx)}`;
   }
-  if (say || !forced) transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
+  transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
   if (toolResult) transcript.push({ who: "system", text: toolResult, at: new Date().toISOString() });
-  await q.query("UPDATE calls SET transcript = $2, state = $3 WHERE id = $1", [call.id, JSON.stringify(transcript), JSON.stringify(state)]);
+  // Transcript answers recorded while this turn ran (live voice) are kept: the stored ones win for those two keys.
+  await q.query("UPDATE calls SET transcript = $2, state = $3::jsonb || jsonb_strip_nulls(jsonb_build_object('signals', state->'signals', 'disputed', state->'disputed')) WHERE id = $1", [call.id, JSON.stringify(transcript), JSON.stringify(state)]);
   if (d.failed) await endCall(q, call.id, "ai_failed", by);
   else if (ended || turn >= 14) {
     await endCall(q, call.id, finalOutcome(outcome ?? null, deriveOutcome(state, o, gate === "held" ? 1 : 0), turn >= 14), by);

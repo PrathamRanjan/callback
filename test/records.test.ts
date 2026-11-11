@@ -140,7 +140,7 @@ describe("approvals are carried out", () => {
 });
 
 describe("the model cannot say money the records did not give it", () => {
-  const ctx: BrainContext = { business: "B", customer_first_name: "Tom", purpose: "chase_invoice", item: "Invoice #1", note: "", balance_text: "$220.00", due_text: "", tone: "warm", turn: 2, done: { link_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false }, options: { discounts: [{ id: "d5", label: "5% off, so $209.00 today" }], plans: [{ id: "plan2", label: "2 fortnightly payments of $110.00" }], slots: [] }, transcript: [], last_customer_line: "can you do better" };
+  const ctx: BrainContext = { business: "B", customer_first_name: "Tom", purpose: "chase_invoice", item: "Invoice #1", note: "", balance_text: "$220.00", due_text: "", tone: "warm", turn: 2, done: { link_sent: false, hold_sent: false, invoice_sent: false, discount_applied: false, plan_sent: false, callback_set: false, settled: false }, options: { discounts: [{ id: "d5", label: "5% off, so $209.00 today" }], plans: [{ id: "plan2", label: "2 fortnightly payments of $110.00" }], slots: [] }, transcript: [], last_customer_line: "can you do better" };
   it("flags amounts and percentages that are not in the balance or the options", () => {
     expect(inventedAmounts("It's $220.00, or 5% off makes it $209.00, or two of $110.00.", ctx)).toEqual([]);
     expect(inventedAmounts("I can do $150 today, that's 30% off.", ctx)).toEqual(["$150", "30%"]);

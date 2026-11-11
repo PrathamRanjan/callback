@@ -1,5 +1,5 @@
 import { paypalBaseUrl } from "../config.js";
-import { OrderInput, PayPalApi, PayPalError, PlanInput, PPBalance, PPCapture, PPInvoice, PPOrder, PPRefund, PPSubscription, PPTransaction, SubscriptionInput, toValue, UnknownOutcomeError } from "./types.js";
+import { OrderInput, PayPalApi, PayPalError, PlanInput, PPAuthorization, PPBalance, PPCapture, PPInvoice, PPOrder, PPRefund, PPSubscription, PPTransaction, SubscriptionInput, toValue, UnknownOutcomeError } from "./types.js";
 
 type Json = Record<string, any>;
 
@@ -84,7 +84,7 @@ export class PayPalClient implements PayPalApi {
       "POST",
       "/v2/checkout/orders",
       {
-        intent: "CAPTURE",
+        intent: input.intent ?? "CAPTURE",
         purchase_units: [{ reference_id: input.customId, custom_id: input.customId, description: input.description.slice(0, 127), amount: { currency_code: input.currency, value: toValue(input.amountCents) } }],
         payment_source: { paypal: { experience_context: { brand_name: (input.brand ?? "Callback").slice(0, 127), user_action: "PAY_NOW", shipping_preference: "NO_SHIPPING", return_url: input.returnUrl, cancel_url: input.cancelUrl } } },
       },
@@ -99,7 +99,7 @@ export class PayPalClient implements PayPalApi {
       "POST",
       "/v2/checkout/orders",
       {
-        intent: "CAPTURE",
+        intent: input.intent ?? "CAPTURE",
         purchase_units: [{ reference_id: input.customId, custom_id: input.customId, description: input.description.slice(0, 127), amount: { currency_code: input.currency, value: toValue(input.amountCents) } }],
         payment_source: { paypal: { vault_id: input.vaultId } },
       },
@@ -132,6 +132,22 @@ export class PayPalClient implements PayPalApi {
 
   async captureOrder(id: string, requestId: string) {
     return this.call<PPOrder>("POST", `/v2/checkout/orders/${encodeURIComponent(id)}/capture`, {}, { requestId, prefer: "return=representation" });
+  }
+
+  async authorizeOrder(id: string, requestId: string) {
+    return this.call<PPOrder>("POST", `/v2/checkout/orders/${encodeURIComponent(id)}/authorize`, {}, { requestId, prefer: "return=representation" });
+  }
+
+  async getAuthorization(id: string) {
+    return this.call<PPAuthorization>("GET", `/v2/payments/authorizations/${encodeURIComponent(id)}`);
+  }
+
+  async captureAuthorization(authorizationId: string, amountCents: number, currency: string, requestId: string) {
+    return this.call<PPCapture>("POST", `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/capture`, { amount: { value: toValue(amountCents), currency_code: currency }, final_capture: true }, { requestId, prefer: "return=representation" });
+  }
+
+  async voidAuthorization(authorizationId: string, requestId: string) {
+    await this.call<unknown>("POST", `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/void`, undefined, { requestId });
   }
 
   async getCapture(id: string) {

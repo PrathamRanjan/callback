@@ -7,7 +7,9 @@ import { money, moneyLamp, when, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
 
 interface Move { kind: string; id: string; at: string; cents: number; label?: string; paypal_id: string | null; status: string; approve_url: string | null; item: string; customer: string; customer_id: string | null; call_id: string | null }
+interface HoldRow { id: string; status: string; cents: number; order_id: string | null; authorization_id: string | null; capture_id: string | null; expires_at: string | null; via: string; item: string; customer: string; call_id: string | null; appointment_at: string | null }
 interface MoneyData {
+  holds: HoldRow[];
   totals: { owed_cents: number; paid_cents: number; owed_back_cents: number; refunded_cents: number };
   moves: Move[]; captures: { item: string; customer: string; capture_id: string; cents: number; status: string }[];
   hooks: { event_type: string; verified: boolean; received_at: string }[];
@@ -15,7 +17,7 @@ interface MoneyData {
   paypal: { configured: boolean; env: string; readable: boolean };
   webhook_events: string[]; faultable: string[];
 }
-const KIND: Record<string, string> = { pay_link: "Pay link", invoice: "Invoice", plan: "Plan", refund: "Refund" };
+const KIND: Record<string, string> = { pay_link: "Pay link", invoice: "Invoice", plan: "Plan", refund: "Refund", hold: "Hold" };
 const NEG = [
   { v: "capture_declined", l: "Capture comes back DECLINED" },
   { v: "order_voided", l: "Order reads back as VOIDED" },
@@ -51,7 +53,7 @@ export default function MoneyPage() {
         <Kpi label="PayPal balance" value={d.balances.length ? d.balances.map((b) => `${b.currency} ${Number(b.value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`).join(" · ") : "—"} hint={d.paypal.readable ? "Sandbox merchant, read live" : "Not readable"} />
       </div>
       <Section id="moves" title="Every money move" hint="Read back from PayPal, newest first.">
-        <Segmented className="mb-3" label="Show money moves" value={f} onChange={setF} options={["all", "pay_link", "invoice", "plan", "refund"].map((k) => ({ v: k, label: <>{k === "all" ? "All" : `${KIND[k]}s`}<span className="ml-1 text-xs num">{d.moves.filter((m) => k === "all" || m.kind === k).length}</span></> }))} />
+        <Segmented className="mb-3" label="Show money moves" value={f} onChange={setF} options={["all", "pay_link", "hold", "invoice", "plan", "refund"].map((k) => ({ v: k, label: <>{k === "all" ? "All" : `${KIND[k]}s`}<span className="ml-1 text-xs num">{d.moves.filter((m) => k === "all" || m.kind === k).length}</span></> }))} />
         {moves.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
             {moves.map((m) => (
@@ -71,6 +73,29 @@ export default function MoneyPage() {
             ))}
           </ul>
         ) : <Empty title="No money moves yet">They appear here when a call sends a pay link, an invoice, a plan or a refund.</Empty>}
+      </Section>
+      <Section id="holds" title="Deposit holds" hint="Held on the customer's PayPal, not charged. Charge after they attend; release if they cancelled in time.">
+        {d.holds.filter((h) => h.status !== "failed").length ? (
+          <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+            {d.holds.filter((h) => h.status !== "failed").map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <span className="lamp" data-s={h.status === "authorized" ? "live" : h.status === "captured" ? "done" : h.status === "link_sent" ? "ready" : "idle"} aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{h.customer} · {h.item}</div>
+                  <div className="text-sm text-ink-2">{h.status === "authorized" ? "Held, not charged" : h.status === "link_sent" ? "Hold link sent, waiting for the customer" : h.status === "captured" ? "Charged after they attended" : h.status === "voided" ? "Released: cancelled in time" : word(h.status)}{h.appointment_at ? ` · appointment ${when(h.appointment_at)}` : ""}</div>
+                  {h.authorization_id ? <div className="truncate font-mono text-xs text-ink-2">Authorization {h.authorization_id}{h.capture_id ? ` · capture ${h.capture_id}` : ""}</div> : null}
+                </div>
+                <div className="num font-medium">{money(h.cents)}</div>
+                {h.status === "authorized" ? (
+                  <div className="flex flex-wrap gap-2">
+                    <ActButton path={`/holds/${h.id}/capture`} onDone={reload} confirmText={`Charge ${h.customer} ${money(h.cents)} from the hold?`}>Attended: charge</ActButton>
+                    <ActButton path={`/holds/${h.id}/void`} variant="outline" onDone={reload} confirmText={`Release the ${money(h.cents)} hold for ${h.customer}?`}>Cancelled in time: release</ActButton>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : <Empty title="No holds yet">A deposit call can offer a hold next to paying now; the customer can also hold it from their page.</Empty>}
       </Section>
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="captures" title="Payments captured">

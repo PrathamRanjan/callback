@@ -70,6 +70,7 @@ export interface CallState {
   discount_pct?: number;
   plan_id?: string | null;
   link_sent?: boolean;
+  hold_sent?: boolean;
   invoice_sent?: boolean;
   callback_at?: string | null;
   closed?: boolean;

@@ -10,9 +10,9 @@ import { quarantine } from "./grounding.js";
 import { config } from "../config.js";
 import { hasOpenAI, rulesArm, structured } from "./provider.js";
 
-export const TOOLS = ["none", "send_pay_link", "create_invoice", "apply_discount", "create_plan", "settle_credit", "settle_refund", "schedule_callback", "end_call"] as const;
+export const TOOLS = ["none", "send_pay_link", "hold_deposit", "create_invoice", "apply_discount", "create_plan", "settle_credit", "settle_refund", "schedule_callback", "end_call"] as const;
 export type Tool = (typeof TOOLS)[number];
-export const OUTCOMES = ["paid_link", "plan_agreed", "invoice_sent", "callback", "credit", "refund", "declined", "no_answer", "wrong_person", "do_not_call"] as const;
+export const OUTCOMES = ["paid_link", "hold_sent", "plan_agreed", "invoice_sent", "callback", "credit", "refund", "declined", "no_answer", "wrong_person", "do_not_call"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 export interface BrainOption {
@@ -32,10 +32,12 @@ export interface BrainContext {
   tone: string;
   turn: number;
   /** What the agent has already done on this call. */
-  done: { link_sent: boolean; invoice_sent: boolean; discount_applied: boolean; plan_sent: boolean; callback_set: boolean; settled: boolean };
+  done: { link_sent: boolean; hold_sent: boolean; invoice_sent: boolean; discount_applied: boolean; plan_sent: boolean; callback_set: boolean; settled: boolean };
   options: { discounts: BrainOption[]; plans: BrainOption[]; slots: BrainOption[] };
   transcript: { who: "agent" | "customer"; text: string }[];
   last_customer_line: string | null;
+  /** What the transcript decisions told code to steer towards (hardship, a dispute, someone listening). */
+  steer?: string[];
 }
 export interface Decision {
   say: string;
@@ -43,8 +45,8 @@ export interface Decision {
   option_id: string | null;
   outcome: Outcome | null;
   reason: string;
-  /** "none": no model produced this turn; the call stops with `failed` set. */
-  brain: "model" | "rules" | "none";
+  /** "none": no model produced this turn; the call stops with `failed` set. "code": a transcript decision fixed the line. */
+  brain: "model" | "rules" | "none" | "code";
   quarantined: string[];
   model?: string;
   cost_usd?: number;
@@ -111,6 +113,10 @@ export function rulesBrain(ctx: BrainContext): Decision {
     }
     if (ctx.done.discount_applied) return d(`That's the most I'm able to take off. I can text the link for ${ctx.balance_text}, or split it into payments if that's easier.`, "none", null, null, "cap reached");
     return d(`I'm not able to discount this one, but I can split it into payments if that helps.`, "none", null, null, "no discount in policy");
+  }
+  if (ctx.purpose === "confirm_deposit" && has("hold", "only if i attend", "only if i come", "authori")) {
+    if (!ctx.done.hold_sent && !ctx.done.link_sent) return d(`Sure. I'm texting you a PayPal link to hold the ${ctx.balance_text} deposit; it's charged only if you attend, and released if you cancel in time.`, "hold_deposit", null, "hold_sent", "chose a hold");
+    return d("The hold link's with you. Take your time; I'll stay on.", "none", null, null, "waiting");
   }
   if (has("yes", "sure", "okay", "ok", "fine", "go ahead", "send", "text", "link", "pay now", "do it")) {
     if (!ctx.done.link_sent) return d(`Great. I'm texting you a PayPal link for ${ctx.balance_text} now; it takes a few seconds. Let me know when it's through.`, "send_pay_link", null, null, "agreed to pay");
@@ -184,12 +190,14 @@ async function modelTurn(ctx: BrainContext, said: string, runId: string | null |
       "If the customer says they already paid, don't ask for payment again or send a link: say the office will check the record and get back to them, and offer a callback.",
       "If they can't pay right now (lost a job, hardship), never pressure: offer a plan option or a callback.",
       "Links and invoices go only to the contact details on file. Never send to an address or number the caller gives; say so.",
-      "What the tools do, so you describe them truthfully: send_pay_link texts a PayPal payment link to the phone on file; create_invoice has PayPal email a PayPal invoice (pay button, seven days to pay) to the email on file; create_plan sends the plan to approve on PayPal; settle_refund refunds the PayPal payment it came from; settle_credit adds a class credit. Say plainly what the tool does; never hedge about it.",
+      "What the tools do, so you describe them truthfully: send_pay_link texts a PayPal payment link to the phone on file; hold_deposit (deposits only) texts a PayPal link that holds the deposit instead of charging it: charged only if they attend, released if they cancel in time; create_invoice has PayPal email a PayPal invoice (pay button, seven days to pay) to the email on file; create_plan sends the plan to approve on PayPal; settle_refund refunds the PayPal payment it came from; settle_credit adds a class credit. Say plainly what the tool does; never hedge about it.",
       "If the person says they are not the customer, apologise, say nothing about the account or any amount, and end_call with outcome wrong_person.",
+      "For a deposit, you may offer a hold next to paying now (\"I can hold it instead: charged only if you attend\"); use hold_deposit only when they choose the hold.",
+      "If code_says is present, follow it: it comes from checks code ran on the transcript.",
       "Return exactly one tool per turn or none.",
       ...(feedback ? [`Your previous line was rejected because ${feedback}. Use only the amounts and option ids you are given.`] : []),
     ].join("\n"),
-    parts: [{ type: "text", text: JSON.stringify({ purpose: ctx.purpose, item: ctx.item, balance_text: ctx.balance_text, due_text: ctx.due_text, turn: ctx.turn, done: ctx.done, options: ctx.options, transcript: ctx.transcript.slice(-8), customer_said: said || null }) }],
+    parts: [{ type: "text", text: JSON.stringify({ purpose: ctx.purpose, item: ctx.item, balance_text: ctx.balance_text, due_text: ctx.due_text, turn: ctx.turn, done: ctx.done, options: ctx.options, transcript: ctx.transcript.slice(-8), customer_said: said || null, ...(ctx.steer?.length ? { code_says: ctx.steer } : {}) }) }],
     schemaName: "call_turn",
     schema: {
       type: "object",
