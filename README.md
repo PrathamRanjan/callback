@@ -253,3 +253,32 @@ Run 2026-11-11T13:52:53.378Z against https://pph-callback.onrender.com (commit 2
 | Telegram inside a private copy | **Still not verified.** Someone needs to message the bot from a Telegram account. |
 | A person trying the three-minute path on a phone | **Still not verified.** It needs a person who has never seen the app. |
 | A judge sandbox buyer; a public repository | **Still the owner's to do.** |
+
+## Wave 3 live check (commit 846c6da, 11 Nov 2026, 14:50 UTC)
+
+`node --env-file=.env scripts/live-voice-check.mjs <wavdir> https://pph-callback.onrender.com`. This uses real GPT-Live (gpt-live-1) and the PayPal sandbox. It plays recorded customer audio into the Twilio Media Streams test line. **18 of 19 passed.**
+
+| Item | Check | Result | What happened |
+|---|---|---|---|
+| B2.1 | Live voice is on, on gpt-live-1, and the page says plainly why Call my phone is off | Pass | The operator has not chosen which countries it may dial |
+| B2.1 | Call my phone refuses honestly while it is off | Pass | HTTP 403. Nothing rang |
+| B2.1 | The test line needs the operator key, then returns a stream token that works once | Pass | HTTP 403 without the key, HTTP 200 with it |
+| B2.1 | The agent greets with GPT-Live audio, and its first words say this is a demo call from an AI | Pass | 21.5 s of agent audio |
+| B2.3 | Asked to hold the deposit, the agent texts a PayPal hold link (Orders intent AUTHORIZE) | Pass | Order 4LN0387714961441K |
+| B2.3 | The spoken hold line is written by code, with the amount from the record | Pass | "…hold $150.00 for Deposit for 6-week reformer block…" |
+| B2.2 | The stop request is decided on the transcript by GPT-Live's trigger, with its probability | Pass | asked_to_stop_calls 100% (gpt-6-luna) |
+| B2.2 | Code ends the call as do-not-call and marks the customer | Pass | Outcome do_not_call, dnc true |
+| B2.1 | The phone line closes when the call ends | Pass | Closed 11.6 s after the stop line |
+| B2.1 | The customer's spoken lines are in the transcript, and every amount spoken was backed by a record | Pass | 0 corrections |
+| B2.4 | The owner's screen followed the call live | Pass | 158 partial lines, 7 lines, 22 decision updates |
+| B2.1 | A stream token that has been used is refused | **Fail on Render** | Timed out waiting for the close code. Locally the server closes with 1008 (19/19 on localhost). On Render the proxy seems not to pass the close frame on. Not yet looked into |
+| B2.3 | Hold from the saved sandbox wallet, then Attended: charge (capture) | Pass | Authorization 5N333751PU103470K, capture 5AV10648RE036623R |
+| B2.3 | Cancelled in time: release (void, read back VOIDED) | Pass | Authorization 6VW55467W2715152K |
+
+**Cold start.** After 17 idle minutes the free plan took 22.3 s to return HTTP 200. Warm requests took 0.17 to 0.83 s.
+
+**Not verified:**
+- A real phone call. There is no owner number and no CB_CALL_MY_PHONE_COUNTRIES yet, and the Twilio trial can only dial verified numbers.
+- A real browser microphone call over WebRTC. The routes are tested with a fake GPT-Live server.
+
+**Not done (spec B2 items 5, 6, 7):** custom voice, a proof call on the landing page, and inbound calls. **Wave 5 for Callback** (A7 accessibility and voice on Ask, A12 render.yaml, nightly robot judge, quality gate) is not started.
