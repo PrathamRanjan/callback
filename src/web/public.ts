@@ -67,7 +67,7 @@ export function liveTable() {
     // In demo mode Twilio rings only numbers on the allowlist; the demo customers' numbers are always simulated.
     ...(config.demoMode
       ? [
-          { piece: "Phone calls to the demo customers", live: false, detail: telephonyReady() ? `simulated: typed in the simulator. Twilio is set up and rings only ${config.liveContactAllowlist.length} allowlisted number${config.liveContactAllowlist.length === 1 ? "" : "s"}` : "simulated: typed in the simulator and labelled" },
+          { piece: "Phone calls to the demo customers", live: false, detail: telephonyReady() ? (config.liveContactAllowlist.length ? `simulated: typed in the simulator. Twilio is set up and rings only ${config.liveContactAllowlist.length} allowlisted number${config.liveContactAllowlist.length === 1 ? "" : "s"}` : "simulated: typed in the simulator. Twilio is set up, but no number is allowlisted, so nothing rings") : "simulated: typed in the simulator and labelled" },
           { piece: "Texts to the demo customers", live: false, detail: smsReady() ? "simulated: mirrored to the customer's page. Twilio texts only allowlisted numbers" : "simulated: mirrored to the customer's page and labelled" },
         ]
       : [row("Phone calls", telephonyReady(), "Twilio", "simulated: typed in the simulator and labelled"), row("SMS", smsReady(), "Twilio", "simulated: mirrored to the customer's page and labelled")]),

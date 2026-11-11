@@ -158,6 +158,10 @@ test("judge page: linked from the landing header, one tap starts a private demo 
   await expect(page.getByLabel("What the customer says")).toBeVisible();
   await page.goto("/judge");
   await expect(page.locator('[data-step="call_placed"]')).toHaveAttribute("data-done", "1");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole("img", { name: /QR code/ })).toBeVisible(); // with a demo, the phone link and QR show
+  await noSideScroll(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
   await expect(page.locator('[data-path="call"]')).toContainText("1 of 4 done");
   // The haggling step opens the same call with the line typed.
   await page.locator('[data-step="ai_turn"]').getByRole("button").click();

@@ -103,7 +103,7 @@ export default function JudgePage() {
             <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>For judges</h1>
             <p className="mt-2 max-w-[68ch] text-ink-2">Callback is an AI agent that phones a small studio's customers about money and settles it through PayPal. The AI talks; ordinary code decides what money may move; PayPal moves it. Pick a path below. Each step opens the exact screen, with any text already typed, and ticks itself here when the server records it.</p>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto]">
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] [&>*]:min-w-0">
               <Panel className="p-4">
                 <h2 className="text-lg font-semibold">Accounts</h2>
                 <dl className="mt-2 grid gap-3 text-sm">
@@ -128,7 +128,7 @@ export default function JudgePage() {
                 {d.workspace?.qr_svg && d.workspace.join_url ? (
                   <>
                     <div className="mx-auto mt-2 w-[180px] rounded-md bg-white p-2" role="img" aria-label="QR code that opens your demo on a phone" dangerouslySetInnerHTML={{ __html: d.workspace.qr_svg }} />
-                    <div className="mt-2 flex items-center gap-2"><span className="truncate font-mono text-xs text-ink-2">{d.workspace.join_url}</span><CopyButton text={d.workspace.join_url} label="phone link" /></div>
+                    <div className="mt-2 flex min-w-0 items-center gap-2"><span className="min-w-0 flex-1 truncate font-mono text-xs text-ink-2">{d.workspace.join_url}</span><CopyButton text={d.workspace.join_url} label="phone link" /></div>
                   </>
                 ) : <p className="mt-2 text-sm text-ink-2">Start any path and a QR code appears here that opens the same private demo on your phone.</p>}
               </Panel>
@@ -137,7 +137,7 @@ export default function JudgePage() {
             {d.signed_in_as === "staff" ? <p className="mt-4 rounded-md bg-hold-soft px-3 py-2 text-sm">You're signed in as the front desk. These paths use the owner; the first step switches you.</p> : null}
 
             <h2 className="mt-8 text-h2 font-semibold">Paths</h2>
-            <div className="mt-3 grid gap-4 lg:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3 [&>*]:min-w-0">
               {d.paths.map((p) => {
                 const done = p.steps.filter((s) => d.checklist[s.key]).length;
                 return (

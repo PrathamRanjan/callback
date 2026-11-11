@@ -14,7 +14,7 @@ The voice agent that makes a small business's money calls: confirm tomorrow's de
 2. **Watch it refuse.** Ask the agent who it won't call (its tool calls stream into a rail beside the answer), open a call that the rules blocked, and check the 10 Nov "we've moved banks, pay our new PayPal" message, which is now held.
 3. **Approve a held move.** A $360 charge is over the $300 limit and waits for you with what, who, why and how to undo it.
 
-**What is live and what is simulated.** `/judge` builds this table from the server's configuration on every request. On 11 Nov it said: live are PayPal Orders, the saved wallet, Invoicing, Billing plans and Subscriptions, refunds, verified webhooks, PayPal's MCP server (read tools only), the call and policy model (`gpt-6.1-sol`), the Decisions scam check (`gpt-6-luna`), live browser voice and Telegram approvals. Simulated and labelled are calls and texts to the demo customers (Twilio is set up but rings only allowlisted numbers), WhatsApp, web push, the seeded samples and each copy's clock.
+**What is live and what is simulated.** `/judge` builds this table from the server's configuration on every request. On 11 Nov it said: live are PayPal Orders, the saved wallet, Invoicing, Billing plans and Subscriptions, refunds, verified webhooks, PayPal's MCP server (read tools only), the call and policy model (`gpt-6.1-sol`), the Decisions scam check (`gpt-6-luna`), live browser voice, Telegram approvals and web push. Simulated and labelled are calls and texts to the demo customers (Twilio is set up, but no number is allowlisted, so nothing rings), WhatsApp, the seeded samples and each copy's clock.
 
 **Pages with no sign-in:** `/proof` (every evaluation case), `/ai` (the last model calls), `/paypal` (each PayPal API and a live id), `/who-can-move-money`, `/accessibility`, `/agents` (MCP with a copy-paste command).
 
@@ -162,3 +162,46 @@ Built from `MASTER_IMPROVEMENT_SPEC.md` Part C, Wave 2 (items 6 to 9).
 
   The run is by hand, not nightly: a nightly run on the free 512 MB instance risks the live site. The first run failed one call turn ("already paid") and two policy readings (instalments, refund limit). The prompt and the parser were fixed, and the committed run is 7/7, 4/4 and 30/31. The one scam-check miss is a false hold on "my husband will pay with his own PayPal".
 - **Fixes found on the way.** The service worker now clones a response before caching it. Tables that scroll sideways can take keyboard focus (axe `scrollable-region-focusable`). The Ask presets wrap on a phone. The PayPal page's MCP row had a wrong column name, which was hidden as "none yet"; a failed read now says "Couldn't read this just now" and is logged.
+
+**Live checks** (`node scripts/live-acceptance-w2.mjs`, against the deployed commit e07b7a3):
+
+| Item | Check | Result | Detail |
+|---|---|---|---|
+| A4 | /healthz answers and names the deployed commit | Pass | HTTP 200, commit e07b7a3 |
+| A3.1 | a stranger sees three paths, the live-versus-simulated table and the public pages | Pass | Take the call yourself (4 steps, 3 min); Watch it refuse (3 steps, 2 min); Approve a held move (3 steps, 2 min); 15 live rows, 5 simulated |
+| A3.1 | after the first tap: a QR code for the phone and every step points at this demo's own screens | Pass | join link present; 10 of 10 steps have a screen |
+| A3.1 | nothing is ticked before the visitor acts (the seed ticks nothing) | Pass | 0 ticks |
+| A3.1 | path 1 (take the call yourself, no PayPal login): every step ticked itself | Pass | 4/4 ticked (call_placed, ai_turn, pay_link_sent, paid_from_wallet); place 302, say 303/302, wallet → /c/cbt_w6t3wpdmx24_dD5KrU0XtsDx7sS4umg-XU0HU07nhfG2?ok=Paid%20%2460.00%20from%20the%20demo; 21 s by script |
+| B2 | the haggling turn: no invented discount, the agreed turn: a real sandbox order | Pass | agent said: "I’m sorry money’s tight. There isn’t a discount available on the account, but we can arrange a callback. Would that help?" then "Of course. I’ll send the payment link to the contact details on file. Thank you."; PayPal order 2H8892570N015084L |
+| A6 | the 10 Nov message is held by every server reader, with the place to pay named | Pass | level hold; rules hold, AI hold (gpt-6-luna, 1751 ms), places to pay hold: accounts.brightside@outlook.com |
+| A6 | a polite message that names a place to pay never gets green | Pass | level hold, names a place true, all clear allowed false |
+| A6 | a genuine reminder: every server reader ran and found nothing | Pass | level clear, AI clear, all clear allowed true |
+| A6 | the customer's own page holds it too (no sign-in) | Pass | level hold |
+| A5.3 | the judge's Ask question: the rail shows at least two tool calls and a cited answer | Pass | 5 tool calls (get_plan, list_customers, consent_record, consent_record, consent_record); 4 sentences, 0 removed by code; 15 s |
+| A5.3 | a PayPal question goes through PayPal's MCP server, read tools only | Pass | 7 tool calls, 3 on PayPal's server (paypal_list_transactions, paypal_get_order, paypal_get_order) |
+| A3.1 | paths 2 and 3 ticked themselves too | Pass | Take the call yourself: 4/4; Watch it refuse: 3/3; Approve a held move: 3/3; approve → /ops/guard?ok=Approved.%20PayPal%20link%20for%20%24360.00%20sent%20to%20Ivy%20Pa |
+| A5.6 | /proof lists every case with today's run date and the model ids | Pass | run 2026-11-11T01:12:32.172Z; Call turns: the 10 Nov off-script lines 7/7 on gpt-6.1-sol (backup gpt-6-sol); Policy reading 4/4 on gpt-6.1-sol; Scam check (Decisions, held-out half) 30/31 on gpt-6-luna, answers recorded 2026-11-11; 4 not-measured notes |
+| A3.2 | /paypal: each API with a live sandbox id where one exists | Pass | OAuth 2.0 client credentials: none yet; Orders v2: 413455591J593762H; Orders v2: 4K62508939228462U; Invoicing v2: none yet; Catalog products, Billing plans, Subscriptions: none yet; Payments v2: none yet; Webhooks: 79019982JV370180D; PayPal MCP server: paypal_list_transactions |
+| A3.2 | /ai: the last model calls with model, latency and cost | Pass | 0 showcase calls listed |
+| A3.2 | /who-can-move-money: limits read from the studio's settings | Pass | charge 300, refund 100, countersign 200; 8 roles |
+| A3.2 | every no-sign-in page loads without a session | Pass | /judge 200, /proof 200, /ai 200, /paypal 200, /who-can-move-money 200, /accessibility 200, /agents 200 |
+
+Run 2026-11-11T01:51:38.295Z against https://pph-callback.onrender.com (commit e07b7a3).
+
+**Checked in a browser on the live site (11 Nov, commit e07b7a3):**
+
+| Check | Result | Detail |
+|---|---|---|
+| axe-core 4.10 (WCAG 2.2 AA) on /judge, /proof, /ai, /paypal, /who-can-move-money, /accessibility, /agents | Pass | no violations at 375 px light or 1280 px dark |
+| No sideways scroll at 375 px on the no-sign-in pages | Fixed after a fail | /judge scrolled sideways once a demo existed: the long phone link widened the grid. Fixed in the next commit and covered by the e2e suite. The other six pages passed |
+| A tour never starts from a URL | Pass | /today?tour=judge showed no tour |
+| A tour starts from the button and ends on a page change | Pass | "This is your switchboard" showed; after opening Money, no tour remained |
+
+**Failed or not verified:**
+
+- **The three-minute path on a real phone, by a person who has never seen the app: not verified.** The script finished path 1 in 21 s, and it passed in a desktop browser. Nobody new has tried it, and it was not tried on a phone.
+- **/paypal has no live id yet for Invoicing, Billing plans and Subscriptions, or refunds.** No demo on the live site has used those calls since the copies were made. A payment plan also needs the buyer to approve it on PayPal's own page, with a PayPal login.
+- **/ai lists no showcase calls**, because nobody signs into the showcase studio. It shows other visitors' recent calls with their text hidden, and your own calls in full.
+- **The eval is not nightly.** It was run by hand on 11 Nov and committed.
+- **No judge sandbox buyer and a private repository.** Both are the owner's to do: create a second sandbox buyer (and set `JUDGE_BUYER_EMAIL`), and decide whether to make the repository public.
+- **A6.4** (retraining the on-device model in guard-lab) is a cross-app job and is not done here.
