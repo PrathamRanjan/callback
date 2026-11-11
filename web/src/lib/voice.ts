@@ -125,3 +125,79 @@ export function useLiveEvents(callId: string, enabled: boolean) {
   }, [callId, enabled]);
   return { connected, live, partial, lines, signals, notes };
 }
+
+/**
+ * Push-to-talk on a text box (spec A7): a listen-only gpt-live-1 session over WebRTC. GPT-Live's own transcript of
+ * what you say is typed into the box as you speak; you read, change and send it yourself. The browser never plays
+ * the session's audio. It stops when you press again, after 60 seconds, or when you leave the page.
+ */
+export function useDictation(onText: (text: string) => void) {
+  const [state, setState] = useState<"off" | "starting" | "on" | "error">("off");
+  const [note, setNote] = useState("");
+  const [heard, setHeard] = useState("");
+  const pc = useRef<RTCPeerConnection | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const text = useRef("");
+
+  const stop = (why = "Voice input stopped. Check the words, then press Ask.") => {
+    if (timer.current) clearTimeout(timer.current);
+    pc.current?.getSenders().forEach((s) => s.track?.stop());
+    pc.current?.close();
+    pc.current = null;
+    setState("off");
+    setNote(why);
+  };
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    pc.current?.getSenders().forEach((s) => s.track?.stop());
+    pc.current?.close();
+  }, []);
+
+  const toggle = async () => {
+    if (pc.current) return stop();
+    setState("starting");
+    setHeard("");
+    text.current = "";
+    setNote("Asking for your microphone…");
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("This browser can't do voice input. Type instead.");
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const conn = new RTCPeerConnection();
+      pc.current = conn;
+      mic.getTracks().forEach((t) => conn.addTrack(t, mic));
+      const dc = conn.createDataChannel("oai-events");
+      dc.onmessage = (ev) => {
+        try {
+          const m = JSON.parse(ev.data);
+          if (m.type === "session.input_transcript.delta" && typeof m.delta === "string") {
+            text.current += m.delta;
+            const t = text.current.replace(/\s+/g, " ").trim();
+            setHeard(t);
+            onText(t);
+          } else if (m.type === "session.closed") stop();
+        } catch {
+          /* not JSON */
+        }
+      };
+      conn.onconnectionstatechange = () => {
+        if (conn.connectionState === "connected") {
+          setState("on");
+          setNote("Listening (gpt-live-1). Speak your question; press again to stop.");
+        } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) stop("The voice connection dropped. Type instead, or try again.");
+      };
+      setNote("Connecting to the voice model…");
+      const offer = await conn.createOffer();
+      await conn.setLocalDescription(offer);
+      const r = await postJson<{ answer: string; max_seconds: number }>("/api/app/voice/dictate", { sdp: offer.sdp });
+      await conn.setRemoteDescription({ type: "answer", sdp: r.answer });
+      timer.current = setTimeout(() => stop("Voice input stops after a minute. Check the words, then press Ask."), (r.max_seconds ?? 60) * 1000);
+    } catch (e) {
+      pc.current?.getSenders().forEach((s) => s.track?.stop());
+      pc.current?.close();
+      pc.current = null;
+      setState("error");
+      setNote((e as Error).message);
+    }
+  };
+  return { state, note, heard, toggle };
+}

@@ -244,6 +244,9 @@ export function publicRouter() {
     return { env: config.paypal.env, configured: paypalConfigured(), apis, mcp_tools: PAYPAL_MCP_READ };
   }));
 
+  /** /accessibility: the last recorded run of the accessibility checks (e2e/a11y.spec.ts writes eval/a11y.json). */
+  r.get("/api/public/a11y", json(async () => ({ ok: true, run: readJson("eval/a11y.json") })));
+
   r.get("/api/public/facts", json(async () => {
     // The limits are read from the showcase studio's own settings and rules, as the gate reads them.
     const db = await getDb();

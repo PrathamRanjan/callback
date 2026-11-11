@@ -16,7 +16,7 @@ function Page({ title, lead, children }: { title: string; lead: ReactNode; child
     <PublicShell wide>
       <div className="mx-auto max-w-[1080px] px-4 py-8">
         <p className="text-sm"><Link to="/judge" className="underline">For judges</Link></p>
-        <h1 className="mt-1 font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>{title}</h1>
+        <h1 className="mt-1 break-words font-display text-h1 font-[800] hyphens-auto" style={{ fontStretch: "115%" }}>{title}</h1>
         <div className="mt-2 max-w-[72ch] text-ink-2">{lead}</div>
         <div className="mt-6 grid gap-6">{children}</div>
       </div>
@@ -239,6 +239,46 @@ export function WhoCanMoveMoney() {
 }
 
 /* ---------- /accessibility ---------- */
+interface A11yRun {
+  at: string;
+  commit: string | null;
+  base: string;
+  tags: string[];
+  axe?: { page: string; who: string; width: number; theme: string; serious: number; critical: number; minor_or_moderate: number; rules: string[] }[];
+  reflow?: { page: string; who: string; condition: string; over_px: number }[];
+  motion?: { pages: string[]; running_animations: number } | null;
+  keyboard?: { flow: string; tabs: number; steps: string[]; result: string; without_visible_focus: number } | null;
+  switches?: { checked: { name: string; described: boolean }[]; close_button: string } | null;
+  live_region?: { count: number; announces: string } | null;
+  sections?: Record<string, string>;
+}
+
+/** The recorded run of e2e/a11y.spec.ts (eval/a11y.json), check by check, each with the time it ran. */
+function A11yChecks({ run }: { run: A11yRun }) {
+  const axe = run.axe ?? [];
+  const bad = axe.reduce((n, a) => n + a.serious + a.critical, 0);
+  const minor = axe.reduce((n, a) => n + a.minor_or_moderate, 0);
+  const reflow = run.reflow ?? [];
+  const over = reflow.filter((r) => r.over_px > 0);
+  const at = (k: string) => (run.sections?.[k] ? when(run.sections[k]) : when(run.at));
+  const item = (pass: boolean, title: string, k: string, body: ReactNode) => (
+    <li><Panel className="p-3 text-sm"><div className="flex flex-wrap items-baseline gap-x-2"><PassMark pass={pass} /><b>{title}</b><span className="text-ink-2">{at(k)}</span></div><div className="mt-1">{body}</div></Panel></li>
+  );
+  return (
+    <>
+      <p className="text-sm text-ink-2">Run by the end-to-end suite (<code className="font-mono text-xs">e2e/a11y.spec.ts</code>) against {run.base}{run.commit ? <>, commit <code className="font-mono text-xs">{run.commit}</code></> : null}. Rules: {run.tags.join(", ")}.</p>
+      <ul className="grid gap-2">
+        {axe.length ? item(bad === 0, "axe-core on every page of every persona", "axe", <>{axe.length} page views (a stranger, the owner, the front desk and a customer; light at 1280 px and dark at 375 px): {bad} serious or critical issues{minor ? `, ${minor} minor or moderate` : ""}. {bad ? <>Failing: {axe.filter((a) => a.serious + a.critical).map((a) => `${a.page} (${a.rules.join(", ")})`).join("; ")}</> : null}</>) : null}
+        {reflow.length ? item(over.length === 0, "No sideways scroll at 320 px with Largest text, nor at 200% zoom", "reflow", <>{reflow.length} checks on {new Set(reflow.map((r) => r.page)).size} pages. 200% zoom is measured as a 640 px window, the layout width 200% zoom gives on a 1280 px screen. Wide data tables scroll inside their own box. {over.length ? <>Sideways: {over.map((r) => `${r.page} ${r.condition} by ${r.over_px} px`).join("; ")}</> : null}</>) : null}
+        {run.motion ? item(run.motion.running_animations === 0, "Nothing moves when the system asks for less motion", "motion", <>{run.motion.running_animations} running animations on {run.motion.pages.join(", ")}.</>) : null}
+        {run.keyboard ? item(run.keyboard.without_visible_focus === 0, "Keyboard only: the owner approves a held move", "keyboard", <>{run.keyboard.flow}: {run.keyboard.tabs} Tab press{run.keyboard.tabs === 1 ? "" : "es"} from the top of the page, then Enter; {run.keyboard.result}. Focus order: {run.keyboard.steps.join(" → ")}. {run.keyboard.without_visible_focus} controls without a visible focus ring.</>) : null}
+        {run.switches ? item(run.switches.checked.every((s) => s.described), "Display and help switches have names and descriptions", "switches", <>{run.switches.checked.map((s) => s.name).join(", ")}; the close button is named “{run.switches.close_button}”.</>) : null}
+        {run.live_region ? item(run.live_region.count === 1, "One polite live region for payment status", "live_region", <>{run.live_region.announces}.</>) : null}
+      </ul>
+    </>
+  );
+}
+
 export function AccessibilityPage() {
   return (
     <Page title="Accessibility" lead={<>What was tested, how, and what was not. Results are from the dates shown; they are not re-run when you open this page.</>}>
@@ -247,26 +287,26 @@ export function AccessibilityPage() {
         <p className="text-sm">A <b>Display and help</b> button on every page, the customer's included: text size, high contrast, an easier-to-read font (Atkinson Hyperlegible), read aloud, voice input where the browser supports it on the device, plain words, bigger targets, more time and no motion. Choices stay in this browser. Every page has a skip link and a visible focus ring. Status lamps always carry a word for screen readers, never colour alone.</p>
       </section>
       <section className="grid gap-2">
-        <H2>Tested</H2>
-        <Panel className="overflow-x-auto">
-          <Table>
-            <TableHeader><TableRow><TableHead>What</TableHead><TableHead>How</TableHead><TableHead>Result</TableHead></TableRow></TableHeader>
-            <TableBody>
-              <TableRow><TableCell>Calls, Money, Proof, Messages, Rules</TableCell><TableCell className="text-sm">axe-core, WCAG 2.2 AA rules, on the live site in a browser; light theme at phone width and dark theme at desktop width (11 Nov 2026)</TableCell><TableCell><PassMark pass /> <span className="text-sm">no violations</span></TableCell></TableRow>
-              <TableRow><TableCell>For judges, Proof, AI calls, PayPal, Who can move money, Accessibility, For AI agents, and Money again</TableCell><TableCell className="text-sm">axe-core 4.10, WCAG 2.2 AA rules, in a browser at 375 px light and 1280 px dark (11 Nov 2026). The first run found wide tables a keyboard could not scroll and two small links; both were fixed before release</TableCell><TableCell><PassMark pass /> <span className="text-sm">no violations after the fix</span></TableCell></TableRow>
-              <TableRow><TableCell>No sideways scrolling at 375 px</TableCell><TableCell className="text-sm">Playwright, every owner page, in the end-to-end suite</TableCell><TableCell><PassMark pass /></TableCell></TableRow>
-              <TableRow><TableCell>Tours</TableCell><TableCell className="text-sm">Start only from a button, end on any page change, never move you to another page</TableCell><TableCell><PassMark pass /></TableCell></TableRow>
-            </TableBody>
-          </Table>
-        </Panel>
+        <H2>Automated checks, last run</H2>
+        <Load<{ run: A11yRun | null }> path="/api/public/a11y">
+          {({ run }) => (run ? <A11yChecks run={run} /> : <p className="text-sm">No recorded run is shipped with this build. The checks are in <code className="font-mono text-xs">e2e/a11y.spec.ts</code>.</p>)}
+        </Load>
+      </section>
+      <section className="grid gap-2">
+        <H2>Earlier checks by hand</H2>
+        <ul className="grid gap-2 text-sm">
+          <li><Panel className="p-3"><PassMark pass /> <b>axe-core on the live site</b>, 11 Nov 2026: Calls, Money, Proof, Messages, Rules, For judges, AI calls, PayPal, Who can move money, Accessibility and For AI agents, at 375 px light and 1280 px dark. The first run found wide tables a keyboard could not scroll and two small links; both were fixed before release.</Panel></li>
+          <li><Panel className="p-3"><PassMark pass /> <b>Tours</b> start only from a button, end on any page change, and never move you to another page (end-to-end suite).</Panel></li>
+        </ul>
       </section>
       <section className="grid gap-2">
         <H2>Not tested</H2>
         <ul className="list-disc pl-5 text-sm">
-          <li>No screen-reader session (VoiceOver, TalkBack, NVDA) by a person has been run.</li>
+          <li>No screen-reader session (VoiceOver, TalkBack, NVDA) by a person has been run. The checks above are automated: they find missing names and roles, not whether the pages are pleasant to use with a screen reader.</li>
           <li>No testing with disabled users.</li>
-          <li>Voice input and read aloud were tried only in desktop Chrome, not on phones.</li>
-          <li>Phone calls by voice are a separate path (Twilio speech) and were not checked for accessibility.</li>
+          <li>Voice input on Ask (gpt-live-1) was checked by a robot that fed GPT-Live a recorded question; no person has tried it in a browser yet. Read aloud was tried only in desktop Chrome.</li>
+          <li>Taking a call by voice (phone or browser) was checked for what it says and does, not for accessibility.</li>
+          <li>Contrast is checked only by axe's rules on the pages listed, in the default and dark themes.</li>
         </ul>
       </section>
     </Page>

@@ -5,6 +5,7 @@ import { ActButton, Empty, ErrorState, Kpi, PageHead, Panel, Rows, Section, Segm
 import { NativeSelect } from "@/components/app/form";
 import { money, moneyLamp, when, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
+import { useStatusAnnouncer } from "@/lib/announce";
 
 interface Move { kind: string; id: string; at: string; cents: number; label?: string; paypal_id: string | null; status: string; approve_url: string | null; item: string; customer: string; customer_id: string | null; call_id: string | null }
 interface HoldRow { id: string; status: string; cents: number; order_id: string | null; authorization_id: string | null; capture_id: string | null; expires_at: string | null; via: string; item: string; customer: string; call_id: string | null; appointment_at: string | null }
@@ -28,6 +29,9 @@ const NEG = [
 export default function MoneyPage() {
   useTitle("Money");
   const { data: d, error, loading, reload } = useData<MoneyData>("/api/app/money", { poll: 20000 });
+  // Status changes found by the poll are said once through the app's polite live region (spec A7).
+  useStatusAnnouncer(d?.moves, (m) => `${m.kind}:${m.id}`, (m) => m.status, (m) => `${m.customer}, ${m.item}`, word);
+  useStatusAnnouncer(d?.holds, (h) => h.id, (h) => h.status, (h) => `${h.customer}, hold for ${h.item}`, (s) => (s === "authorized" ? "held, not charged" : s === "captured" ? "charged" : s === "voided" ? "released" : word(s)));
   const [f, setF] = useState("all");
   const [neg, setNeg] = useState(NEG[0].v);
   const [hook, setHook] = useState("");
@@ -46,7 +50,7 @@ export default function MoneyPage() {
         next={waiting ? `${waiting} link${waiting === 1 ? "" : "s"} or invoice${waiting === 1 ? "" : "s"} waiting for the customer to pay.` : "Nothing waiting on customers."}
         actions={<ActButton path="/ops/money/readback" variant="outline" icon={<RefreshCw />} onDone={reload}>Read back from PayPal</ActButton>}
       />
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="kpi-grid mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Owed to you" value={money(d.totals.owed_cents)} s="ready" />
         <Kpi label="Paid" value={money(d.totals.paid_cents)} s="done" />
         <Kpi label="Owed back" value={money(d.totals.owed_back_cents)} s={d.totals.owed_back_cents ? "hold" : "idle"} />

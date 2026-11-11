@@ -57,7 +57,8 @@ export function PublicShell({ children, wide = false }: { children: ReactNode; w
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
       <OfflineBar />
       <header className="border-b border-line">
-        <div className={cn("mx-auto flex h-16 items-center gap-2 px-4", wide ? "max-w-[1180px]" : "max-w-[720px]")}>
+        {/* Wraps instead of scrolling sideways at 320 px with the Largest text setting (spec A7 reflow). */}
+        <div className={cn("mx-auto flex min-h-16 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2", wide ? "max-w-[1180px]" : "max-w-[720px]")}>
           <Link to="/" aria-label="Callback home"><Wordmark /></Link>
           <span className="ml-auto flex items-center gap-1">
             <Button asChild variant="ghost" size="sm"><Link to="/judge">For judges</Link></Button>

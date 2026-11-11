@@ -40,10 +40,10 @@ function Toggle({ id, label, hint, on, set }: { id: string; label: string; hint:
   return (
     <div className="flex items-start justify-between gap-4 py-3">
       <div>
-        <Label htmlFor={id} className="text-[0.95rem] font-medium">{label}</Label>
-        <p className="text-sm text-ink-2">{hint}</p>
+        <Label id={`${id}-label`} htmlFor={id} className="text-[0.95rem] font-medium">{label}</Label>
+        <p id={`${id}-hint`} className="text-sm text-ink-2">{hint}</p>
       </div>
-      <Switch id={id} checked={on} onCheckedChange={set} className="mt-1" />
+      <Switch id={id} checked={on} onCheckedChange={set} className="mt-1" aria-labelledby={`${id}-label`} aria-describedby={`${id}-hint`} />
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto bg-surface sm:max-w-[420px]">
+      <SheetContent side="right" closeLabel="Close display and help" className="w-full overflow-y-auto bg-surface sm:max-w-[420px]">
         <SheetHeader>
           <SheetTitle>Display and help</SheetTitle>
           <SheetDescription>These settings stay on this device. Nothing is sent anywhere.</SheetDescription>

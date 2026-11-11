@@ -343,12 +343,25 @@ export function openPrimary(instructions: string, format: { type: "audio/pcmu" |
   return link;
 }
 
+/**
+ * Push-to-talk dictation for a text box (spec A7, "voice both ways"): a GPT-Live session that only listens. Its
+ * input transcript fills the box; the browser never plays its audio, nothing is delegated, and no tool exists, so
+ * what the person said is only typed for them to read, change and send.
+ */
+export function dictationSession() {
+  return {
+    model: config.ai.models.live,
+    instructions: "You are a dictation helper. Listen only. Never speak, never answer, never ask anything. Stay silent until the session closes.",
+    audio: { output: { voice: config.ai.models.liveVoice } },
+  };
+}
+
 /** Browser voice: creates a WebRTC session from the browser's offer, then attaches this server on the sideband. */
-export async function createWebrtcSession(instructions: string, sdp: string): Promise<{ sessionId: string; answer: string }> {
+export async function createWebrtcSession(instructions: string, sdp: string, session: Record<string, unknown> = liveSession(instructions, null)): Promise<{ sessionId: string; answer: string }> {
   const res = await fetch(`${config.ai.openaiBaseUrl}/v1/live/sessions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${config.ai.openaiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ session: liveSession(instructions, null), transport: { type: "webrtc", sdp } }),
+    body: JSON.stringify({ session, transport: { type: "webrtc", sdp } }),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`GPT-Live refused the session: ${res.status} ${text.slice(0, 200)}`);

@@ -35,7 +35,7 @@ export default function TodayPage() {
         next={k.ready ? `${plural(k.ready, "call")} ready to go.` : "No calls are ready. Re-plan after adding a charge."}
         actions={owner ? <ActButton path="/today/plan" variant="outline" icon={<CalendarClock />} onDone={refresh}>Re-plan calls</ActButton> : null}
       />
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="today-kpis">
+      <div className="kpi-grid mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="today-kpis">
         <Kpi label="Owed to you" value={money(k.owed_cents)} hint="Open deposits and invoices" />
         <Kpi label="Collected today" value={money(k.collected_cents)} s="done" hint={plural(k.finished_today, "finished call")} />
         <Kpi label="Ready to call" value={k.ready} s="ready" hint={`${k.blocked} not calling`} />

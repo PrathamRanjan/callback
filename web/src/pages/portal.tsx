@@ -7,6 +7,7 @@ import { ScamCheck } from "@/components/app/scam-check";
 import { NativeSelect } from "@/components/app/form";
 import { money, moneyLamp, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
+import { useStatusAnnouncer } from "@/lib/announce";
 
 interface PortalData {
   business: { name: string }; first_name: string; tz: string; verify_code: string | null; last_call_at: string | null;
@@ -39,7 +40,11 @@ function PlanPicker({ token, item, plans }: { token: string; item: string; plans
 /** The customer's own page. Plain words, one job per card, big buttons; nothing about other customers. */
 export default function PortalPage() {
   const { token = "" } = useParams();
-  const { data: d, error, loading, reload } = useData<PortalData>(`/api/app/c/${token}`);
+  const { data: d, error, loading, reload } = useData<PortalData>(`/api/app/c/${token}`, { poll: 20000 });
+  // A payment that PayPal confirms while this page is open is said once, politely (spec A7).
+  // Paid items move from "open" to "settled", so both lists are watched as one.
+  const watched = d ? [...d.open.map((o) => ({ id: o.id, title: o.title, s: o.hold?.status === "authorized" ? "held" : o.status })), ...d.settled.map((s) => ({ id: s.id, title: s.title, s: s.status }))] : undefined;
+  useStatusAnnouncer(watched, (o) => o.id, (o) => o.s, (o) => o.title, (s) => (s === "held" ? "held, not charged" : word(s)));
   const [slot, setSlot] = useState("");
   const [q] = useSearchParams();
   const back = q.get("paid") ? "Thanks: PayPal has your payment. It shows here as paid once PayPal confirms it." : q.get("plan") ? "Your payment plan is approved." : null;
@@ -90,12 +95,12 @@ export default function PortalPage() {
                     ) : o.balance_cents > 0 ? (
                       <div className="grid w-full gap-2">
                         {d.demo_wallet && o.kind === "deposit" ? (
-                          <span data-tour="portal-hold"><ActButton path={`/c/${token}/hold/${o.id}`} variant="outline" icon={<ShieldCheck />} onDone={reload} className="h-12 w-full">Hold {money(o.balance_cents)} instead: charged only if you attend (demo wallet)</ActButton></span>
+                          <span data-tour="portal-hold"><ActButton path={`/c/${token}/hold/${o.id}`} variant="outline" icon={<ShieldCheck />} onDone={reload} className="h-auto min-h-12 w-full whitespace-normal py-2">Hold {money(o.balance_cents)} instead: charged only if you attend (demo wallet)</ActButton></span>
                         ) : null}
                         {d.demo_wallet ? (
-                          <span data-tour="portal-wallet"><ActButton path={`/c/${token}/wallet/${o.id}`} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} as the demo customer (saved PayPal, no login)</ActButton></span>
+                          <span data-tour="portal-wallet"><ActButton path={`/c/${token}/wallet/${o.id}`} icon={<CreditCard />} onDone={reload} className="h-auto min-h-12 w-full whitespace-normal py-2">Pay {money(o.balance_cents)} as the demo customer (saved PayPal, no login)</ActButton></span>
                         ) : null}
-                        <ActButton path={`/c/${token}/pay/${o.id}`} variant={d.demo_wallet ? "outline" : "default"} icon={<CreditCard />} onDone={reload} className="h-12 w-full">Pay {money(o.balance_cents)} on PayPal's own page</ActButton>
+                        <ActButton path={`/c/${token}/pay/${o.id}`} variant={d.demo_wallet ? "outline" : "default"} icon={<CreditCard />} onDone={reload} className="h-auto min-h-12 w-full whitespace-normal py-2">Pay {money(o.balance_cents)} on PayPal's own page</ActButton>
                         {d.demo_wallet ? <p className="text-xs text-ink-2">Demo: the first button pays from the demo's saved sandbox PayPal wallet, so no PayPal sign-in is needed. It is a real sandbox payment; nothing real is charged.</p> : null}
                       </div>
                     ) : <StateChip s={moneyLamp(o.status)}>{word(o.status)}</StateChip>}

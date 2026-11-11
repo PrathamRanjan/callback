@@ -47,7 +47,7 @@ function LivePreview() {
       </div>
       <div className="px-4 pt-4">
         <div className="text-sm text-ink-2">Owed to the studio right now</div>
-        <div className="font-display text-[2.4rem] font-[800] leading-none" style={{ fontStretch: "115%" }}><Ticker cents={data.owed_cents ?? 0} /></div>
+        <div className="font-display text-[clamp(1.6rem,10vw,2.4rem)] font-[800] leading-none" style={{ fontStretch: "115%" }}><Ticker cents={data.owed_cents ?? 0} /></div>
       </div>
       <ul className="mt-3 divide-y divide-line border-t border-line" aria-label="This morning's calls">
         {(data.lines ?? []).slice(0, 5).map((l, i) => (
@@ -110,6 +110,7 @@ export default function Landing() {
             </Button>
           </div>
           <p className="mt-3 text-sm text-ink-2">No sign-up. The demo uses a seeded Sydney studio and the PayPal sandbox.</p>
+          <p className="mt-1 text-sm text-ink-2">Works with a screen reader, at 200% text, and by voice. <Link to="/accessibility" className="inline-flex min-h-11 items-center underline">What was tested</Link></p>
         </div>
         <LivePreview />
       </section>

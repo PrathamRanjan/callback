@@ -1,0 +1,165 @@
+# Render Blueprint for Callback (spec A12): the full shape. The web service (app, MCP endpoints, live voice sockets),
+# a background worker, cron jobs (PayPal reconcile, demo expiry, re-plan, the robot judge), managed Postgres, preview
+# environments and health checks.
+#
+# What runs today is NOT this file. The live demo (pph-callback.onrender.com) is one free web service made by hand
+# before this file existed, with the worker inline (CB_INLINE_WORKER defaults to true) and a database on a shared
+# Postgres. Applying this Blueprint (Render Dashboard → New → Blueprint → this repo) creates new, paid services:
+# the worker, the cron jobs and always-on (plan: starter) all cost money, so that is the owner's purchase.
+# Fill every variable marked sync: false in the dashboard; nothing secret is in this file.
+#
+# Cheaper single-service shape: deploy only callback-web on plan free with CB_INLINE_WORKER=true (the default).
+# The free plan sleeps after 15 idle minutes; the first request then takes about 22 s (measured 11 Nov 2026).
+
+previews:
+  generation: automatic # a preview environment per pull request, on the same shapes
+
+envVarGroups:
+  - name: callback-shared
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The deployed server refuses to start without the model key, PayPal app, session secret and AI_PROVIDER=openai
+      # (spec A11), so nothing quietly stands in.
+      - key: NODE_ENV
+        value: production
+      - key: AI_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_DEMO_VAULT_TOKEN # the saved sandbox wallet the owner approved once (spec 0.4)
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CB_ADMIN_KEY # the operator key: the voice test line and admin checks
+        generateValue: true
+      - key: CB_DEMO_MODE
+        value: "true"
+      - key: CB_WORKSPACES
+        value: "true"
+      # Live voice by phone. Twilio's trial account dials only verified numbers. Call my phone stays off until the
+      # owner chooses which countries it may dial (CB_CALL_MY_PHONE_COUNTRIES, e.g. "AU,US"); it says so on screen.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: VOICE_WEBHOOK_SECRET
+        generateValue: true
+      - key: CB_CALL_MY_PHONE_COUNTRIES
+        sync: false
+      - key: CB_LIVE_CONTACT_ALLOWLIST
+        sync: false
+      # Messages and push. Telegram is off unless its token is set.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: AG_GRID_LICENSE_KEY
+        sync: false
+
+databases:
+  - name: callback-db
+    databaseName: callback
+    user: callback
+    plan: basic-256mb
+
+services:
+  - type: web
+    name: callback-web
+    runtime: node
+    plan: starter # always-on: no cold start. The live demo is on plan free today (owner's purchase to change).
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/main.js
+    healthCheckPath: /healthz # answers with the deployed commit and a database round trip
+    envVars:
+      - fromGroup: callback-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: callback-db, property: connectionString }
+      - key: CB_INLINE_WORKER
+        value: "false" # the worker below runs the jobs; live voice sockets stay here
+
+  - type: worker
+    name: callback-worker
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/worker-main.js
+    envVars:
+      - fromGroup: callback-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: callback-db, property: connectionString }
+
+  - type: cron
+    name: callback-reconcile
+    runtime: node
+    plan: starter
+    region: singapore
+    schedule: "*/30 * * * *" # read every PayPal record back each half hour; the worker also does it as it ticks
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/cron.js reconcile
+    envVars:
+      - fromGroup: callback-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: callback-db, property: connectionString }
+
+  - type: cron
+    name: callback-expire
+    runtime: node
+    plan: starter
+    region: singapore
+    schedule: "7 * * * *" # private demos past their idle time are removed, hourly
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/cron.js expire
+    envVars:
+      - fromGroup: callback-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: callback-db, property: connectionString }
+
+  - type: cron
+    name: callback-plan
+    runtime: node
+    plan: starter
+    region: singapore
+    schedule: "0 20 * * *" # 07:00 Sydney (AEDT): today's calls planned under the current rules
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/cron.js plan
+    envVars:
+      - fromGroup: callback-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: callback-db, property: connectionString }
+
+  # The robot judge: walks every /judge path on production as a visitor would (a private demo, a simulated call,
+  # a real sandbox order, a payment from the saved sandbox wallet, the scam checks, Ask, a held move approved) and
+  # fails if any step does not tick itself. Needs no secret. The same check runs nightly on GitHub
+  # (.github/workflows/robot-judge.yml), which is free; this Render copy is for when the owner prefers one place.
+  - type: cron
+    name: callback-robot-judge
+    runtime: node
+    plan: starter
+    region: singapore
+    schedule: "47 15 * * *" # 02:47 Sydney, after the nightly AI eval
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node scripts/live-acceptance-w2.mjs $APP_URL
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_URL
+        sync: false

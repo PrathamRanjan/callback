@@ -195,7 +195,7 @@ export function AppShell() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-paper/95 px-4 backdrop-blur lg:hidden">
+          <header className="sticky top-0 z-30 flex min-h-14 flex-wrap items-center gap-x-2 border-b border-line bg-paper/95 px-4 py-1 backdrop-blur lg:hidden">
             <Link to="/today" aria-label="Callback, Today"><Wordmark /></Link>
             <span className="ml-auto flex items-center">
               <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour-m"><BookOpenCheck /></Button>

@@ -1,0 +1,47 @@
+# The robot judge (spec A12): every /judge path on production, nightly, as a visitor does it. It starts a private
+# demo, takes Priya's call in the simulator (two AI turns, a real PayPal sandbox order), pays from the saved sandbox
+# wallet, runs the three scam checks, asks the agent two questions, approves a held move, and fails if any judge
+# step did not tick itself or any public page is down. Needs no secret: it uses the site as a stranger.
+#
+# Nightly runs are off until the owner sets the repository variable ROBOT_JUDGE_NIGHTLY = true
+# (Settings → Secrets and variables → Actions → Variables). "Run workflow" works at any time.
+# The /proof check expects today's AI eval, so it fails on nights the AI eval (ai-eval.yml) did not run.
+name: Robot judge (nightly)
+on:
+  schedule:
+    - cron: "47 15 * * *" # 02:47 Sydney (AEDT), after the AI eval
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Site to judge"
+        default: "https://pph-callback.onrender.com"
+permissions:
+  contents: read
+concurrency:
+  group: robot-judge
+  cancel-in-progress: false
+jobs:
+  judge:
+    if: github.event_name == 'workflow_dispatch' || vars.ROBOT_JUDGE_NIGHTLY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: ${{ github.event.inputs.base || 'https://pph-callback.onrender.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wake the free instance (it sleeps after 15 idle minutes; the first request takes about 22 s)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$BASE/healthz") && [ "$code" = "200" ] && break
+            sleep 10
+          done
+          curl -s --max-time 30 "$BASE/healthz"
+      - name: Walk every judge path
+        run: node scripts/live-acceptance-w2.mjs "$BASE" > judge.md
+      - name: Summary
+        if: always()
+        run: |
+          { echo "## Robot judge $(date -u +%FT%RZ)"; echo; cat judge.md 2>/dev/null || echo "No report."; } >> "$GITHUB_STEP_SUMMARY"

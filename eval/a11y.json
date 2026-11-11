@@ -1,0 +1,712 @@
+{
+ "at": "2026-11-11T15:42:21.219Z",
+ "base": "a fresh local server (the e2e default)",
+ "commit": "24cd7b1",
+ "tags": [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  "wcag22aa"
+ ],
+ "axe": [
+  {
+   "page": "/",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/judge",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/judge",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/try",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/try",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/proof",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/proof",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/ai",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/ai",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/paypal",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/paypal",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/who-can-move-money",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/who-can-move-money",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/accessibility",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/accessibility",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/agents",
+   "who": "stranger",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/agents",
+   "who": "stranger",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/today",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/today",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/ask",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/ask",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/calls",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/calls",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/customers",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/customers",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/approvals",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/approvals",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/money",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/money",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/rules",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/rules",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/safety",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/safety",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/messages",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/messages",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/evidence",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/evidence",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/calls/call_uv2hxwdi3e5e4ro4",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/calls/call_uv2hxwdi3e5e4ro4",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/customers/cus_ad3nwkujtewzp5f6",
+   "who": "owner",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/customers/cus_ad3nwkujtewzp5f6",
+   "who": "owner",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/calls",
+   "who": "front desk",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/today",
+   "who": "front desk",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/c/cbt_wsectbmueoh_W0Xs7PH4yuNtZlBziye9hnFlQu5QIHy2",
+   "who": "customer",
+   "width": 1280,
+   "theme": "light",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  },
+  {
+   "page": "/c/cbt_wsectbmueoh_W0Xs7PH4yuNtZlBziye9hnFlQu5QIHy2",
+   "who": "customer",
+   "width": 375,
+   "theme": "dark",
+   "serious": 0,
+   "critical": 0,
+   "minor_or_moderate": 0,
+   "rules": []
+  }
+ ],
+ "reflow": [
+  {
+   "page": "/",
+   "who": "stranger",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/",
+   "who": "stranger",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/judge",
+   "who": "stranger",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/judge",
+   "who": "stranger",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/accessibility",
+   "who": "stranger",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/accessibility",
+   "who": "stranger",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/proof",
+   "who": "stranger",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/proof",
+   "who": "stranger",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/today",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/today",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/calls",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/calls",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/money",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/money",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/approvals",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/approvals",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/ask",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/ask",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/customers",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/customers",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/rules",
+   "who": "owner",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/rules",
+   "who": "owner",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  },
+  {
+   "page": "/c/cbt_w629tbi3n8s_UPCY8sZ0IT9MFI1CIRyFqRPfOs4eY0O8",
+   "who": "customer",
+   "condition": "320 px, Largest text",
+   "over_px": 0
+  },
+  {
+   "page": "/c/cbt_w629tbi3n8s_UPCY8sZ0IT9MFI1CIRyFqRPfOs4eY0O8",
+   "who": "customer",
+   "condition": "200% zoom (640 px of a 1280 px screen)",
+   "over_px": 0
+  }
+ ],
+ "motion": {
+  "pages": [
+   "/",
+   "/judge",
+   "/today",
+   "/calls"
+  ],
+  "running_animations": 0
+ },
+ "keyboard": {
+  "flow": "from Today, the owner opens Needs you (approvals) in the sidebar and approves a held $420.00 move",
+  "tabs": 33,
+  "steps": [
+   "Re-plan calls",
+   "Approve $420.00",
+   "Decline",
+   "Open the call",
+   "Approve $360.00",
+   "Decline",
+   "Open the call",
+   "See every approval and your limits",
+   "TR Tom Reyes Cancelled class Ready: Ready · Thu 12 Nov, 11:0",
+   "MO Marcus Okafor Deposit Ready: Ready · Thu 12 Nov, 11:00 th",
+   "IP Ivy Park Overdue invoice Ready: Ready · Thu 12 Nov, 11:00",
+   "AR Aisha Rahman Deposit Ready: Ready · Thu 12 Nov, 11:00 the",
+   "PN Priya Natarajan Deposit Ready: Ready · Thu 12 Nov, 11:00 ",
+   "LK Lena Kowalski Overdue invoice Ready: Ready · Thu 12 Nov, ",
+   "BC Ben Carter Overdue invoice Ready: Ready · Thu 12 Nov, 11:",
+   "TR Tom Reyes Overdue invoice Ready: Ready · Thu 12 Nov, 11:0",
+   "NH Noor Haddad Overdue invoice Not calling: Not calling: $12",
+   "DS Dev Sharma Deposit Not calling: Not calling: deposit of $",
+   "SW Sam Whitfield Overdue invoice Not calling: Not calling: $",
+   "HD Harbour Dental (Dr Lim) Overdue invoice Waiting: Declined",
+   "BC Ben Carter Overdue invoice SAMPLE Settled: paid $80.00 ow",
+   "IP Ivy Park Overdue invoice SAMPLE Settled: held for owner $",
+   "AR Aisha Rahman Deposit SAMPLE Settled: paid $45.00 owed",
+   "Skip to content",
+   "For judges",
+   "Reset",
+   "Callback",
+   "Go to… ⌘K",
+   "Today",
+   "Calls",
+   "Ask",
+   "Needs you 2 waiting",
+   "Enter (opens Needs you, the approvals page)",
+   "Approve $420.00",
+   "Enter (approves)"
+  ],
+  "result": "approved, and the page says so",
+  "without_visible_focus": 0
+ },
+ "switches": {
+  "checked": [
+   {
+    "name": "Stronger contrast",
+    "described": true
+   },
+   {
+    "name": "Easier-to-read letters",
+    "described": true
+   },
+   {
+    "name": "No movement",
+    "described": true
+   },
+   {
+    "name": "Bigger buttons",
+    "described": true
+   }
+  ],
+  "close_button": "Close display and help"
+ },
+ "live_region": {
+  "id": "cb-status-live",
+  "count": 1,
+  "announces": "payment and hold status changes on Money and on the customer's page"
+ },
+ "summary": {
+  "pages_checked_with_axe": 46,
+  "serious_or_critical": 0,
+  "reflow_checks": 24,
+  "reflow_failures": 0
+ },
+ "sections": {
+  "axe": "2026-11-11T15:41:51.850Z",
+  "reflow": "2026-11-11T15:42:13.524Z",
+  "motion": "2026-11-11T15:42:17.155Z",
+  "keyboard": "2026-11-11T15:42:20.955Z",
+  "switches": "2026-11-11T15:42:21.191Z",
+  "live_region": "2026-11-11T15:42:21.219Z"
+ }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bot, Database, Lightbulb, Loader2, Send, Wallet, X } from "lucide-react";
+import { Bot, Database, Lightbulb, Loader2, Mic, MicOff, Send, Wallet, X } from "lucide-react";
+import { useDictation } from "@/lib/voice";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -109,6 +110,7 @@ export default function AskPage() {
   useTitle("Ask Callback");
   const { data: d, error, loading, reload } = useData<AskHome>("/api/app/ask");
   const [q, setQ] = useState(() => new URLSearchParams(window.location.search).get("q")?.slice(0, 500) ?? ""); // /judge prefills it
+  const dict = useDictation((t) => setQ(t.slice(0, 500)));
   const [runId, setRunId] = useState<string | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [live, setLive] = useState(false);
@@ -171,8 +173,14 @@ export default function AskPage() {
               <Textarea id="ask-q" rows={3} value={q} onChange={(e) => setQ(e.target.value)} className="text-base md:text-sm" placeholder="Who will you call today, and who won't you call?" />
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" disabled={live || d.brain !== "model"} aria-busy={live}>{live ? <Loader2 className="animate-spin" /> : <Send />}Ask</Button>
+                <Button type="button" variant="outline" onClick={() => void dict.toggle()} aria-pressed={dict.state === "on"} aria-describedby="ask-voice-note" disabled={live || dict.state === "starting"}>
+                  {dict.state === "on" ? <MicOff /> : dict.state === "starting" ? <Loader2 className="animate-spin" /> : <Mic />}{dict.state === "on" ? "Stop talking" : "Talk instead"}
+                </Button>
                 {d.presets.map((p) => <Button key={p} type="button" variant="outline" size="sm" className="h-auto min-h-11 max-w-full shrink whitespace-normal py-2 text-left" disabled={live || d.brain !== "model"} onClick={() => { setQ(p); void ask(p); }}>{p}</Button>)}
               </div>
+              <p id="ask-voice-note" className="text-sm text-ink-2" aria-live="polite">
+                {dict.note || "Talk instead types what you say into the box with gpt-live-1. Nothing is asked until you press Ask. Typing always works."}
+              </p>
             </form>
           </Panel>
           {runId ? (

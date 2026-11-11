@@ -13,8 +13,8 @@ import { startCall } from "../services/calls.js";
 import { noteRef } from "../services/wsrefs.js";
 import { callById } from "../store.js";
 import { issueStreamToken } from "../voice/bridge.js";
-import { checkDialable, takeLiveStart } from "../voice/limits.js";
-import { attachSideband, createWebrtcSession, instructionsForCall, LiveCall, liveBus, liveCallFor, liveReady, type LiveEvent } from "../voice/live.js";
+import { checkDialable, takeDictationStart, takeLiveStart } from "../voice/limits.js";
+import { attachSideband, createWebrtcSession, dictationSession, instructionsForCall, LiveCall, liveBus, liveCallFor, liveReady, type LiveEvent } from "../voice/live.js";
 import { recordVoiceEvent, telephonyReady, twilioCallLive, webhookAuthorised } from "../voice/telephony.js";
 import { owner, who } from "./api.js";
 import { json, page } from "./common.js";
@@ -70,6 +70,18 @@ export function liveRouter(): Router {
     const c = await startForLive(req.params.id, p.business_id, "realtime", `${p.name} (test line)`);
     const token = await issueStreamToken(db, c.id, "test-line");
     return { ok: true, stream_url: streamUrl(), call: c.id, token, format: "audio/x-mulaw;rate=8000", protocol: "Twilio Media Streams (connected, start with customParameters call and token, media, stop)" };
+  }));
+
+  /** Push-to-talk on the Ask box (spec A7): a listen-only GPT-Live session whose transcript fills the box. */
+  r.post("/api/app/voice/dictate", json(async (req) => {
+    const p = await who(req);
+    const sdp = String(req.body?.sdp ?? "");
+    if (!/^v=0/.test(sdp) || sdp.length > 20000) throw new GtError("The browser's voice offer is missing.", "bad_sdp");
+    if (!liveReady()) throw new GtError("Voice input needs the live voice model, which is not configured here (OPENAI_API_KEY). Type instead.", "no_model", 503);
+    await takeDictationStart(req.ip ?? "");
+    const s = await createWebrtcSession("", sdp, dictationSession());
+    await recordVoiceEvent("openai-live", null, "dictation.created", { session: s.sessionId, model: config.ai.models.live, by: p.role }, true);
+    return { ok: true, answer: s.answer, model: config.ai.models.live, max_seconds: 60 };
   }));
 
   r.post("/api/app/calls/:id/live/webrtc", json(async (req) => {

@@ -144,6 +144,8 @@ function App() {
               </Route>
             </Routes>
           </Suspense>
+          {/* The one polite live region for payment status changes (spec A7); see lib/announce.ts. */}
+          <div id="cb-status-live" role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
           <Toaster />
         </TooltipProvider>
       </SessionProvider>

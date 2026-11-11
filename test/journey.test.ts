@@ -239,6 +239,7 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
   it("live voice and hold routes refuse without sign-in, the operator key or a live session (spec B2)", async () => {
     const id = (await world.db.query<{ id: string }>("SELECT id FROM calls ORDER BY created_at DESC LIMIT 1")).rows[0].id;
     for (const path of ["phone", "webrtc", "say"]) expect((await anon.postJson(`/api/app/calls/${id}/live/${path}`, {})).status).toBe(401);
+    expect((await anon.postJson("/api/app/voice/dictate", {})).status).toBe(401); // voice input on Ask: signed in only
     expect((await anon.postJson(`/api/app/calls/${id}/live/test-line`, {})).status).toBe(403); // the operator key first
     expect((await anon.get(`/api/app/calls/${id}/live/events`)).status).toBe(401);
     const info = await anon.get("/api/app/live", { accept: "application/json" });
@@ -254,6 +255,10 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
     expect((await judge.post("/holds/hld_none/capture")).status).toBe(404);
     expect((await judge.postJson(`/api/app/calls/${id}/live/say`, { text: "hello" })).status).toBe(400);
+    // Voice input on Ask, signed in: a browser offer is required before anything opens.
+    const dict = await judge.postJson("/api/app/voice/dictate", { sdp: "not an offer" });
+    expect(dict.status).toBe(400);
+    expect(dict.json?.message).toMatch(/voice offer is missing/);
     const ac = new AbortController();
     const ev = await fetch(`${srv.base}/api/app/calls/${id}/live/events`, { headers: { cookie: [...judge.cookies].map(([k, v]) => `${k}=${v}`).join("; ") }, signal: ac.signal });
     expect(ev.headers.get("content-type")).toContain("text/event-stream");
@@ -321,6 +326,10 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     const f = (await stranger.get("/api/public/facts")).json;
     expect(f.limits.auto_charge_max_cents).toBe(30000);
     expect(f.roles.length).toBeGreaterThanOrEqual(7);
+    // /accessibility reads the recorded run of e2e/a11y.spec.ts, with its dates (spec A7).
+    const a11y = (await stranger.get("/api/public/a11y")).json;
+    expect(a11y.ok).toBe(true);
+    if (a11y.run) expect(Object.keys(a11y.run.sections ?? {})).toEqual(expect.arrayContaining(["axe", "reflow", "keyboard"]));
   });
 
   it("every non-foundation route was walked and nothing returned 5xx", () => {

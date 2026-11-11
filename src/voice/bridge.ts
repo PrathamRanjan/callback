@@ -40,6 +40,18 @@ export async function claimStreamToken(callId: string, token: string): Promise<{
   return t === "phone" || t === "test-line" ? { ws, transport: t } : null;
 }
 
+/**
+ * Ends a stream so the other side can tell why, even through a proxy that drops close frames (Render's edge does):
+ * a plain message first ({"event":"closing","code":…,"reason":…}; Twilio ignores unknown events), then the close,
+ * then the socket is cut if the close handshake has not finished in two seconds.
+ */
+function shut(tw: WebSocket, code: number, reason: string) {
+  if (tw.readyState !== WebSocket.OPEN) return;
+  tw.send(JSON.stringify({ event: "closing", code, reason }));
+  tw.close(code, reason);
+  setTimeout(() => tw.readyState !== WebSocket.CLOSED && tw.terminate(), 2000).unref();
+}
+
 function onStream(tw: WebSocket) {
   let live: LiveCall | null = null;
   let streamSid: string | null = null;
@@ -61,20 +73,20 @@ function onStream(tw: WebSocket) {
         const claim = await claimStreamToken(callId, String(p.token ?? ""));
         if (!claim) {
           console.error(`[bridge] refused a stream for ${callId.slice(0, 40)}: token missing, used, stale or not this call's`);
-          return tw.close(1008, "not allowed");
+          return shut(tw, 1008, "not allowed");
         }
-        if (liveCallFor(callId)) return tw.close(1008, "this call already has live voice");
+        if (liveCallFor(callId)) return shut(tw, 1008, "this call already has live voice");
         const instructions = await inWorkspace(claim.ws, () => instructionsForCall(callId));
         const link = openPrimary(instructions, { type: "audio/pcmu", rate: 8000 });
         live = new LiveCall({
           callId, ws: claim.ws, link, role: "primary", transport: claim.transport,
           onAudio: (b64) => toTwilio({ event: "media", streamSid, media: { payload: b64 } }),
           onBargeIn: () => toTwilio({ event: "clear", streamSid }),
-          onEnd: () => setTimeout(() => tw.readyState === WebSocket.OPEN && tw.close(1000, "call ended"), 300),
+          onEnd: () => setTimeout(() => shut(tw, 1000, "call ended"), 300),
         });
       })().catch((e) => {
         console.error("[bridge] start failed", (e as Error).message);
-        tw.close(1011, "start failed");
+        shut(tw, 1011, "start failed");
       });
     } else if (m.event === "media" && live && (m.media?.track ?? "inbound") === "inbound") {
       live.sendAudio(String(m.media?.payload ?? ""));

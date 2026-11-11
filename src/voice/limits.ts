@@ -66,3 +66,11 @@ export async function takeLiveStart(transport: "phone" | "browser" | "test-line"
   });
   return { numberHash: numKey };
 }
+
+/** Push-to-talk dictation (Ask box): 30 a day per address, counted apart from calls. */
+export async function takeDictationStart(ip: string) {
+  const key = hash("dictation-ip", ip || "unknown");
+  if ((await count(key, "1 day")) >= 30) throw new GtError("This address has used voice input thirty times today, the most the demo allows. Type instead.", "rate_limited", 429);
+  const db = await getDb();
+  await inWorkspace(null, () => db.query("INSERT INTO live_starts (key, kind) VALUES ($1,'dictation')", [key]));
+}

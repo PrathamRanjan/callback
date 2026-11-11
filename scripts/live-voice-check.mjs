@@ -177,13 +177,21 @@ record("B2.4", "the owner's screen followed the call live: partial lines, finish
 
 // The token was used once.
 const replay = new WebSocket(tl.json.stream_url);
+// The server says why before it closes (Render's edge drops close frames), so either signal counts.
+let replayMedia = 0;
 const replayCode = await new Promise((r) => {
   replay.on("open", () => replay.send(JSON.stringify({ event: "start", start: { streamSid: "MZ2", customParameters: { call: call.id, token: tl.json.token } } })));
+  replay.on("message", (raw) => {
+    const m = JSON.parse(raw.toString());
+    if (m.event === "closing") r(m.code);
+    if (m.event === "media") replayMedia++;
+  });
   replay.on("close", (c) => r(c));
   replay.on("error", () => r(-1));
   setTimeout(() => r("timeout"), 15000);
 });
-record("B2.1", "a used stream token is refused", replayCode === 1008, `close code ${replayCode}`);
+replay.terminate();
+record("B2.1", "a used stream token is refused", replayCode === 1008 && replayMedia === 0, `refused with code ${replayCode}, ${replayMedia} audio frames sent`);
 
 // The hold, end to end on the saved sandbox wallet: hold, charge after the appointment; hold, release.
 const custs = (await J.get("/api/app/customers")).json ?? [];

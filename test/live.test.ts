@@ -241,11 +241,15 @@ describe("live voice on the phone bridge (test line = Twilio's protocol)", () =>
     // The stream token was used once: a second stream with it is refused.
     const replay = new WebSocket(stream_url);
     await new Promise((r) => replay.on("open", r));
+    const said: any[] = [];
+    replay.on("message", (raw) => said.push(JSON.parse(raw.toString())));
     const code = await new Promise<number>((r) => {
       replay.on("close", (c) => r(c));
       replay.send(JSON.stringify({ event: "start", start: { streamSid: "MZ2", customParameters: { call: callId, token } } }));
     });
     expect(code).toBe(1008);
+    // It also says so in a plain message first, for proxies that drop close frames.
+    expect(said).toEqual([{ event: "closing", code: 1008, reason: "not allowed" }]);
   }, 30000);
 
   it("browser voice: the app creates the WebRTC session with its key and attaches on the sideband", async () => {
@@ -275,6 +279,22 @@ describe("live voice on the phone bridge (test line = Twilio's protocol)", () =>
     expect((await owner.post(`/calls/${callId}/end`)).location).toMatch(/ok=/);
     await until(() => sent("session.close").length);
   }, 20000);
+
+  it("voice input on Ask: a listen-only GPT-Live session, no delegation, no tools, no call (spec A7)", async () => {
+    got.length = 0;
+    const r = await owner.postJson("/api/app/voice/dictate", { sdp: "v=0\r\no=ask offer" });
+    expect(r.status).toBe(200);
+    expect(r.json.answer).toContain("fake answer");
+    expect(r.json.max_seconds).toBe(60);
+    const create = got.find((e) => e.type === "http");
+    expect(create.body.session.model).toBe("gpt-live-1");
+    expect(create.body.session.instructions).toMatch(/Listen only\. Never speak/);
+    expect(create.body.session.delegation).toBeUndefined();
+    expect(create.body.session.triggers).toBeUndefined();
+    // Nothing attaches on the sideband: the server never acts on what is said, it is only typed into the box.
+    await new Promise((res) => setTimeout(res, 300));
+    expect(got.some((e) => e.type === "connect" && /attach$/.test(e.url))).toBe(false);
+  });
 });
 
 describe("a hold on the call for deposits (Orders AUTHORIZE)", () => {

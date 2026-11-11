@@ -213,6 +213,10 @@
 /* Display and help profile (kept from the accessibility layer, restyled). */
 html.a11y-large { font-size: 118%; }
 html.a11y-xl { font-size: 135%; }
+/* Reflow (spec A7): with larger text on a narrow phone, figure cards stack instead of pushing the page sideways. */
+@media (max-width: 420px) {
+  html.a11y-large .kpi-grid, html.a11y-xl .kpi-grid { grid-template-columns: minmax(0, 1fr); }
+}
 html.a11y-dyslexia body, html.a11y-dyslexia h1, html.a11y-dyslexia h2, html.a11y-dyslexia h3, html.a11y-dyslexia .font-display { font-family: "Atkinson Hyperlegible", var(--font-sans); font-stretch: 100%; }
 html.a11y-contrast { --ink-2: var(--ink); --line: var(--ink); }
 html.a11y-targets button, html.a11y-targets a, html.a11y-targets input, html.a11y-targets select, html.a11y-targets textarea { min-height: 48px; }

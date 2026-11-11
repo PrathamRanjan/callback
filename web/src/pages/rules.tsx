@@ -109,7 +109,7 @@ export default function RulesPage() {
         </Section>
       </div>
       <Section id="replay" title={p.draft ? "Replay with the draft" : "Replay with your rules"} hint={`Your last ${bt.cases} calls, run again through ${p.draft ? "the draft" : "the active rules"} and your limits.`}>
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="kpi-grid mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="Would run alone" value={bt.run} s="done" />
           <Kpi label="Would wait for you" value={bt.wait} s="hold" />
           <Kpi label="Would not call" value={bt.deny} s="off" />

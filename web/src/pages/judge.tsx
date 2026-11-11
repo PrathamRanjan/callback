@@ -102,6 +102,7 @@ export default function JudgePage() {
           <>
             <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>For judges</h1>
             <p className="mt-2 max-w-[68ch] text-ink-2">Callback is an AI agent that phones a small studio's customers about money and settles it through PayPal. The AI talks; ordinary code decides what money may move; PayPal moves it. Pick a path below. Each step opens the exact screen, with any text already typed, and ticks itself here when the server records it.</p>
+            <p className="mt-2 max-w-[68ch] text-sm text-ink-2">Three things to look at: a held move the owner approves while the customer waits on the line; the call's transcript decisions with their probabilities; and <a href="/accessibility" className="underline">accessibility</a> (axe on every journey, 200% text, keyboard only, voice input on Ask), with the dates each check ran.</p>
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] [&>*]:min-w-0">
               <Panel className="p-4">
@@ -157,7 +158,7 @@ export default function JudgePage() {
                               <p className="font-medium">{s.title}{at ? <span className="sr-only"> (done)</span> : null}</p>
                               <p className="text-sm text-ink-2">{s.detail}</p>
                               {at ? <p className="mt-1 text-xs text-ink-2">Done {when(at)}</p> : null}
-                              <Button type="button" size="sm" variant={at ? "outline" : "default"} className="mt-2 min-h-11" disabled={busy !== null} onClick={() => void open(s)}>
+                              <Button type="button" size="sm" variant={at ? "outline" : "default"} className="mt-2 h-auto min-h-11 max-w-full whitespace-normal py-2 text-left" disabled={busy !== null} onClick={() => void open(s)}>
                                 {busy === s.key ? <Loader2 className="animate-spin" /> : <ArrowRight />} {s.button}
                               </Button>
                             </div>
