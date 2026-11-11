@@ -123,6 +123,38 @@ describe("private demo workspaces", () => {
     expect([inA, inB]).toEqual([1, 0]);
   });
 
+  it("the judge page (spec A3.1): steps open this visitor's own screens and tick themselves when the server records them", async () => {
+    const anon = (await a().get("/api/public/judge")).json;
+    expect(anon.workspace).toBeNull();
+    expect(anon.paths.length).toBe(3);
+    expect(anon.paths[0].steps.every((s: any) => s.href === null)).toBe(true); // no demo yet: the first tap builds one
+    expect(anon.live.find((r: any) => r.piece.startsWith("Phone calls")).live).toBe(false);
+    const before = (await A.get("/api/public/judge")).json;
+    expect(before.workspace.qr_svg).toMatch(/^<svg/);
+    expect(before.workspace.join_url).toContain("/demo/join/");
+    const [take, refuse, approve] = before.paths;
+    expect(take.steps[0].href).toMatch(/^\/calls\/call_/);
+    expect(take.steps[1].href).toContain("?say=");
+    expect(take.steps[3].href).toContain(`_w${wsA}_`);
+    expect(refuse.steps[2].href).toContain("/safety?text=");
+    expect(before.checklist.call_placed).toBeUndefined();
+    // A declined the seed's held charge in an earlier test, after opening Approvals: those two ticked then, and the
+    // seed's own hold and sample calls ticked nothing.
+    expect(Object.keys(before.checklist).sort()).toEqual(["approval_decided", "viewed_hold"]);
+    // B paid Priya's deposit from the saved wallet in the test above: ticked in B's copy only.
+    expect((await B.get("/api/public/judge")).json.checklist.paid_from_wallet).toBeTruthy();
+    expect(before.checklist.paid_from_wallet).toBeUndefined();
+    await A.post(`${take.steps[0].href}/place`, { mode: "simulator" });
+    const blocked = refuse.steps[1].href as string;
+    expect(blocked).toMatch(/^\/calls\//);
+    await A.get(`/api/app${blocked}`);
+    const after = (await A.get("/api/public/judge")).json.checklist;
+    expect(Object.keys(after).sort()).toEqual(["approval_decided", "call_placed", "opened_blocked_call", "viewed_hold"]);
+    expect(after.viewed_hold).toBe(before.checklist.viewed_hold); // ticked once, with the time it first happened
+    expect(after.ai_turn).toBeUndefined(); // the test brain is rules, not a model: no "AI turn" tick
+    expect(approve.steps.map((s: any) => s.key)).toEqual(["viewed_hold", "approval_decided", "opened_money"]);
+  });
+
   it("the join link opens the same workspace on a second device; reset rebuilds only it", async () => {
     const join = (await A.get("/api/app/session")).json.workspace.join_url as string;
     const phone = a();

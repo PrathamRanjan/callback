@@ -86,7 +86,7 @@ export default function CallPage() {
   const owner = session?.me?.role === "owner";
   const { data: d, error, loading, reload } = useData<CallData>(`/api/app/calls/${id}`, { poll: 8000 });
   const { data: demo } = useData<DemoData>(session?.demo ? "/api/app/demo" : null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => new URLSearchParams(window.location.search).get("say")?.slice(0, 500) ?? ""); // /judge prefills the line
   const [sending, setSending] = useState(false);
   const [persona, setPersona] = useState("");
   const voice = useLiveVoice(id, () => void reload());

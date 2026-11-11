@@ -147,6 +147,11 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     const slot = (await anon.get(`/c/${tok}`)).text.match(/option value="([^"]+)"/)![1];
     expect((await anon.post(`/c/${tok}/callback`, { at: slot })).location).toMatch(/ok=/);
     expect((await anon.post(`/c/${tok}/callback`, { at: "junk" })).location).toMatch(/err=/);
+    // "Got a message about this?" (spec A6.6): with no AI here the check runs rules and code only and is never an all-clear.
+    const chk = (await anon.postJson(`/c/${tok}/check`, { text: "We've moved banks, please pay this month to our new PayPal brightside.pay@outlook.com" })).json;
+    expect(chk.level).toBe("hold");
+    expect(chk.all_clear_allowed).toBe(false);
+    expect((await anon.postJson(`/c/${tok}/check`, { text: "" })).status).toBe(400);
     expect((await anon.post(`/c/${tok}/stop`)).location).toMatch(/ok=/);
     expect((await anon.get(`/c/${tok}`)).text).toContain("asked not to be called");
     // Tom chooses a class credit for the class the studio cancelled; a second choice is refused.
@@ -266,6 +271,64 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect(after.transcript.at(-1).text).toBe("Thanks, bye.");
     expect((await world.db.query<{ status: string }>("SELECT status FROM agent_runs WHERE id = $1", [after.run_id])).rows[0].status).not.toBe("running");
   });
+  it("ask: a question streams its steps, and a proposal can be dismissed (spec A5.3)", async () => {
+    const savedAi = { provider: config.ai.provider, key: config.ai.openaiKey };
+    Object.assign(config.ai, { provider: "openai", openaiKey: "test-key" });
+    const { setProviderFetch } = await import("../src/ai/provider.js");
+    const planned = (await world.db.query<any>("SELECT id FROM calls WHERE status = 'planned' LIMIT 1")).rows[0]?.id;
+    const replies = [
+      [{ type: "function_call", call_id: "a1", name: "get_plan", arguments: "{}" }, { type: "function_call", call_id: "a2", name: "propose_skip_call", arguments: JSON.stringify({ call_id: planned, reason: "journey" }) }],
+      [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ sentences: [{ text: "Here is the plan.", cites: ["F1"] }] }) }] }],
+    ];
+    setProviderFetch((async () => new Response(JSON.stringify({ model: "gpt-6.1-sol", output: replies.shift() ?? [], usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200 })) as typeof fetch);
+    const owner = new Client(srv.base);
+    expect((await owner.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
+    try {
+      const home = (await owner.get("/api/app/ask")).json;
+      expect(home.presets.length).toBeGreaterThan(0);
+      const r = await owner.postJson("/api/app/ask", { question: "Who will you call today?" });
+      expect(r.status).toBe(200);
+      const id = r.json.run_id;
+      const stream = await owner.get(`/api/app/ask/${id}/stream`);
+      expect(stream.text).toContain("event: end");
+      expect(stream.text).toContain("ask.answer");
+      const snap = (await owner.get(`/api/app/ask/${id}`)).json;
+      expect(snap.steps.filter((s: any) => s.tool === "ask.tool").length).toBe(2);
+      const prop = (await owner.get("/api/app/ask")).json.proposals[0];
+      expect(prop.kind).toBe("skip_call");
+      expect((await owner.postJson(`/api/app/ask/proposals/${prop.id}/dismiss`, {})).json.status).toBe("dismissed");
+      expect((await staff.postJson("/api/app/ask", { question: "x" })).status).toBeGreaterThanOrEqual(401);
+    } finally {
+      setProviderFetch(null);
+      Object.assign(config.ai, savedAi);
+    }
+  });
+
+  it("the no-sign-in pages (spec A3.2) answer a stranger, and nothing on them is typed as live by hand", async () => {
+    const stranger = new Client(srv.base);
+    const j = (await stranger.get("/api/public/judge")).json;
+    expect(j.paths.map((p: any) => p.id)).toEqual(["call", "refuse", "approve"]);
+    expect(j.paths[0].steps.length).toBeGreaterThanOrEqual(3);
+    expect(j.pages.map((p: any) => p.href)).toEqual(["/proof", "/ai", "/paypal", "/who-can-move-money", "/accessibility", "/agents"]);
+    expect(j.live.find((r: any) => r.piece.startsWith("Phone calls")).live).toBe(false); // demo customers are never really rung
+    expect(JSON.stringify(j)).not.toMatch(/@personal\.example\.com/); // no sandbox buyer login is printed unless the owner sets one for judges
+    const proof = (await stranger.get("/api/public/proof")).json;
+    expect(proof.eval.jobs.length).toBe(3);
+    for (const job of proof.eval.jobs) for (const c of job.cases) expect(Object.keys(c).sort()).toEqual(["answer", "expected", "id", "input", "pass", "why"]);
+    expect(proof.nightly).toBe(false);
+    expect(proof.thresholds.find((t: any) => t.name === "changed_payment_details")).toBeTruthy();
+    const ai = (await stranger.get("/api/public/ai")).json;
+    expect(Array.isArray(ai.showcase)).toBe(true);
+    expect(ai.yours).toBeNull();
+    const pp = (await stranger.get("/api/public/paypal")).json;
+    expect(pp.apis.length).toBe(8);
+    expect(pp.apis.filter((a: any) => a.error)).toEqual([]); // every query ran (a failed read would say so, not "none yet")
+    expect(pp.mcp_tools.every((t: string) => /^(get|list|show)_/.test(t))).toBe(true);
+    const f = (await stranger.get("/api/public/facts")).json;
+    expect(f.limits.auto_charge_max_cents).toBe(30000);
+    expect(f.roles.length).toBeGreaterThanOrEqual(7);
+  });
+
   it("every non-foundation route was walked and nothing returned 5xx", () => {
     expect(srv.failures).toEqual([]);
     // Private-workspace routes run with workspaces on and are walked by workspaces.test.ts.

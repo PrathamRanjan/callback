@@ -10,7 +10,7 @@ const WORDS = {
   otp_or_link: "asks for a code or sends a link to click", overpay_refund: "says they overpaid and want the difference back", too_good: "promises a prize or guaranteed profit",
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const LEVEL = { hold: ["bad", "Hold: do not pay yet"], caution: ["warn", "Caution: check before you pay"], clear: ["good", "No scam signals found"] };
+const LEVEL = { hold: ["bad", "Hold: do not pay yet"], caution: ["warn", "Caution: check before you pay"], clear: ["good", "No scam signs found"] };
 
 let guardPromise = null;
 function guard() {
@@ -39,8 +39,11 @@ form?.addEventListener("submit", async (e) => {
   btn.disabled = false; status.textContent = "";
   // The text model alone, below its hold line, with no tactic it is sure of and no rule fired, is a weak signal: show clear with a note.
   const modelOnly = model?.level === "caution" && (!rules?.level || rules.level === "clear") && !Object.values(model?.tactics ?? {}).some((p) => p >= 0.5);
-  const level = [rules?.level, model?.level].includes("hold") ? "hold" : modelOnly ? "clear" : [rules?.level, model?.level].includes("caution") ? "caution" : "clear";
-  const [cls, title] = LEVEL[level];
+  let level = [rules?.level, model?.level].includes("hold") ? "hold" : modelOnly ? "clear" : [rules?.level, model?.level].includes("caution") ? "caution" : "clear";
+  // Spec A6.2: green only when every reader ran and was clear and nothing names a place to pay; otherwise amber or "not fully checked".
+  if (level === "clear" && rules?.names_destination) level = "caution";
+  const fully = level === "clear" && rules?.all_clear_allowed === true && Boolean(model);
+  const [cls, title] = level === "clear" && !fully ? ["", "Not fully checked: one of the checks didn't run, so this is not an all-clear"] : rules?.names_destination && level === "caution" ? ["warn", "This asks you to pay somewhere. Confirm it by phone on a number you already had."] : LEVEL[level];
   const tactics = new Set([...(rules?.tactics ?? []), ...Object.entries(model?.tactics ?? {}).filter(([, p]) => p >= 0.5).map(([k]) => k)]);
   const top = Object.entries(model?.tactics ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 2);
   out.innerHTML = `<div class="banner ${cls}" role="status"><b>${title}</b></div>

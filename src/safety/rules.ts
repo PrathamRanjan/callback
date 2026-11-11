@@ -8,8 +8,14 @@ export type Level = "clear" | "caution" | "hold";
 export const TACTICS = ["impersonation", "urgency_secrecy", "changed_details", "off_platform", "gift_cards_crypto", "fee_to_release", "otp_or_link", "overpay_refund", "too_good"] as const;
 export type Tactic = (typeof TACTICS)[number];
 
+const CHANGE = String.raw`(new|updated?|updating|chang(?:e|ed|es|ing)|different|switch(?:ed|es|ing)?|mov(?:e|ed|es|ing)|replaced?)`;
+const PAYWORD = String.raw`(banks?\b|bank details|banking details|accounts?( number| details)?\b|(where|how) (we|you) (take|receive|accept|get) (payments?|money)\b|acct\b|(payment|payout|remittance|bank|transfer) details\b|details\b|paypal\b|remittance\b|iban\b|beneficiary\b|payout\b|upi id\b)`;
+
 const SEEDS: Record<Tactic, RegExp> = {
-  changed_details: /\b(new|updated?|changed?)\b.{0,40}\b(bank|account|acct|iban|beneficiary|payout|payment details|paypal (email|address|account)|upi id)\b|\b(bank|account) (details|number) (has|have) changed/i,
+  // Spec A6.3: a change word and a payment-details word within 60 characters of each other in one sentence, either order;
+  // "the old one is being closed"; "use this account instead". The 10 Nov message ("we've moved banks … our new PayPal") and
+  // 30 paraphrases are rule tests in test/scam-v2.test.ts.
+  changed_details: new RegExp(String.raw`\b${CHANGE}\b[^.!?\n]{0,60}?\b${PAYWORD}|\b${PAYWORD}[^.!?\n]{0,60}?\b${CHANGE}\b|\bold (one|account|bank|details|paypal)\b[^.!?\n]{0,30}\b(clos(ed|ing)|shut|no longer)\b|\buse (this|the following|these|my new|our new) (account|bank|details|paypal|iban)\b|\b(bank|account) (details|number) (has|have) changed`, "i"),
   off_platform: /\b(whatsapp|telegram|signal|outside (of )?(paypal|the app|platform)|pay (me )?directly|bank transfer instead|cash ?app|zelle|western union|moneygram)\b/i,
   gift_cards_crypto: /\b(gift ?cards?|itunes|google play card|steam card|bitcoin|btc|usdt|crypto|wallet address)\b/i,
   fee_to_release: /\b(processing|release|clearance|delivery|customs|handling|admin|unlock|activation) fee\b|pay .{0,20}\bto (release|claim|unlock|receive)\b/i,

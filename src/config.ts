@@ -58,6 +58,8 @@ export const config = {
       classify: process.env.OPENAI_MODEL_CLASSIFY || "gpt-6-luna",
       vision: process.env.OPENAI_MODEL_VISION || "gpt-6.1-sol",
       realtime: process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
+      // Spec A5.2: the Decisions API (probabilities for yes/no, choice and score questions); gpt-6-luna is the only model it takes.
+      decisions: process.env.OPENAI_MODEL_DECISIONS || "gpt-6-luna",
     },
   },
   /** Telephony (roadmap E.4): Twilio for outbound calls and SMS; a voice-platform webhook secret for Vapi/Retell/Bland events. */

@@ -19,7 +19,7 @@ import { GtError } from "../lib/util.js";
 import { bizById, customerById, logEvent, obligationById } from "../store.js";
 import { startRun } from "../trace.js";
 import { payFromDemoWallet, sendPayLink } from "./money.js";
-import { cacheDrop } from "./wsrefs.js";
+import { cacheDrop, quietSteps } from "./wsrefs.js";
 export { markStep, noteRef, splitCustomId, wsCustomId, wsForRef, wsFromSecret } from "./wsrefs.js";
 import { planCalls } from "./planner.js";
 import { seedDemo, type Seeded } from "./seed.js";
@@ -134,11 +134,11 @@ async function buildWorkspace(id: string) {
   const db = await getDb();
   try {
     await createWorkspaceSchema(db, id);
-    const seeded = await inWorkspace(id, () => seedWorkspace(db, id));
+    const seeded = await quietSteps.run(true, () => inWorkspace(id, () => seedWorkspace(db, id)));
     await registry((r) => r.query("UPDATE workspaces SET seed_state = 'ready', seed_note = $2 WHERE id = $1", [id, config.paypal.demoVaultToken ? "Paying 3 sample items from the saved sandbox wallet…" : "The saved demo wallet is not set up, so the seed's sample payments were not made."]));
     cache.delete(id);
     // The real payments run after the page opens; their progress shows on Today.
-    void inWorkspace(id, () => seedPayments(db, id, seeded)).catch((e) => console.error(`[workspace ${id}] seed payments`, (e as Error).message));
+    void quietSteps.run(true, () => inWorkspace(id, () => seedPayments(db, id, seeded))).catch((e) => console.error(`[workspace ${id}] seed payments`, (e as Error).message));
   } catch (e) {
     await registry((r) => r.query("UPDATE workspaces SET seed_state = 'failed', seed_note = $2 WHERE id = $1", [id, String((e as Error).message).slice(0, 300)]));
     cache.delete(id);

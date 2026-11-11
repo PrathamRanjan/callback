@@ -8,6 +8,20 @@ import { Router } from "express";
 import { getDb } from "../db.js";
 import { GtError } from "../lib/util.js";
 import { assessMessage, protectedMode, safetyHolds, setProtectedMode } from "../safety/index.js";
+import { scanMessage } from "../safety/readers.js";
+import { markStep } from "../services/workspaces.js";
+
+/** Each check costs one Decisions request: 30 per address per ten minutes is plenty for a person. */
+const scans = new Map<string, number[]>();
+export function allowScan(ip: string, max = 30): boolean {
+  const now = Date.now();
+  const xs = (scans.get(ip) ?? []).filter((t) => now - t < 10 * 60_000);
+  if (xs.length >= max) return false;
+  xs.push(now);
+  scans.set(ip, xs);
+  if (scans.size > 5000) scans.delete(scans.keys().next().value as string);
+  return true;
+}
 import { scanText, TACTIC_WORDS, TACTICS } from "../safety/rules.js";
 import { act, authed, ownerOnly } from "./auth.js";
 import { back, json } from "./common.js";
@@ -65,7 +79,12 @@ export function safetyRouter() {
   r.post("/safety/scan", json(async (req) => {
     const text = String(req.body?.text ?? "").slice(0, 4000);
     if (!text.trim()) throw new GtError("Paste a message first.", "bad_request", 400);
-    return assessMessage(text);
+    if (!allowScan(req.ip ?? "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
+    const db = await getDb();
+    const biz = (await db.query<{ id: string }>("SELECT id FROM businesses ORDER BY created_at LIMIT 1")).rows[0]?.id ?? null;
+    const out = await scanMessage(text, { businessId: biz, q: db });
+    await markStep("checked_message").catch(() => undefined);
+    return out;
   }));
 
   r.post("/safety/protected", act(async (req, res, p) => {

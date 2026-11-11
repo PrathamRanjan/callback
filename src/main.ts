@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import { getDb } from "./db.js";
 import { paypalConfigured } from "./paypal/index.js";
 import { providerLabel } from "./ai/provider.js";
+import { syncThresholds } from "./ai/decisions.js";
 import { telephonyReady } from "./voice/telephony.js";
 import { startInlineWorker } from "./worker.js";
 import { rebuildShowcase, showcaseStale } from "./services/workspaces.js";
@@ -17,6 +18,7 @@ if (deployed) {
   }
 }
 const db = await getDb();
+await syncThresholds(db);
 if (config.demoMode && config.workspaces.enabled && (await showcaseStale())) {
   await rebuildShowcase();
   console.log("Showcase studio built.");

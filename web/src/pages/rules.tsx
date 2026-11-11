@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,10 @@ function RulesList({ r }: { r: RulesT }) {
 
 export default function RulesPage() {
   useTitle("Rules");
-  const [draft, setDraft] = useState<string | null>(null);
-  const [text, setText] = useState("");
+  // A proposal from Ask opens here as a draft: the owner reads the compiled rules and the backtest before anything changes.
+  const [sp] = useSearchParams();
+  const [draft, setDraft] = useState<string | null>(sp.get("draft"));
+  const [text, setText] = useState(sp.get("draft") ?? "");
   const { data: p, error, loading, reload } = useData<Policy>(`/api/app/policy${draft ? `?draft=${encodeURIComponent(draft)}` : ""}`);
   const [busy, setBusy] = useState(false);
   if (error && !p) return <ErrorState error={error} retry={reload} />;

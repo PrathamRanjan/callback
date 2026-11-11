@@ -22,7 +22,7 @@ export async function landing(req: Request, res: Response) {
     <span class="lp-eyebrow"><b>Voice agent</b> for a small business's money calls</span>
     <h1 class="lp-title">The calls you put off, <em>made for you</em>.</h1>
     <p class="lp-lead">Callback rings customers about tomorrow's deposit, an overdue invoice or a cancelled class. It speaks inside your rules, texts a PayPal link while they're on the line, and hands anything bigger back to you.</p>
-    <div class="lp-cta">${owner ? html`<form method="post" action="/demo/signin-as"><input type="hidden" name="role" value="owner"><button class="btn primary lg" type="submit">Try it as ${first(owner.name)}, the owner ${ic("arrowRight")}</button></form>` : html`<a class="btn primary lg" href="#try">Try the demo</a>`}<a class="btn lg" href="/judge">5-minute tour</a></div>
+    <div class="lp-cta">${owner ? html`<form method="post" action="/demo/signin-as"><input type="hidden" name="role" value="owner"><button class="btn primary lg" type="submit">Try it as ${first(owner.name)}, the owner ${ic("arrowRight")}</button></form>` : html`<a class="btn primary lg" href="#try">Try the demo</a>`}<a class="btn lg" href="/judge">For judges</a></div>
     <div class="lp-trust" style="margin-top:1.5rem"><span>${ic("checkCircle")}PayPal sandbox, no real money</span><span>${ic("checkCircle")}Consent and calling hours checked in code</span><span>${ic("checkCircle")}Every call has a verify code</span></div>
   </div>
   <div class="mock" aria-hidden="true"><div class="mock-bar"><i></i><i></i><i></i><span>Live call · Priya Natarajan</span></div><div class="mock-body">

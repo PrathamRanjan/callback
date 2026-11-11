@@ -68,5 +68,5 @@ export async function serveTracked(app: any) {
 
 /** Routes added by the foundation (roadmap Part B and C.7): walked by foundation.test.ts, skipped by the journey. */
 export const FOUNDATION_ROUTE = /\/(trace\/|safety|ops\/(guard|traces|eval|money|channels|evidence|cash|mcp)|webhooks\/(telegram|whatsapp|paypal|sms|voice)|manifest\.webmanifest|sw\.js|push\/|judge|llms\.txt|skill\.md|api\/v1\/runs|mcp$|connect\/)/;
-/** The web app's read API (/api/app/*) is walked by the journey, whatever its path looks like. */
-export const isFoundationRoute = (r: string) => !r.includes("/api/app/") && FOUNDATION_ROUTE.test(r);
+/** The web app's read API (/api/app/*) and the no-sign-in API (/api/public/*) are walked by the journey, whatever their paths look like. */
+export const isFoundationRoute = (r: string) => !r.includes("/api/app/") && !r.includes("/api/public/") && FOUNDATION_ROUTE.test(r);

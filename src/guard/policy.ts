@@ -107,7 +107,8 @@ export function compileLocal(text: string): Compiled {
   const inst = /(?:up to|max(?:imum)?|at most|no more than)?\s*(\d{1,2}|two|three|four|five|six)\s*(?:instal?lments?|payments?|parts?)/i.exec(t);
   if (inst) rules.max_instalments = Math.max(1, Math.min(12, num(inst[1])));
   if (/no (instal?lments?|payment plans?)/i.test(t)) rules.max_instalments = 1;
-  const minInst = /(?:at least|minimum|min\.?)\s*\$?\s*(\d{2,4})\s*(?:per|an?|each)?\s*(?:instal?lment|payment)/i.exec(t);
+  // "at least $50 a payment", or (found by the 11 Nov eval) "no payment under $50" / "payments of at least $50".
+  const minInst = /(?:at least|minimum|min\.?)\s*\$?\s*(\d{2,4})\s*(?:per|an?|each)?\s*(?:instal?lment|payment)/i.exec(t) ?? /\b(?:no|never an?)\s*(?:instal?lments?|payments?|parts?)\s*(?:of\s*)?(?:under|below|less than|smaller than)\s*\$?\s*(\d{2,4})/i.exec(t) ?? /(?:instal?lments?|payments?)\s*(?:of|must be)\s*at least\s*\$?\s*(\d{2,4})/i.exec(t);
   if (minInst) rules.min_instalment_cents = Math.max(500, Number(minInst[1]) * 100);
 
   // Attempts and cooldown
@@ -119,8 +120,10 @@ export function compileLocal(text: string): Compiled {
   // Money limits the agent may move alone
   const charge = /(?:links?|invoices?|charges?|collect)\s*(?:up to|under|below|max(?:imum)?)\s*\$?\s*(\d{2,5})|\$?\s*(\d{2,5})\s*(?:or less|and under|max)\s*(?:without|before) (?:asking|me)/i.exec(t);
   if (charge) rules.auto_charge_max_cents = Number(charge[1] ?? charge[2]) * 100;
-  const ref = /refunds?\s*(?:up to|under|below|max(?:imum)?)\s*\$?\s*(\d{2,5})/i.exec(t);
+  const ref = /refunds?\s*(?:up to|under|below|max(?:imum)?)\s*\$?\s*(\d{2,5})/i.exec(t) ?? /refunds?\s*(?:over|above|more than|bigger than)\s*\$?\s*(\d{2,5})\s*(?:need|needs|require|requires|must|go to|wait for)/i.exec(t);
   if (ref) rules.auto_refund_max_cents = Number(ref[1]) * 100;
+  const chargeOver = /(?:links?|invoices?|charges?|payments?)\s*(?:over|above|more than|bigger than)\s*\$?\s*(\d{2,5})\s*(?:need|needs|require|requires|must|go to|wait for)/i.exec(t);
+  if (!charge && chargeOver) rules.auto_charge_max_cents = Number(chargeOver[1]) * 100;
 
   // Things we understood as a request but cannot express
   for (const [re, what] of [

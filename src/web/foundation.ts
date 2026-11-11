@@ -333,7 +333,7 @@ export function foundationRouter(): Router {
 > The voice agent that makes a small business's money calls (deposits, overdue invoices, cancelled classes) inside the owner's rules, with PayPal doing the money. Amounts come from the records, never from the conversation.
 
 ## For agents
-- Owner MCP: POST ${config.appUrl}/mcp with Authorization: Bearer <owner key> (stateless Streamable HTTP). Tools: get_plan, list_calls, get_call, place_call, skip_call, list_customers, get_policy, draft_policy, list_approvals, decide_approval, get_guard, get_trace, recent_events, list_policies.
+- Owner MCP: POST ${config.appUrl}/mcp with Authorization: Bearer <owner key> (stateless Streamable HTTP). Tools: get_plan, list_due, list_calls, get_call, place_call, skip_call, list_customers, customer_record, consent_record, get_policy, draft_policy, list_approvals, decide_approval, get_guard, get_trace, recent_events, list_policies. Read tools carry readOnlyHint.
 - Customer MCP: POST ${config.appUrl}/c/<token>/mcp. Tools: my_account, get_pay_link, callback_slots, stop_calls.
 - Skill: ${config.appUrl}/skill.md
 - Traces: GET /api/v1/runs/:id (owner), /trace/:id (page).

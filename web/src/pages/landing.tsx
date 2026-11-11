@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowRight, Bot, Check, ChevronDown, Code2, Phone, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/app/public-shell";
+import { ScamCheck } from "@/components/app/scam-check";
 import { Panel } from "@/components/app/bits";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 import { money, PURPOSE } from "@/lib/format";
@@ -87,7 +88,6 @@ const FAQ = [
 
 export default function Landing() {
   useTitle("");
-  const nav = useNavigate();
   const { session } = useSession();
   const [open, setOpen] = useState<number | null>(0);
   return (
@@ -105,8 +105,8 @@ export default function Landing() {
             <Button size="lg" className="h-12 px-6 text-base" asChild>
               <Link to={session?.me ? "/today" : "/try"}>{session?.me ? "Open the studio" : "Try the live demo"} <ArrowRight /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-12 px-6 text-base" onClick={() => void import("@/tour/tours").then((m) => m.startTour("judge", nav, true))}>
-              Judge tour, 3 minutes
+            <Button size="lg" variant="outline" className="h-12 px-6 text-base" asChild>
+              <Link to="/judge">For judges: 3 minutes</Link>
             </Button>
           </div>
           <p className="mt-3 text-sm text-ink-2">No sign-up. The demo uses a seeded Sydney studio and the PayPal sandbox.</p>
@@ -148,6 +148,12 @@ export default function Landing() {
             </Panel>
           ))}
         </div>
+      </section>
+
+      <section className="mx-auto max-w-[820px] px-4 pb-14" aria-labelledby="try-scam">
+        <h2 id="try-scam" className="font-display text-h2 font-[750]" style={{ fontStretch: "112%" }}>Try the scam check</h2>
+        <p className="mt-2 text-ink-2">Paste any message. A scam model trained for this project scores it in your browser. Nothing you paste leaves this page. The model downloads once (23 MB).</p>
+        <div className="mt-4"><ScamCheck deviceOnly label="Message to check" note="Checked on this device only. Inside the app, rules, an AI check and a comparison with the business's record also run; green appears only when all of them ran." /></div>
       </section>
 
       <section className="mx-auto max-w-[820px] px-4 py-14" aria-labelledby="faq">

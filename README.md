@@ -2,6 +2,33 @@
 
 The voice agent that makes a small business's money calls: confirm tomorrow's deposit, chase an overdue invoice, settle a cancelled class. It speaks inside the owner's rules; PayPal does the money; every amount comes from the records, never from the conversation. Roadmap Part E.4.
 
+## For judges: try it in 60 seconds
+
+**Live:** https://pph-callback.onrender.com · **Start here:** https://pph-callback.onrender.com/judge
+
+**Accounts.** None to type. The first button you press on `/judge` builds your own private copy of the demo studio and signs you in as its owner. No PayPal login is needed for any path: payments come from a saved sandbox wallet. A separate sandbox buyer for PayPal's own checkout page is not set up yet (the owner creates it; `/judge` prints it once `JUDGE_BUYER_EMAIL` is set). A QR code on `/judge` opens the same copy on your phone.
+
+**Three things to look at** (each is a path on `/judge`; every step opens the exact screen with the text typed, and ticks itself when the server records it):
+
+1. **Take the call yourself** (about 3 minutes, no PayPal login). Start Priya's deposit call, haggle, agree, then pay from the saved wallet on her own page. The model talks; code checks the amount against the record and your limits; PayPal's sandbox makes the order and capture.
+2. **Watch it refuse.** Ask the agent who it won't call (its tool calls stream into a rail beside the answer), open a call that the rules blocked, and check the 10 Nov "we've moved banks, pay our new PayPal" message, which is now held.
+3. **Approve a held move.** A $360 charge is over the $300 limit and waits for you with what, who, why and how to undo it.
+
+**What is live and what is simulated.** `/judge` builds this table from the server's configuration on every request. On 11 Nov it said: live are PayPal Orders, the saved wallet, Invoicing, Billing plans and Subscriptions, refunds, verified webhooks, PayPal's MCP server (read tools only), the call and policy model (`gpt-6.1-sol`), the Decisions scam check (`gpt-6-luna`), live browser voice and Telegram approvals. Simulated and labelled are calls and texts to the demo customers (Twilio is set up but rings only allowlisted numbers), WhatsApp, web push, the seeded samples and each copy's clock.
+
+**Pages with no sign-in:** `/proof` (every evaluation case), `/ai` (the last model calls), `/paypal` (each PayPal API and a live id), `/who-can-move-money`, `/accessibility`, `/agents` (MCP with a copy-paste command).
+
+**Against the judging criteria.**
+
+| Criterion | Where to see it |
+|---|---|
+| Technical | One gate for every money move (`src/guard/dryrun.ts`); the model's schema has no amount field; an Ask agent that uses Callback's own MCP server and PayPal's, with read tools only (`src/agent/ask.ts`); calibrated Decisions thresholds (`src/ai/thresholds.json`); 122 unit and flow tests, 12 browser journeys |
+| Design | The three-lane call score (voice, rules, money on one time line); the judge page; phone layouts checked at 375 px |
+| Impact | Small studios lose money to awkward calls they put off; Callback makes them inside consent, calling hours and the owner's limits, and the customer's page carries a verify code against impersonators |
+| Innovation | Code, not the model, decides money; four scam readers where green needs all of them; every AI step is visible (trace rail, `/ai`, `/proof` with failures listed) |
+
+The source repository is private for now; making it public is the owner's decision.
+
 ## What it does
 - **Plans the calls** from the records and PayPal state: deposits unpaid before tomorrow's appointment, invoices past the policy's grace, classes cancelled. Each candidate passes **consent, do-not-call and local calling hours** (08:00–21:00 floor in the customer's time zone, narrowed by the owner's policy, attempts per day, cooldown) in code before anything rings. Refusals are shown with the reason.
 - **Makes the call** three ways with one brain and one gate: the in-app simulator (type as the customer or play one of 60 scripted personas), a real phone call through Twilio (turn-based Say + Gather speech, signature-verified webhooks), or live voice in the browser through OpenAI Realtime over WebRTC (every function call comes back to the server and through the gate).
@@ -18,10 +45,10 @@ npm run dev                 # http://localhost:3500
 ```
 Sign in with the owner key (or press **Reset and seed** on `/demo`). Without PayPal credentials every page works and money moves fail honestly. Without an OpenAI key calls do not start and policy reading shows an error with a retry button; nothing written by rules is presented as AI (the rules brain runs only in tests and offline evals, `AI_PROVIDER=rules`). The deployed server (`RENDER=true` or `NODE_ENV=production`) refuses to start without the OpenAI key, `AI_PROVIDER=openai`, the PayPal credentials and `SESSION_SECRET`. Without Twilio the simulator carries the call. Without channel tokens every message is recorded as *simulated* on `/ops/channels`.
 
-Other scripts: `npm test` (96 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP, private workspaces, honest AI failure), `npm run e2e` (Playwright journeys), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
+Other scripts: `npm test` (122 tests: structural, core, flows through the gate, journey with route coverage, foundation routes incl. MCP, private workspaces, honest AI failure), `npm run e2e` (Playwright journeys), `npm run typecheck`, `npm run sandbox:check` (credentials, scopes, webhook), `npm run eval:personas`, `npm run eval:adversarial`, `npm run cli -- plan|calls|start|say|trace`.
 
 ## Pages
-`/today` plan and refusals · `/calls`, `/calls/:id` transcript, options, trace, simulator, live voice · `/customers/:id` consent record · `/policy` compile, backtest, earned autonomy · `/ops/guard` holds, passkey, limits, kill switches, audit chain · `/ops/money` links, invoices, plans, refunds, read-back, negative paths, webhooks · `/ops/traces`, `/trace/:id` · `/ops/eval` explorer with CSV and Markdown · `/ops/channels` · `/ops/evidence` · `/judge` five beats · `/demo` · customer `/c/:token` (pay, callback, stop) · `/llms.txt`, `/skill.md`, MCP at `/mcp` (owner) and `/c/:token/mcp` (customer).
+Signed in: `/today` plan and refusals · `/ask` the agent with its tool rail · `/calls`, `/calls/:id` transcript, options, trace, simulator, live voice · `/customers/:id` consent record · `/approvals` holds, passkey, limits, kill switches, audit chain · `/money` links, invoices, plans, refunds, read-back · `/rules` compile, backtest, earned autonomy · `/safety` scam check · `/messages` · `/evidence` evals and traces · `/trace/:id` · `/demo`. No sign-in: `/judge`, `/proof`, `/ai`, `/paypal`, `/who-can-move-money`, `/accessibility`, `/agents` · customer `/c/:token` (pay, check a message, callback, stop) · `/llms.txt`, `/skill.md`, MCP at `/mcp` (owner) and `/c/:token/mcp` (customer).
 
 ## Integrations and what is real
 | Piece | Real when | Otherwise |
@@ -35,7 +62,7 @@ Other scripts: `npm test` (96 tests: structural, core, flows through the gate, j
 
 Webhooks to register when keys arrive: `/webhooks/paypal`, `/webhooks/telegram`, `/webhooks/whatsapp` (verify token `WHATSAPP_VERIFY_TOKEN`), `/webhooks/sms`, `/webhooks/voice/{twiml,gather,status}/:callId`, `/webhooks/voice/events`.
 
-## For judges
+## Walkthrough (Wave 1 text, kept for reference)
 
 1. Open https://pph-callback.onrender.com/try and press **Be the owner**. You get your own private copy of the demo studio, already filled in: 11 customers, three sample calls marked **Sample**, three payments already made from the demo's saved sandbox PayPal wallet (the banner counts them as PayPal confirms them), and one $360 charge held for your approval because it is over the $300 limit. Nobody else sees your copy, and it is deleted after 48 hours without a visit. The banner has a link that opens the same copy on your phone.
 2. **Take a call yourself.** On Today, open Priya's deposit call, start it, and type as the customer, for example "How do I know you're really the studio? And knock it down to forty." The reply comes from `gpt-6.1-sol` (named on the call page). It points you to the verify code on your account page, refuses the discount because your rules allow none, and keeps the amount from the records.
@@ -114,3 +141,24 @@ Run 2026-11-10T17:27:09.304Z against https://pph-callback.onrender.com.
 - **Telegram inside a private copy: not verified live.** The routing is unit-tested; no Telegram message was sent from a private copy.
 - **The honest AI failure states** (no key, failing model) are verified in tests (`test/ai-honest.test.ts`) and locally. They were not provoked on the live site, because that would mean removing the live key.
 - **Evaluation fixtures still use fixed times** (`src/eval/*`, `scripts/eval-adversarial.ts`). They test calling-hours rules and are never shown as live data.
+
+## Wave 2 (11 Nov 2026): what changed, and the live checks
+
+Built from `MASTER_IMPROVEMENT_SPEC.md` Part C, Wave 2 (items 6 to 9).
+
+- **A5.2 Decisions client and thresholds.** `src/ai/decisions.ts` calls `POST /v1/decisions` (`gpt-6-luna`) with yes/no questions, retries up to three times, and audits every call. A refusal or missing answer counts as "not decided". The per-question thresholds are in `src/ai/thresholds.json`. `npm run calibrate` writes them from a 65-message hand-written set (`eval/decisions/`, 34 tuning and 31 held out; a miss costs five times a false hold). They are copied into the `decision_thresholds` table at boot. Three questions (gift cards, overpay-and-refund, too-good offers) have too few examples and keep the default thresholds.
+- **A6 scam check v2.** Four readers, and the strictest one wins: the rules (widened so that every one of the 31 phrasings of the 10 Nov message fires), the Decisions check, code that pulls out each place to pay and compares it with the business's record, and the on-device model in the browser. Green shows only when every reader ran and found nothing, and nothing names a place to pay. A reader that did not run says "not run". A message that names a place to pay is amber at best: "This asks you to pay somewhere. Confirm it by phone on a number you already had." The customer's own page has the same check (`POST /c/:token/check`, no sign-in). A6.4 (retraining in guard-lab) is a cross-app job and is not done here.
+- **A5.3 Ask.** `/ask` runs a tool loop (`src/ai/loop.ts`, at most 8 steps or 45 s, `gpt-6.1-sol`) over three groups of tools:
+  - the read-only tools of Callback's own MCP server, reached in-process;
+  - PayPal's hosted MCP server over SSE, limited in code to 11 read tools, because PayPal's server marks none of its 46 tools read-only;
+  - `propose_*` tools that only write a proposal row for the owner.
+
+  Every step is an `agent_trace` row, streamed to the rail by server-sent events. Each answer sentence cites the facts it rests on, and code removes any sentence whose dollar amount is in none of them. Email addresses are masked in the rail. Without a model, Ask answers 503; it never falls back to rules.
+- **A3 judge page and no-sign-in pages.** `/judge` has three paths. Each step ticks itself from `workspaces.checklist` when the server records the matching event (`call_placed`, `ai_turn`, `pay_link_sent`, `paid_from_wallet`, `asked_the_agent`, `opened_blocked_call`, `checked_message`, `viewed_hold`, `approval_decided`, `opened_money`). The seed's own calls and holds tick nothing. The page also has a QR code for the phone and the live-versus-simulated table, both built at request time. `/proof`, `/ai`, `/paypal`, `/who-can-move-money`, `/accessibility` and `/agents` need no sign-in. The in-app evidence page moved to `/evidence`. Tours start only from a button, run on one page, never navigate, and end on any page change. The old cross-page judge tour is gone.
+- **A5.6 and B2 regression set.** `npm run eval:ai` (`src/eval/regression.ts`) writes `eval/results/ai-eval.json`, and `/proof` lists every case in it:
+  - **Call turns:** the seven off-script lines from the 10 Nov review (haggling, "stop calling", a lost job, "already paid", "send it to my husband's email", the wrong person, a different amount), each checked by code.
+  - **Policy reading:** four cases.
+  - **Scam check:** the Decisions held-out half.
+
+  The run is by hand, not nightly: a nightly run on the free 512 MB instance risks the live site. The first run failed one call turn ("already paid") and two policy readings (instalments, refund limit). The prompt and the parser were fixed, and the committed run is 7/7, 4/4 and 30/31. The one scam-check miss is a false hold on "my husband will pay with his own PayPal".
+- **Fixes found on the way.** The service worker now clones a response before caching it. Tables that scroll sideways can take keyboard focus (axe `scrollable-region-focusable`). The Ask presets wrap on a phone. The PayPal page's MCP row had a wrong column name, which was hidden as "none yet"; a failed read now says "Couldn't read this just now" and is logged.

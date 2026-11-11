@@ -1,4 +1,5 @@
 /** Workspace helpers with no service imports (used by the money service, channels and webhooks). */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { currentWs, getDb, inWorkspace, WS_ID } from "../db.js";
 
 /** Lets the registry cache in workspaces.ts drop an entry without an import cycle. */
@@ -29,12 +30,16 @@ export async function wsForRef(ref: string | null | undefined): Promise<string |
   return (await inWorkspace(null, () => db.query<{ ws_id: string }>("SELECT ws_id FROM ws_refs WHERE ref = $1", [ref]))).rows[0]?.ws_id ?? null;
 }
 
-/** Ticks a judge-path step on the workspace's checklist (spec A3.1), once, with the time it happened. */
+/** Code run inside quietSteps.run(true, …) (the seed, which places a held charge and sample calls) ticks nothing. */
+export const quietSteps = new AsyncLocalStorage<boolean>();
+
+/** Ticks a judge-path step on the workspace's checklist (spec A3.1), once, with the time it happened. Only what the
+ * visitor does counts: the seed's own calls and holds are made inside quietSteps. */
 export async function markStep(step: string) {
   const ws = currentWs();
-  if (!ws) return;
+  if (!ws || quietSteps.getStore()) return;
   const db = await getDb();
-  await inWorkspace(null, () => db.query("UPDATE workspaces SET checklist = checklist || jsonb_build_object($2::text, now()::text) WHERE id = $1 AND NOT (checklist ? $2)", [ws, step]));
-  cacheDrop.fn(ws);
+  const r = await inWorkspace(null, () => db.query("UPDATE workspaces SET checklist = checklist || jsonb_build_object($2::text, now()::text) WHERE id = $1 AND NOT (checklist ? $2) RETURNING id", [ws, step]));
+  if (r.rows.length) cacheDrop.fn(ws); // already ticked: nothing changed, keep the cache
 }
 

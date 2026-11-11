@@ -24,7 +24,8 @@ import { listKills } from "../guard/kill.js";
 import { hasPasskey } from "../guard/passkey.js";
 import { activePolicy, compilePolicy, listPolicies } from "../guard/policy.js";
 import { FAULTABLE, paypal, paypalConfigured, WEBHOOK_EVENTS } from "../paypal/index.js";
-import { assessMessage, protectedMode, safetyHolds } from "../safety/index.js";
+import { protectedMode, safetyHolds } from "../safety/index.js";
+import { scanMessage } from "../safety/readers.js";
 import { optionsFor, SPLITTABLE } from "../services/money.js";
 import { candidates } from "../services/planner.js";
 import { balanceOf, bizById, callById, callsOf, customerById, customerByToken, customersOf, eventsOf, firstBiz, nowOf, obligationById, obligationsOf, owedToCustomer, type Obligation } from "../store.js";
@@ -33,6 +34,7 @@ import { realtimeReady } from "../voice/realtime.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me, type Me } from "./auth.js";
 import { workspaceOf } from "./workspace.js";
+import { markStep } from "../services/workspaces.js";
 import { DEMO_IMPERSONATION } from "./safety.js";
 import { json } from "./common.js";
 import { GtError } from "../lib/util.js";
@@ -176,6 +178,7 @@ export function apiRouter(): Router {
     const p = await who(req);
     const db = await getDb();
     const c = await callById(db, req.params.id, p.business_id);
+    if (c.status === "blocked") await markStep("opened_blocked_call").catch(() => undefined);
     const cu = await customerById(db, c.customer_id);
     const o = c.obligation_id ? await obligationById(db, c.obligation_id) : null;
     const opts = o ? await optionsFor(db, p.business_id, o) : null;
@@ -242,6 +245,7 @@ export function apiRouter(): Router {
 
   r.get("/api/app/guard", json(async (req) => {
     const p = await owner(req);
+    if ((await (await getDb()).query("SELECT 1 FROM approvals WHERE status = 'pending' LIMIT 1")).rows.length) await markStep("viewed_hold").catch(() => undefined);
     const db = await getDb();
     const custs = new Map((await customersOf(db, p.business_id)).map((c) => [c.id, c]));
     const obls = new Map((await obligationsOf(db, p.business_id)).map((o) => [o.id, o]));
@@ -260,6 +264,7 @@ export function apiRouter(): Router {
 
   r.get("/api/app/money", json(async (req) => {
     const p = await owner(req);
+    await markStep("opened_money").catch(() => undefined);
     const db = await getDb();
     const custs = new Map((await customersOf(db, p.business_id)).map((c) => [c.id, c]));
     const obls = await obligationsOf(db, p.business_id);
@@ -299,7 +304,7 @@ export function apiRouter(): Router {
     const replaced = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM agent_trace WHERE tool = 'safety.agent_line'")).rows[0]?.n ?? 0);
     const verified = Number((await db.query<{ n: string }>("SELECT count(*) AS n FROM calls WHERE state->>'verify_code' IS NOT NULL AND business_id = $1", [p.business_id])).rows[0]?.n ?? 0);
     const holds = (await safetyHolds(db)).filter((h: any) => h.payload?.businessId === p.business_id || !h.payload?.businessId).slice(0, 20).map((h: any) => ({ id: h.id, action: h.action, status: h.status, cents: Number(h.payload?.cents ?? 0), reasons: h.payload?.safety_reasons ?? [], rule: h.payload?.safety_rule ?? null, created_at: h.created_at }));
-    return { protected: await protectedMode(p.business_id, db), holds, inbound: inbound.map((m: any) => ({ ...m, scan: assessMessage(m.body) })), replaced, verified_calls: verified, demo_message: config.demoMode ? DEMO_IMPERSONATION : null };
+    return { protected: await protectedMode(p.business_id, db), holds, inbound: await Promise.all(inbound.map(async (m: any) => ({ ...m, scan: await scanMessage(m.body, { businessId: p.business_id, q: db }) }))), replaced, verified_calls: verified, demo_message: config.demoMode ? DEMO_IMPERSONATION : null };
   }));
 
   r.get("/api/app/messages", json(async (req) => {

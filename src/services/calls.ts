@@ -21,6 +21,7 @@ import { newId } from "../lib/ids.js";
 import { GtError } from "../lib/util.js";
 import { balanceOf, bizById, callAttempts, callById, customerById, logEvent, nowOf, obligationById, type Call, type Customer, type Obligation, type Turn } from "../store.js";
 import { resumeRun, Run, startRun } from "../trace.js";
+import { markStep } from "./wsrefs.js";
 import { applyDiscount, createInvoice, createPlan, optionsFor, sendPayLink, settleCancelledClass, type Ctx } from "./money.js";
 
 const first = (name: string) => name.split(/\s+/)[0].replace(/[(),]/g, "");
@@ -59,6 +60,7 @@ export async function startCall(q: Queryable, callId: string, mode: Call["mode"]
   const opening: Turn = { who: "agent", text: `${d.say} Your verify code for this call is ${code.split("").join(" ")}; it is on your account page, and we never ask for card numbers or passwords by phone.`, at: new Date().toISOString(), tool: null };
   await run.step({ actor: d.brain === "model" ? "model" : "code", tool: `brain.${d.brain}`, args: { turn: 0 }, result: { say: d.say, tool: d.tool, reason: d.reason } });
   await q.query("UPDATE calls SET status = 'in_progress', mode = $2, persona = $3, started_at = now(), run_id = $4, attempts = attempts + 1, transcript = $5, state = $6, consent_ok = $7, hours_ok = $8 WHERE id = $1", [call.id, mode, opts.persona ?? null, run.id, JSON.stringify([opening]), JSON.stringify({ turns: 0, brain: d.brain, verify_code: code }), verdict.consent_ok, verdict.hours_ok]);
+  await markStep("call_placed").catch(() => undefined);
   await logEvent(q, { businessId: call.business_id, customerId: customer.id, callId: call.id, type: "call.started", summary: `${mode} call to ${customer.name} started`, actor: by });
   await appendAudit("call.started", "call", call.id, { mode, by, consent: verdict.consent_ok, hours: verdict.hours_ok }, q);
   return { call: await callById(q, call.id), run, opening: opening.text };
@@ -132,6 +134,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   const ctx = await brainContext(q, call, customer, turn, transcript);
   const d: Decision = forced ? { say: "", tool: forced.tool, option_id: forced.option_id, outcome: forced.outcome, reason: "realtime function call", brain: "model", quarantined: qn.quarantined } : await decide(ctx, run.id);
   await run.step({ actor: d.brain === "model" ? "model" : "code", tool: forced ? "brain.realtime" : `brain.${d.brain}`, args: { turn }, result: { say: d.say, tool: d.tool, option_id: d.option_id, outcome: d.outcome, reason: d.reason, model: d.model ?? null } });
+  if (d.brain === "model") await markStep("ai_turn").catch(() => undefined);
 
   const state = { ...call.state, turns: turn, brain: d.brain };
   let say = d.say;
@@ -147,6 +150,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
       if (!state.link_sent) {
         const r = await sendPayLink(ctxMoney, o, customer);
         state.link_sent = true;
+        await markStep("pay_link_sent").catch(() => undefined);
         toolResult = `Pay link for $${(r.cents / 100).toFixed(2)} texted`;
       }
       gate = "allowed";

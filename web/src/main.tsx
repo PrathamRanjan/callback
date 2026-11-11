@@ -29,9 +29,17 @@ const Rules = lazy(() => import("@/pages/rules"));
 const Safety = lazy(() => import("@/pages/safety"));
 const Messages = lazy(() => import("@/pages/messages"));
 const Proof = lazy(() => import("@/pages/proof"));
+const Ask = lazy(() => import("@/pages/ask"));
 const Trace = lazy(() => import("@/pages/trace"));
 const Demo = lazy(() => import("@/pages/demo"));
 const Portal = lazy(() => import("@/pages/portal"));
+const Judge = lazy(() => import("@/pages/judge"));
+const PublicProof = lazy(() => import("@/pages/public").then((m) => ({ default: m.PublicProof })));
+const PublicAi = lazy(() => import("@/pages/public").then((m) => ({ default: m.PublicAi })));
+const PublicPayPal = lazy(() => import("@/pages/public").then((m) => ({ default: m.PublicPayPal })));
+const WhoCanMoveMoney = lazy(() => import("@/pages/public").then((m) => ({ default: m.WhoCanMoveMoney })));
+const AccessibilityPage = lazy(() => import("@/pages/public").then((m) => ({ default: m.AccessibilityPage })));
+const Agents = lazy(() => import("@/pages/public").then((m) => ({ default: m.Agents })));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 applyTheme();
@@ -73,20 +81,18 @@ function RequireSession({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Tours start only from a button (which opens the tour's page with state.tour set) and end on any route change. */
 function Tours() {
   const loc = useLocation();
-  const nav = useNavigate();
   useEffect(() => {
-    const q = new URLSearchParams(loc.search).get("tour");
-    let active = false;
-    try {
-      active = Boolean(sessionStorage.getItem("cb-tour"));
-    } catch {
-      /* storage blocked */
+    const kind = (loc.state as { tour?: "owner" | "staff" } | null)?.tour;
+    if (!kind) {
+      if (document.querySelector(".driver-popover")) void import("@/tour/tours").then((t) => t.endTour());
+      return;
     }
-    if (q !== "judge" && !active) return; // keep the tour code out of first load
-    void import("@/tour/tours").then((t) => (q === "judge" && !t.tourActive() ? t.startTour("judge", nav, true) : t.resumeTour(nav)));
-  }, [loc.pathname, loc.search, nav]);
+    void import("@/tour/tours").then((t) => t.startTour(kind));
+    return () => void import("@/tour/tours").then((t) => t.endTour());
+  }, [loc.key]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -104,9 +110,16 @@ function App() {
               <Route path="/try" element={<Try />} />
               <Route path="/login" element={<Try />} />
               <Route path="/c/:token" element={<Portal />} />
-              <Route path="/judge" element={<Navigate to="/today?tour=judge" replace />} />
+              <Route path="/judge" element={<Judge />} />
+              <Route path="/proof" element={<PublicProof />} />
+              <Route path="/ai" element={<PublicAi />} />
+              <Route path="/paypal" element={<PublicPayPal />} />
+              <Route path="/who-can-move-money" element={<WhoCanMoveMoney />} />
+              <Route path="/accessibility" element={<AccessibilityPage />} />
+              <Route path="/agents" element={<Agents />} />
               <Route element={<RequireSession><AppShell /></RequireSession>}>
                 <Route path="/today" element={<Today />} />
+                <Route path="/ask" element={<Ask />} />
                 <Route path="/calls" element={<Calls />} />
                 <Route path="/calls/:id" element={<Call />} />
                 <Route path="/customers" element={<Customers />} />
@@ -116,17 +129,17 @@ function App() {
                 <Route path="/rules" element={<Rules />} />
                 <Route path="/safety" element={<Safety />} />
                 <Route path="/messages" element={<Messages />} />
-                <Route path="/proof" element={<Proof />} />
+                <Route path="/evidence" element={<Proof />} />
                 <Route path="/trace/:id" element={<Trace />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/ops/guard" element={<Navigate to="/approvals" replace />} />
                 <Route path="/ops/money" element={<Navigate to="/money" replace />} />
                 <Route path="/ops/channels" element={<Navigate to="/messages" replace />} />
-                <Route path="/ops/evidence" element={<Navigate to="/proof" replace />} />
-                <Route path="/ops/eval" element={<Navigate to="/proof" replace />} />
-                <Route path="/ops/traces" element={<Navigate to="/proof" replace />} />
+                <Route path="/ops/evidence" element={<Navigate to="/evidence" replace />} />
+                <Route path="/ops/eval" element={<Navigate to="/evidence" replace />} />
+                <Route path="/ops/traces" element={<Navigate to="/evidence" replace />} />
                 <Route path="/policy" element={<Navigate to="/rules" replace />} />
-                <Route path="/ops/mcp" element={<Navigate to="/proof#agents" replace />} />
+                <Route path="/ops/mcp" element={<Navigate to="/agents" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

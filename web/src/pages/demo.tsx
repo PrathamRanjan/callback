@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Clock, Compass, RotateCcw, UserRound, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { ActButton, ErrorState, PageHead, Panel, Rows, Section, StateChip } from
 import { NativeSelect } from "@/components/app/form";
 import { act } from "@/lib/api";
 import { useData, useSession, useTitle } from "@/lib/hooks";
-import { startTour } from "@/tour/tours";
 
 interface DemoData { demo: boolean; seeded: boolean; business: { name: string; clock: string | null; tz: string } | null; people: { name: string; role: string }[]; customers: { id: string; name: string }[]; calls: { id: string; label: string }[]; personas: { id: string; purpose: string }[]; faultable: string[]; keys: { owner: string; staff: string } | null }
 
@@ -45,7 +44,7 @@ export default function DemoPage() {
         title="Demo controls"
         happened={`${d.business?.name ?? "The demo studio"}, ${d.business?.clock ? `clock pinned to ${new Date(d.business.clock).toLocaleString("en-AU", { timeZone: d.business.tz, dateStyle: "medium", timeStyle: "short" })} studio time` : "on real time"}.`}
         next="Switch persona, reset the data, move the clock, or make PayPal fail on purpose."
-        actions={<Button variant="outline" onClick={() => startTour("judge", nav, true)}><Compass /> Judge tour</Button>}
+        actions={<Button variant="outline" asChild><Link to="/judge"><Compass /> For judges</Link></Button>}
       />
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section id="persona" title="Be someone else">

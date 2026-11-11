@@ -22,21 +22,23 @@ import { callbackSlots } from "../core/plans.js";
 import { nowOf, bizById } from "../store.js";
 
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
+/** Read-only tools carry this hint; the agent loop (src/ai/loop.ts) may use only tools that have it. */
+export const RO = { readOnlyHint: true, destructiveHint: false } as const;
 const fail = (msg: string) => ({ content: [{ type: "text" as const, text: msg }], isError: true as const });
 
 export function buildOwnerServer(businessId: string, agentId: string): McpServer {
   const s = new McpServer({ name: "callback-owner", version: "0.1.0" });
-  s.registerTool("get_plan", { description: "Today's call candidates with the consent/hours verdict for each (what will and will not be called, and why).", inputSchema: {} }, async () => {
+  s.registerTool("get_plan", { annotations: RO, description: "Today's call candidates with the consent/hours verdict for each (what will and will not be called, and why).", inputSchema: {} }, async () => {
     const db = await getDb();
     const cs = await candidates(db, businessId);
     return text(cs.map((c) => ({ purpose: c.purpose, customer: c.customer.name, item: c.obligation.title, balance: balanceOf(c.obligation) / 100, reason: c.reason, callable: c.verdict.ok, blocked_because: c.verdict.reasons, next_window: c.verdict.next_window })));
   });
-  s.registerTool("list_calls", { description: "Calls by status.", inputSchema: { status: z.enum(["planned", "blocked", "in_progress", "ended", "skipped"]).optional() } }, async ({ status }) => {
+  s.registerTool("list_calls", { annotations: RO, description: "Calls by status.", inputSchema: { status: z.enum(["planned", "blocked", "in_progress", "ended", "skipped"]).optional() } }, async ({ status }) => {
     const db = await getDb();
     const rows = await callsOf(db, businessId, { status: status ? [status as any] : undefined, limit: 100 });
     return text(rows.map((c) => ({ id: c.id, purpose: c.purpose, status: c.status, mode: c.mode, outcome: c.outcome, reason: c.reason, collected: c.collected_cents / 100, breaches: c.breaches, run_id: c.run_id })));
   });
-  s.registerTool("get_call", { description: "One call with its transcript (customer lines marked with what was quarantined) and state.", inputSchema: { call_id: z.string() } }, async ({ call_id }) => {
+  s.registerTool("get_call", { annotations: RO, description: "One call with its transcript (customer lines marked with what was quarantined) and state.", inputSchema: { call_id: z.string() } }, async ({ call_id }) => {
     const db = await getDb();
     try {
       const c = await callById(db, call_id, businessId);
@@ -65,11 +67,11 @@ export function buildOwnerServer(businessId: string, agentId: string): McpServer
       return fail((e as Error).message);
     }
   });
-  s.registerTool("list_customers", { description: "Customers with consent and do-not-call state.", inputSchema: {} }, async () => {
+  s.registerTool("list_customers", { annotations: RO, description: "Customers with consent and do-not-call state.", inputSchema: {} }, async () => {
     const db = await getDb();
     return text((await customersOf(db, businessId)).map((c) => ({ id: c.id, name: c.name, tz: c.tz, consent: c.consent ? (c.consent.revoked_at ? "revoked" : "granted") : "none", dnc: c.dnc })));
   });
-  s.registerTool("get_policy", { description: "The active call policy: the owner's words and the rules the gate enforces.", inputSchema: {} }, async () => text(await activePolicy(businessId)));
+  s.registerTool("get_policy", { annotations: RO, description: "The active call policy: the owner's words and the rules the gate enforces.", inputSchema: {} }, async () => text(await activePolicy(businessId)));
   s.registerTool("draft_policy", { description: "Compile plain-words policy text into rules and backtest it; does not activate.", inputSchema: { text: z.string().max(4000) } }, async ({ text: t }) => {
     const db = await getDb();
     const run = await startRun({ actor: "agent", agentId, subject: "Draft policy", entity: "business", entityId: businessId }, db);
@@ -84,7 +86,7 @@ export function buildOwnerServer(businessId: string, agentId: string): McpServer
     await run.end("done");
     return text({ rules: compiled.rules, unexpressed: compiled.unexpressed, refused: compiled.refused, backtest: { cases: bt.cases, run: bt.run, wait: bt.wait, deny: bt.deny, collected_auto: bt.collected_auto_cents / 100, minutes_saved: bt.minutes_saved } });
   });
-  s.registerTool("list_approvals", { description: "Pending and recent holds.", inputSchema: {} }, async () => text((await pendingApprovals(businessId)).map((a) => ({ id: a.id, action: a.action, status: a.status, cents: a.payload.cents, reason: a.payload.reason, created_at: a.created_at }))));
+  s.registerTool("list_approvals", { annotations: RO, description: "Pending and recent holds.", inputSchema: {} }, async () => text((await pendingApprovals(businessId)).map((a) => ({ id: a.id, action: a.action, status: a.status, cents: a.payload.cents, reason: a.payload.reason, created_at: a.created_at }))));
   s.registerTool("decide_approval", { description: "Approve or decline a held money move as the owner. Above the countersign threshold the UI passkey is required instead.", inputSchema: { approval_id: z.string(), approve: z.boolean() } }, async ({ approval_id, approve }) => {
     try {
       return text(await decideApproval(approval_id, approve, "click", `mcp:${agentId}`, businessId));
@@ -92,13 +94,43 @@ export function buildOwnerServer(businessId: string, agentId: string): McpServer
       return fail((e as Error).message);
     }
   });
-  s.registerTool("get_guard", { description: "Kill switches, autonomy limits and audit chain state.", inputSchema: {} }, async () => text({ kills: await listKills(), limits: await guardSettings(businessId), audit: await verifyChain() }));
-  s.registerTool("get_trace", { description: "An agent run's step-by-step trace.", inputSchema: { run_id: z.string() } }, async ({ run_id }) => {
+  s.registerTool("get_guard", { annotations: RO, description: "Kill switches, autonomy limits and audit chain state.", inputSchema: {} }, async () => text({ kills: await listKills(), limits: await guardSettings(businessId), audit: await verifyChain() }));
+  s.registerTool("get_trace", { annotations: RO, description: "An agent run's step-by-step trace.", inputSchema: { run_id: z.string() } }, async ({ run_id }) => {
     const t = await loadRun(run_id);
     return t ? text(t) : fail("No such run");
   });
-  s.registerTool("recent_events", { description: "Recent events for the business.", inputSchema: { limit: z.number().int().min(1).max(200).optional() } }, async ({ limit }) => text(await eventsOf(await getDb(), businessId, {}, limit ?? 50)));
-  s.registerTool("list_policies", { description: "Policy history (drafts, active, retired).", inputSchema: {} }, async () => text(await listPolicies(businessId)));
+  s.registerTool("recent_events", { annotations: RO, description: "Recent events for the business.", inputSchema: { limit: z.number().int().min(1).max(200).optional() } }, async ({ limit }) => text(await eventsOf(await getDb(), businessId, {}, limit ?? 50)));
+  // Planning tools for the agent loop (spec B2 "AI work"): what is due, one customer's record, and whether code allows a call.
+  s.registerTool("list_due", { annotations: RO, description: "Every open item (deposits, invoices, cancelled classes) with its balance in dollars, due date and customer.", inputSchema: {} }, async () => {
+    const db = await getDb();
+    const custs = new Map((await customersOf(db, businessId)).map((c) => [c.id, c.name]));
+    return text((await obligationsOf(db, businessId)).filter((o) => !["paid", "credited", "refunded", "void", "written_off"].includes(o.status)).map((o) => ({ id: o.id, customer: custs.get(o.customer_id), customer_id: o.customer_id, kind: o.kind, title: o.title, status: o.status, balance: balanceOf(o) / 100, due_at: o.due_at, appointment_at: o.appointment_at })));
+  });
+  s.registerTool("customer_record", { annotations: RO, description: "One customer: contact time zone, consent and do-not-call state, open and settled items, and their recent calls.", inputSchema: { customer_id: z.string() } }, async ({ customer_id }) => {
+    const db = await getDb();
+    try {
+      const c = await customerById(db, customer_id, businessId);
+      const items = await obligationsOf(db, businessId, c.id);
+      const calls = await callsOf(db, businessId, { customerId: c.id, limit: 10 });
+      return text({ id: c.id, name: c.name, tz: c.tz, consent: c.consent ? (c.consent.revoked_at ? "revoked" : "granted") : "none", dnc: c.dnc, items: items.map((o) => ({ id: o.id, kind: o.kind, title: o.title, status: o.status, balance: balanceOf(o) / 100, paypal_order_id: o.paypal_order_id, capture_id: o.capture_id })), calls: calls.map((x) => ({ id: x.id, purpose: x.purpose, status: x.status, outcome: x.outcome, started_at: x.started_at })) });
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  });
+  s.registerTool("consent_record", { annotations: RO, description: "Whether code allows calling one customer now, and why not: consent, do-not-call, their local calling hours, attempts today.", inputSchema: { customer_id: z.string() } }, async ({ customer_id }) => {
+    const db = await getDb();
+    const mine = (await candidates(db, businessId)).filter((c) => c.customer.id === customer_id);
+    if (!mine.length) {
+      try {
+        const c = await customerById(db, customer_id, businessId);
+        return text({ customer: c.name, consent: c.consent ? (c.consent.revoked_at ? "revoked" : "granted") : "none", dnc: c.dnc, due_for_a_call: false });
+      } catch (e) {
+        return fail((e as Error).message);
+      }
+    }
+    return text(mine.map((c) => ({ customer: c.customer.name, purpose: c.purpose, item: c.obligation.title, callable_now: c.verdict.ok, blocked_because: c.verdict.reasons, next_window: c.verdict.next_window })));
+  });
+  s.registerTool("list_policies", { annotations: RO, description: "Policy history (drafts, active, retired).", inputSchema: {} }, async () => text(await listPolicies(businessId)));
   return s;
 }
 

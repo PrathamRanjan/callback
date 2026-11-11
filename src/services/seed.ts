@@ -24,7 +24,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; pinClock?: boolean; w
   const now = opts.now ?? new Date();
   const bizId = newId("biz");
   const tz = "Australia/Sydney";
-  await db.query("INSERT INTO businesses (id, key, name, tz, currency, phone, sim_now, settings) VALUES ($1,'brightside',$2,$3,'USD',$4,$5,$6)", [bizId, "Brightside Physio & Pilates", tz, "+61 2 5550 0100", opts.pinClock ? now.toISOString() : null, JSON.stringify({ owner_name: "Maya Chen" })]);
+  await db.query("INSERT INTO businesses (id, key, name, tz, currency, phone, sim_now, settings) VALUES ($1,'brightside',$2,$3,'USD',$4,$5,$6)", [bizId, "Brightside Physio & Pilates", tz, "+61 2 5550 0100", opts.pinClock ? now.toISOString() : null, JSON.stringify({ owner_name: "Maya Chen", contacts: ["accounts@brightside-physio.example"] })]);
   const ownerKey = scopedSecret("cbo");
   const staffKey = scopedSecret("cbs");
   const ownerId = newId("per");

@@ -42,7 +42,7 @@ test("owner: seed, Today, a deposit call creates a PayPal sandbox order, money p
   await be(page, "owner");
   await expect(page).toHaveURL(/\/today/);
   await expect(page.locator("[data-tour=today-kpis]")).toContainText("Owed to you");
-  await expect(page.locator(".driver-popover")).toHaveCount(0); // no automatic tour; /judge starts it on request
+  await expect(page.locator(".driver-popover")).toHaveCount(0); // no automatic tour (spec A3.3)
   await expect(page.getByRole("note", { name: "Demo status" })).toContainText("private demo", { ignoreCase: true });
   await page.getByRole("link", { name: /Priya Natarajan/ }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Priya Natarajan");
@@ -141,27 +141,54 @@ test("customer: splits an invoice into a plan the rules allow, and PayPal opens 
   await page.waitForURL(/paypal\.com/, { timeout: 45_000 });
 });
 
-test("judge tour: ?tour=judge walks every step across pages, survives navigation, and ends", async ({ page }) => {
+test("judge page: linked from the landing header, one tap starts a private demo on the exact screen, and the step ticks itself", async ({ page }) => {
   await page.goto("/today?tour=judge");
-  const title = page.locator(".driver-popover-title");
-  await expect(title).toHaveText("Judge mode: four minutes");
-  const seen: string[] = [];
-  for (let i = 0; i < 20; i++) {
-    seen.push((await title.textContent()) ?? "");
-    const next = page.locator(".driver-popover-next-btn");
-    const label = (await next.textContent())?.trim();
-    await next.click();
-    if (label === "Finish") break;
-    await expect(title).not.toHaveText(seen[seen.length - 1]);
-  }
-  expect(seen).toContain("The three-lane call score");
-  expect(seen).toContain("Scam guard");
-  expect(seen).toContain("Now the studio cancels");
-  expect(seen).toContain("Live: a PayPal refund");
-  expect(seen).toContain("Live: a payment plan");
-  expect(seen).toHaveLength(14);
-  expect(seen.at(-1)).toBe("That's Callback");
+  await expect(page.locator(".driver-popover")).toHaveCount(0); // a URL never starts a tour (spec A3.3)
+  await page.goto("/");
+  await page.getByRole("banner").getByRole("link", { name: "For judges" }).click();
+  await expect(page).toHaveURL(/\/judge$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("For judges");
+  await expect(page.getByRole("heading", { name: "What is live, what is simulated" })).toBeVisible();
+  const step = page.locator('[data-step="call_placed"]');
+  await expect(step).toHaveAttribute("data-done", "0");
+  await step.getByRole("button", { name: "Open Priya's call" }).click();
+  await expect(page).toHaveURL(/\/calls\/call_/, { timeout: 45_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Priya Natarajan");
+  await page.getByRole("button", { name: "Start in simulator" }).click();
+  await expect(page.getByLabel("What the customer says")).toBeVisible();
+  await page.goto("/judge");
+  await expect(page.locator('[data-step="call_placed"]')).toHaveAttribute("data-done", "1");
+  await expect(page.locator('[data-path="call"]')).toContainText("1 of 4 done");
+  // The haggling step opens the same call with the line typed.
+  await page.locator('[data-step="ai_turn"]').getByRole("button").click();
+  await expect(page.getByLabel("What the customer says")).toHaveValue(/Money's tight/);
+});
+
+test("tours start only from the button, run on one page and end on any page change", async ({ page }) => {
+  await be(page, "owner");
+  await page.goto("/calls");
+  await page.locator('button[aria-label="Take the tour"]:visible').first().click();
+  await expect(page).toHaveURL(/\/today$/); // the button opened the tour's page; the tour itself never navigates
+  await expect(page.locator(".driver-popover-title")).toHaveText("This is your switchboard");
+  await page.locator(".driver-popover-next-btn").click();
+  await expect(page.locator(".driver-popover-title")).toHaveText("What's owed, at a glance");
+  await page.goto("/money");
   await expect(page.locator(".driver-popover")).toHaveCount(0);
+  await page.goto("/today");
+  await expect(page.locator(".driver-popover")).toHaveCount(0); // it does not come back
+});
+
+test("no-sign-in pages: each opens for a stranger and fits a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  for (const [path, h1] of [["/judge", "For judges"], ["/proof", "Proof"], ["/ai", "AI calls"], ["/paypal", "PayPal"], ["/who-can-move-money", "Who can move money"], ["/accessibility", "Accessibility"], ["/agents", "For AI agents"]]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(h1);
+    await expect(page).toHaveURL(new RegExp(`${path}$`)); // not sent to sign in
+    await noSideScroll(page);
+  }
+  await page.goto("/proof");
+  await expect(page.locator("[data-case]").first()).toBeVisible();
+  await expect(page.locator("main")).toContainText("Not nightly");
 });
 
 test("display and help: text size and calm mode apply and persist", async ({ page }) => {
@@ -202,7 +229,7 @@ test("phone layout: bottom nav, More sheet, 44px targets, no sideways scroll", a
   await expect(page.locator("main")).toContainText("checkoutnow");
   await noSideScroll(page);
   // Every owner page fits a phone (Money scrolled 34 px sideways on the live site, 11 Nov).
-  for (const path of ["/calls", "/customers", "/approvals", "/money", "/rules", "/safety", "/proof", "/demo"]) {
+  for (const path of ["/calls", "/customers", "/approvals", "/money", "/rules", "/safety", "/evidence", "/ask", "/demo"]) {
     await page.goto(path);
     await expect(page.locator("main h1").first()).toBeVisible();
     await noSideScroll(page);

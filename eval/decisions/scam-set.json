@@ -1,0 +1,674 @@
+[
+ {
+  "group": "nov10",
+  "text": "Hi, hope you're well. Just a heads up that we've moved banks, so please send this month's payment to our new PayPal: accounts.brightside@outlook.com. Thanks so much!",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m001"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello! Quick note: we've switched banks, so this month's payment should go to our new PayPal, billing.brightside@gmail.com. Cheers!",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m002"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi there, our bank account has changed. Please pay this invoice to accounts-brightside@outlook.com on PayPal from now on.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m003"
+ },
+ {
+  "group": "nov10",
+  "text": "Just letting you know we moved to a different bank. Kindly send the deposit to our updated PayPal: brightsidestudio.pay@hotmail.com",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m004"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, small update: our old account is being closed, so please use this account instead for your payment. PayPal: brightside.accounts@yahoo.com",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m005"
+ },
+ {
+  "group": "nov10",
+  "text": "Hey! We've updated our payment details. New PayPal for this month is studio.brightside@outlook.com. Thank you!",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m006"
+ },
+ {
+  "group": "nov10",
+  "text": "Good morning, please note our banking details have changed. Send the balance to paypal.me/brightsidestudio2 today.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m007"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, we've had to change banks. Can you send this month's fees to our new account, BSB 062-000 account 1234 5678? Thanks",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m008"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, the studio's PayPal has moved. Please pay to brightside.pilates.pay@gmail.com going forward.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m009"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi! Our accountant asked me to tell you we have a new PayPal for payments: accounts@brightside-pay.com. Please use it this month.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m010"
+ },
+ {
+  "group": "nov10",
+  "text": "Quick heads up, payments now go to a different PayPal: brightside.billing@outlook.com. The old one won't accept anything.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m011"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, apologies for the hassle, we're changing banks this week. Please send your payment to our new details: paypal.me/brightsidebilling",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m012"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, could you pay this month to our updated PayPal address? It's finance.brightside@outlook.com. Many thanks.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m013"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, the remittance details for Brightside have changed. Please remit to IBAN GB29 NWBK 6016 1331 9268 19.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m014"
+ },
+ {
+  "group": "nov10",
+  "text": "Hiya, we moved accounts recently. Please send the deposit to brightside.studio.payments@gmail.com instead of the usual.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m015"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, our previous bank account is no longer active. Kindly pay to our new PayPal brightsidephysio.pay@outlook.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m016"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello! We've switched our PayPal. Please send this month's $150 to brightside.accts@hotmail.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m017"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, please update the beneficiary for our invoices to Brightside Studio, account number 44112233 at our new bank.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m018"
+ },
+ {
+  "group": "nov10",
+  "text": "Just so you know, our payment details are different now. Use paypal.me/brightsidenew for this month.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m019"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, we're moving banks and the old account closes Friday. Please send payment to accounts.brightside@outlook.com this time.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m020"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, a quick admin note: new PayPal for the studio is brightside.admin@gmail.com, please pay there.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m021"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi! The studio changed its PayPal account. Kindly transfer this month's balance to brightside.studio@outlook.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m022"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, please note we have a new bank. Send the deposit to our PayPal at payments.brightside@icloud.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m023"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, our payment account has been updated. The new PayPal is brightside.pay.au@gmail.com. Please use it from today.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m024"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, since we moved banks, please don't use the old details. Pay to brightside.newaccount@outlook.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m025"
+ },
+ {
+  "group": "nov10",
+  "text": "Hey there, we've updated where we take payments. Send your fees to paypal.me/brightside-studio-au.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m026"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, the studio switched to a new account for payments. Please pay to brightside.finance@outlook.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m027"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, we've moved our banking. Please send this month's payment to our new PayPal account; details: brightside.pmt@gmail.com",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m028"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, our bank details have changed. Please send all future payments to account 0099 1234 5678.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m029"
+ },
+ {
+  "group": "nov10",
+  "text": "Hi, we've switched banks, so please pay this month's invoice through our new PayPal. I'll text you the address.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m030"
+ },
+ {
+  "group": "nov10",
+  "text": "Hello, heads up that our account is changing. Kindly hold off paying the old one and use our new PayPal, brightside.studio2@outlook.com.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "names_a_payment_destination",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m031"
+ },
+ {
+  "group": "ceo",
+  "text": "This is Maya, I'm in a meeting. Urgent: buy four $100 Apple gift cards for a client and send me the codes. Keep it between us.",
+  "yes": [
+   "asks_for_payment",
+   "gift_cards_or_crypto",
+   "impersonation",
+   "urgency_or_secrecy"
+  ],
+  "half": "tune",
+  "id": "m032"
+ },
+ {
+  "group": "ceo",
+  "text": "Maya here on my personal phone. Please pay this supplier today and don't mention it to anyone, I'll explain later.",
+  "yes": [
+   "asks_for_payment",
+   "impersonation",
+   "urgency_or_secrecy"
+  ],
+  "half": "held",
+  "id": "m033"
+ },
+ {
+  "group": "paypal",
+  "text": "PayPal Security: your account is limited. Verify within 24 hours at https://paypal-secure-check.com/login or it will be suspended.",
+  "yes": [
+   "code_or_link",
+   "impersonation",
+   "urgency_or_secrecy"
+  ],
+  "half": "tune",
+  "id": "m034"
+ },
+ {
+  "group": "paypal",
+  "text": "PayPal team here. We sent you a code to confirm a refund. Read it back to us so we can release your funds.",
+  "yes": [
+   "code_or_link",
+   "impersonation"
+  ],
+  "half": "held",
+  "id": "m035"
+ },
+ {
+  "group": "fee",
+  "text": "Your parcel is held at customs. Pay the $3.50 release fee at https://auspost-redelivery.top to get it delivered.",
+  "yes": [
+   "asks_for_payment",
+   "code_or_link",
+   "fee_to_release",
+   "impersonation",
+   "names_a_payment_destination"
+  ],
+  "half": "tune",
+  "id": "m036"
+ },
+ {
+  "group": "fee",
+  "text": "You have a refund of $480 waiting. A $25 processing fee is needed before we can release it. Pay by transfer.",
+  "yes": [
+   "asks_for_payment",
+   "fee_to_release",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m037"
+ },
+ {
+  "group": "overpay",
+  "text": "Hi, I accidentally paid $1500 instead of $150 for the class pack. Could you send the extra $1350 back to my bank? BSB 062-111 account 2233 4455.",
+  "yes": [
+   "asks_for_payment",
+   "names_a_payment_destination",
+   "overpay_and_refund",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m038"
+ },
+ {
+  "group": "overpay",
+  "text": "Oops, I overpaid you by $200. Please refund the difference to my friend's PayPal, sam.k.pay@gmail.com.",
+  "yes": [
+   "asks_for_payment",
+   "names_a_payment_destination",
+   "overpay_and_refund"
+  ],
+  "half": "held",
+  "id": "m039"
+ },
+ {
+  "group": "prize",
+  "text": "Congratulations! You've won a free year of classes. Claim your prize by paying the $9.99 activation fee here: bit.ly/brt-prize",
+  "yes": [
+   "asks_for_payment",
+   "code_or_link",
+   "fee_to_release",
+   "names_a_payment_destination",
+   "too_good_to_be_true"
+  ],
+  "half": "tune",
+  "id": "m040"
+ },
+ {
+  "group": "prize",
+  "text": "Guaranteed 20% monthly returns. Send USDT to our wallet to join the investors' club today.",
+  "yes": [
+   "asks_for_payment",
+   "gift_cards_or_crypto",
+   "too_good_to_be_true",
+   "urgency_or_secrecy"
+  ],
+  "half": "held",
+  "id": "m041"
+ },
+ {
+  "group": "offplatform",
+  "text": "Let's skip PayPal, it's cheaper for both of us. Just bank transfer me the $150 directly.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "pay_outside_paypal"
+  ],
+  "half": "tune",
+  "id": "m042"
+ },
+ {
+  "group": "offplatform",
+  "text": "Message me on WhatsApp +61 400 000 111 and I'll give you our direct deposit details, it's easier than the app.",
+  "yes": [
+   "asks_for_payment",
+   "changed_payment_details",
+   "pay_outside_paypal"
+  ],
+  "half": "held",
+  "id": "m043"
+ },
+ {
+  "group": "otp",
+  "text": "Hi, it's the studio. We just texted you a six-digit code to confirm your booking. Can you reply with it?",
+  "yes": [
+   "code_or_link",
+   "impersonation"
+  ],
+  "half": "tune",
+  "id": "m044"
+ },
+ {
+  "group": "otp",
+  "text": "Your Brightside account will be closed today unless you log in here: http://brightside-login.help",
+  "yes": [
+   "code_or_link",
+   "impersonation",
+   "urgency_or_secrecy"
+  ],
+  "half": "held",
+  "id": "m045"
+ },
+ {
+  "group": "g_pay",
+  "text": "Hi Maya, I'll pay the deposit through the link you sent me, probably tonight. Thanks!",
+  "yes": [],
+  "half": "tune",
+  "id": "m046"
+ },
+ {
+  "group": "g_pay",
+  "text": "Thanks, I paid the balance yesterday. Did it come through?",
+  "yes": [],
+  "half": "held",
+  "id": "m047"
+ },
+ {
+  "group": "g_pay",
+  "text": "Hi, can I pay the rest next Friday? Payday is the 15th.",
+  "yes": [],
+  "half": "tune",
+  "id": "m048"
+ },
+ {
+  "group": "g_pay",
+  "text": "Is there a payment plan? $150 at once is a lot for me this month.",
+  "yes": [],
+  "half": "held",
+  "id": "m049"
+ },
+ {
+  "group": "g_book",
+  "text": "Can I move my Thursday class to Saturday morning?",
+  "yes": [],
+  "half": "tune",
+  "id": "m050"
+ },
+ {
+  "group": "g_book",
+  "text": "Sorry, I'm sick today, can I cancel my 10am session?",
+  "yes": [],
+  "half": "held",
+  "id": "m051"
+ },
+ {
+  "group": "g_book",
+  "text": "Is the new reformer class on Tuesdays still running?",
+  "yes": [],
+  "half": "tune",
+  "id": "m052"
+ },
+ {
+  "group": "g_book",
+  "text": "I changed my phone number, it's 0412 555 019 now.",
+  "yes": [],
+  "half": "held",
+  "id": "m053"
+ },
+ {
+  "group": "g_book",
+  "text": "Could you email me the receipt? My email is lena.ortiz@gmail.com",
+  "yes": [],
+  "half": "tune",
+  "id": "m054"
+ },
+ {
+  "group": "g_studio",
+  "text": "Reminder from Brightside: your class is tomorrow at 9am. Reply STOP to opt out.",
+  "yes": [],
+  "half": "tune",
+  "id": "m055"
+ },
+ {
+  "group": "g_studio",
+  "text": "Brightside here: your deposit of $50 is due on Friday. Pay on your account page using the link in your welcome email.",
+  "yes": [
+   "asks_for_payment"
+  ],
+  "half": "held",
+  "id": "m056"
+ },
+ {
+  "group": "g_studio",
+  "text": "Thanks for paying! Your receipt is on your account page.",
+  "yes": [],
+  "half": "tune",
+  "id": "m057"
+ },
+ {
+  "group": "g_studio",
+  "text": "We've moved to a new studio on King Street from next week. Same classes, same times!",
+  "yes": [],
+  "half": "held",
+  "id": "m058"
+ },
+ {
+  "group": "g_studio",
+  "text": "Our new class timetable is out, have a look on the website.",
+  "yes": [],
+  "half": "tune",
+  "id": "m059"
+ },
+ {
+  "group": "g_cust",
+  "text": "I lost my job, I can't pay this month. What can I do?",
+  "yes": [],
+  "half": "tune",
+  "id": "m060"
+ },
+ {
+  "group": "g_cust",
+  "text": "Please stop calling me, I'll sort it out myself.",
+  "yes": [],
+  "half": "held",
+  "id": "m061"
+ },
+ {
+  "group": "g_cust",
+  "text": "I already paid this last week, check your records please.",
+  "yes": [],
+  "half": "tune",
+  "id": "m062"
+ },
+ {
+  "group": "g_cust",
+  "text": "Can my husband pay instead? He'll use his own PayPal on the account page.",
+  "yes": [],
+  "half": "held",
+  "id": "m063"
+ },
+ {
+  "group": "g_cust",
+  "text": "This isn't Priya, you have the wrong number.",
+  "yes": [],
+  "half": "tune",
+  "id": "m064"
+ },
+ {
+  "group": "g_cust",
+  "text": "My account page says $120 but I thought it was $100?",
+  "yes": [],
+  "half": "held",
+  "id": "m065"
+ }
+]

@@ -219,6 +219,11 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   ok BOOLEAN NOT NULL, error TEXT, output JSONB, run_id TEXT, at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ai_calls_hash ON ai_calls(input_hash, id DESC);
+-- Spec A5.2: thresholds for Decisions answers live in code and data (thresholds.json, written by scripts/calibrate.ts).
+CREATE TABLE IF NOT EXISTS decision_thresholds (
+  name TEXT PRIMARY KEY, clear_below DOUBLE PRECISION NOT NULL, hold_above DOUBLE PRECISION NOT NULL, calibrated_on TEXT, n INTEGER NOT NULL DEFAULT 0,
+  precision_at_hold DOUBLE PRECISION, recall_at_hold DOUBLE PRECISION, set_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS agent_runs (
   id TEXT PRIMARY KEY, actor TEXT NOT NULL, agent_id TEXT, subject TEXT NOT NULL DEFAULT '', entity TEXT, entity_id TEXT,
   status TEXT NOT NULL DEFAULT 'running', started_at TIMESTAMPTZ NOT NULL DEFAULT now(), ended_at TIMESTAMPTZ
@@ -228,6 +233,11 @@ CREATE TABLE IF NOT EXISTS agent_trace (
   args JSONB, policy TEXT, gate TEXT, result JSONB, pp_request_id TEXT, pp_debug_id TEXT, duration_ms INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS agent_trace_run ON agent_trace(run_id, step);
+-- Spec A5.3: what the Ask agent proposes; the owner decides with the normal buttons. A proposal never moves money.
+CREATE TABLE IF NOT EXISTS proposals (
+  id TEXT PRIMARY KEY, business_id TEXT NOT NULL, kind TEXT NOT NULL, payload JSONB NOT NULL DEFAULT '{}', reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','done','dismissed')), run_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS audit_chain (
   seq BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, entity TEXT NOT NULL, entity_id TEXT NOT NULL, payload JSONB NOT NULL, prev_hash TEXT NOT NULL, hash TEXT NOT NULL, at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -274,7 +284,7 @@ CREATE INDEX IF NOT EXISTS channel_messages_at ON channel_messages(created_at DE
 `;
 
 /** Every table of a studio, children first: what a showcase rebuild or a full reset empties. */
-export const APP_TABLES = ["voice_events", "callbacks", "pay_links", "invoices", "instalment_plans", "refunds", "calls", "obligations", "policies", "call_history", "customers", "people", "events", "demo_faults", "webhook_events", "jobs_queue", "ai_calls", "agent_trace", "agent_runs", "audit_chain", "kill_switches", "approvals", "passkeys", "provenance", "channel_messages", "party_links", "push_subscriptions", "judge_sessions", "eval_runs", "guard_settings", "businesses"];
+export const APP_TABLES = ["proposals", "voice_events", "callbacks", "pay_links", "invoices", "instalment_plans", "refunds", "calls", "obligations", "policies", "call_history", "customers", "people", "events", "demo_faults", "webhook_events", "jobs_queue", "ai_calls", "agent_trace", "agent_runs", "audit_chain", "kill_switches", "approvals", "passkeys", "provenance", "channel_messages", "party_links", "push_subscriptions", "judge_sessions", "eval_runs", "guard_settings", "businesses"];
 
 /** Registry tables: only in the app's own schema, never inside a workspace schema. */
 export const REGISTRY = `

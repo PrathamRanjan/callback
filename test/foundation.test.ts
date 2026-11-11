@@ -123,7 +123,7 @@ describe("foundation routes", () => {
   });
   it("pwa, push, evidence, judge, llms, skill, mcp page", async () => {
     expect((await anon.get("/manifest.webmanifest")).json.name).toBe("Callback");
-    expect((await anon.get("/sw.js")).text).toContain("callback-v1");
+    expect((await anon.get("/sw.js")).text).toContain("callback-v2");
     expect((await anon.get("/push/public-key")).json.key).toBeNull();
     expect((await anon.postJson("/push/subscribe", { endpoint: "x" })).status).toBe(401);
     expect((await owner.postJson("/push/subscribe", { endpoint: "x" })).json.subscribed).toBe(true);

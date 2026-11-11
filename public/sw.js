@@ -1,12 +1,12 @@
 // Callback service worker: offline shell for the guest and operator pages, push notifications.
-const CACHE = "callback-v1";
+const CACHE = "callback-v2";
 const SHELL = ["/", "/static/app.css", "/static/icon.svg"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => null)).then(() => self.skipWaiting())));
 self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== location.origin) return;
-  if (u.pathname.startsWith("/static/")) e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => { caches.open(CACHE).then((c) => c.put(e.request, res.clone())); return res; })));
+  if (u.pathname.startsWith("/static/")) e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); } return res; })));
   else if (u.pathname.startsWith("/c/") || u.pathname.startsWith("/ops") || u.pathname.startsWith("/c/")) e.respondWith(fetch(e.request).catch(() => caches.match("/")));
 });
 self.addEventListener("push", (e) => {

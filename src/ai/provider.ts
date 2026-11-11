@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { getDb } from "../db.js";
 
-export type Purpose = "turn" | "policy" | "persona" | "summary" | "eval";
+export type Purpose = "turn" | "policy" | "persona" | "summary" | "eval" | "scam_check" | "agent";
 
 export interface TextPart {
   type: "text";
@@ -61,7 +61,7 @@ export class NoModelError extends Error {
   }
 }
 
-let fetchImpl: typeof fetch = (i, init) => fetch(i, init);
+export let fetchImpl: typeof fetch = (i, init) => fetch(i, init);
 /** Tests intercept model calls here. */
 export function setProviderFetch(f: typeof fetch | null) {
   fetchImpl = f ?? ((i, init) => fetch(i, init));
@@ -217,7 +217,8 @@ async function openaiStructured(model: string, call: StructuredCall<unknown>, sc
   throw last ?? new Error("Model call failed");
 }
 
-async function audit(row: { purpose: string; model: string; via: string; inputHash: string; outputHash: string; tokensIn: number; tokensOut: number; costUsd: number; latencyMs: number; ok: boolean; error: string | null; output: unknown; runId: string | null }): Promise<number | null> {
+/** One row in ai_calls; shared with the Decisions client and the agent loop. */
+export async function audit(row: { purpose: string; model: string; via: string; inputHash: string; outputHash: string; tokensIn: number; tokensOut: number; costUsd: number; latencyMs: number; ok: boolean; error: string | null; output: unknown; runId: string | null }): Promise<number | null> {
   try {
     const db = await getDb();
     const r = await db.query<{ id: number }>(

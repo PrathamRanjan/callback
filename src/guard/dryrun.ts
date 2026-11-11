@@ -19,6 +19,7 @@ import { activePolicy } from "./policy.js";
 import { moneyArgumentOk } from "./provenance.js";
 import { assessCallMove } from "../safety/index.js";
 import { notifyParty } from "../channels/index.js";
+import { markStep } from "../services/wsrefs.js";
 
 export type MoneyAction = "charge" | "invoice" | "plan" | "discount" | "refund";
 
@@ -243,6 +244,7 @@ export async function decideApproval(id: string, approve: boolean, method: "clic
   }
   await db.query("UPDATE approvals SET status = $2, method = $3, decided_at = now() WHERE id = $1", [id, approve ? "approved" : "declined", method]);
   await appendAudit(approve ? "approval.approved" : "approval.declined", "approval", id, { by, method, hash: a.payload_hash, action: a.action });
+  await markStep("approval_decided").catch(() => undefined);
   // An approval is only useful if someone acts on it: when the call that asked is over, carry the move out now.
   let followUp: { done: boolean; message: string } | null = null;
   if (approve) {

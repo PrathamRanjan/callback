@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Accessibility, BadgeCheck, BookOpenCheck, CircleDollarSign, Compass, FlaskConical, Inbox, LayoutDashboard, LogOut, Menu, MessagesSquare,  PhoneCall, RotateCcw, Scale, Search, ShieldAlert, Users,
-} from "lucide-react";
+  Accessibility, BadgeCheck, BookOpenCheck, CircleDollarSign, Compass, FlaskConical, Inbox, LayoutDashboard, LogOut, Menu, MessagesSquare,  PhoneCall, RotateCcw, Scale, Search, ShieldAlert, Sparkles, Users, } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -13,19 +12,20 @@ import { cn } from "@/lib/utils";
 import { DisplayHelp } from "./display-help";
 import { ThemeMenu, Wordmark } from "./public-shell";
 import { OfflineBar } from "./bits";
-import { startTour } from "@/tour/tours";
+import { TOUR_PAGE } from "@/tour/tours";
 
 interface NavItem { to: string; label: string; icon: typeof Inbox; owner?: boolean; tour?: string }
 export const NAV: NavItem[] = [
   { to: "/today", label: "Today", icon: LayoutDashboard, tour: "nav-today" },
   { to: "/calls", label: "Calls", icon: PhoneCall, tour: "nav-calls" },
+  { to: "/ask", label: "Ask", icon: Sparkles, owner: true, tour: "nav-ask" },
   { to: "/approvals", label: "Needs you", icon: Inbox, owner: true, tour: "nav-approvals" },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/money", label: "Money", icon: CircleDollarSign, owner: true, tour: "nav-money" },
   { to: "/rules", label: "Rules", icon: Scale, owner: true },
   { to: "/safety", label: "Scam guard", icon: ShieldAlert, owner: true },
   { to: "/messages", label: "Messages", icon: MessagesSquare, owner: true },
-  { to: "/proof", label: "Proof", icon: BadgeCheck, tour: "nav-proof" },
+  { to: "/evidence", label: "Evidence", icon: BadgeCheck, tour: "nav-proof" },
   { to: "/demo", label: "Demo controls", icon: FlaskConical },
 ];
 
@@ -47,8 +47,8 @@ export function DemoRibbon() {
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="idle" aria-hidden="true" />Simulated: {sim.join(", ")}{session.business?.pinned ? ", the clock" : ""}</span>
         {session.business ? <span className="num text-ink-2">Studio time {session.business.clock_local}</span> : null}
         <span className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-[0.8rem]" onClick={() => startTour("judge", nav, true)}>
-            <Compass /> Judge tour
+          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-[0.8rem]">
+            <Link to="/judge"><Compass /> For judges</Link>
           </Button>
           {session.me?.role === "owner" ? (
             <Button
@@ -115,8 +115,8 @@ function Palette({ open, setOpen, items }: { open: boolean; setOpen: (b: boolean
               <i.icon /> {i.label}
             </CommandItem>
           ))}
-          <CommandItem onSelect={() => { setOpen(false); startTour("judge", nav, true); }}>
-            <Compass /> Start the judge tour
+          <CommandItem onSelect={() => { setOpen(false); nav("/judge"); }}>
+            <Compass /> For judges
           </CommandItem>
         </CommandGroup>
       </CommandList>
@@ -188,7 +188,7 @@ export function AppShell() {
             <div className="flex items-center gap-1">
               <ThemeMenu />
               <Button variant="ghost" size="icon" aria-label="Display and help" onClick={() => setHelp(true)} data-tour="display-help"><Accessibility /></Button>
-              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => startTour(role === "owner" ? "owner" : "staff", nav, true)} data-tour="take-tour"><BookOpenCheck /></Button>
+              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour"><BookOpenCheck /></Button>
               <Button variant="ghost" size="icon" aria-label="Sign out" onClick={signOut}><LogOut /></Button>
             </div>
           </div>
@@ -198,7 +198,7 @@ export function AppShell() {
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-paper/95 px-4 backdrop-blur lg:hidden">
             <Link to="/today" aria-label="Callback, Today"><Wordmark /></Link>
             <span className="ml-auto flex items-center">
-              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => startTour(role === "owner" ? "owner" : "staff", nav, true)} data-tour="take-tour-m"><BookOpenCheck /></Button>
+              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour-m"><BookOpenCheck /></Button>
               <Button variant="ghost" size="icon" aria-label="Display and help" onClick={() => setHelp(true)}><Accessibility /></Button>
               <ThemeMenu />
             </span>

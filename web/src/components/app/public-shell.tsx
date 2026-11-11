@@ -60,6 +60,7 @@ export function PublicShell({ children, wide = false }: { children: ReactNode; w
         <div className={cn("mx-auto flex h-16 items-center gap-2 px-4", wide ? "max-w-[1180px]" : "max-w-[720px]")}>
           <Link to="/" aria-label="Callback home"><Wordmark /></Link>
           <span className="ml-auto flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm"><Link to="/judge">For judges</Link></Button>
             <Button variant="ghost" size="icon" aria-label="Display and help" onClick={() => setHelp(true)}><Accessibility /></Button>
             <ThemeMenu />
           </span>

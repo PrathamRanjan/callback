@@ -13,7 +13,9 @@ import { createPlan, payFromDemoWallet, sendPayLink, settleCancelledClass, SPLIT
 import { markStep } from "../services/workspaces.js";
 import { balanceOf, owedToCustomer, bizById, customerByToken, logEvent, nowOf, obligationsOf, callsOf } from "../store.js";
 import { startRun } from "../trace.js";
-import { back, flashOf, page } from "./common.js";
+import { back, flashOf, json, page } from "./common.js";
+import { scanMessage } from "../safety/readers.js";
+import { allowScan } from "./safety.js";
 import { html, layout, pill, raw } from "./html.js";
 import { money } from "./views.js";
 
@@ -42,6 +44,19 @@ ${msgs.length ? html`<section class="card"><h2>Messages from ${biz.name}</h2><ul
 ${!c.dnc && c.consent ? html`<form method="post" action="/c/${c.token}/callback" class="stack"><label for="cbat">Call me back at</label><select id="cbat" name="at">${slots.map((s) => html`<option value="${s.at}">${s.label}</option>`)}</select><div class="row"><button class="btn" type="submit">Book a callback</button></div></form><form method="post" action="/c/${c.token}/stop" style="margin-top:.75rem"><button class="btn ghost small" type="submit">Stop calling me</button></form>` : ""}</section>
 <section class="card"><h2>Updates on your phone</h2><p class="sub muted">Get your links and receipts on Telegram, and reply “status” any time.</p><a class="btn" href="https://t.me/${config.channels.telegramBot}?start=callback-${c.token}" target="_blank" rel="noopener">${raw(icon("message"))}Get updates on Telegram</a></section></div>`));
   }));
+  // Spec A6.6: "Got a message about this?" on the customer's own page. Every reader runs against this business's record,
+  // so a message naming somewhere to pay that isn't this page is held. No login; rate limited per address.
+  r.post("/c/:token/check", json(async (req) => {
+    const db = await getDb();
+    const c = await customerByToken(db, req.params.token);
+    const text = String(req.body?.text ?? "").slice(0, 4000);
+    if (!text.trim()) throw new GtError("Paste the message first.", "bad_request", 400);
+    if (!allowScan(req.ip ?? "?")) throw new GtError("That's a lot of checks from one address. Try again in a few minutes.", "rate_limited", 429);
+    const out = await scanMessage(text, { businessId: c.business_id, q: db });
+    await logEvent(db, { businessId: c.business_id, customerId: c.id, type: "safety.customer_check", summary: `${c.name.split(" ")[0]} checked a message on their page: ${out.level}`, actor: "customer", data: { level: out.level, rule: out.rule } });
+    return out;
+  }));
+
   r.post("/c/:token/pay/:oid", page(async (req, res) => {
     const db = await getDb();
     const c = await customerByToken(db, req.params.token);

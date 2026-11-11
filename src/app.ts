@@ -8,6 +8,8 @@ import { GtError } from "./lib/util.js";
 import { config } from "./config.js";
 import { getDb, inWorkspace } from "./db.js";
 import { workspaceMiddleware } from "./web/workspace.js";
+import { askRouter } from "./web/ask.js";
+import { publicRouter } from "./web/public.js";
 import { callsRouter } from "./web/calls.js";
 import { customerRouter } from "./web/customer.js";
 import { demoRouter } from "./web/demo.js";
@@ -52,6 +54,8 @@ export function createApp() {
   app.use(callsRouter());
   app.use(guardRouter());
   app.use(safetyRouter());
+  app.use(askRouter());
+  app.use(publicRouter());
   app.use(customerRouter());
   app.use(demoRouter());
   app.use(foundationRouter());
