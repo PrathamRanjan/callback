@@ -64,7 +64,7 @@ class Client {
     const text = await res.text();
     let json = null;
     try { json = JSON.parse(text); } catch { /* html */ }
-    return { status: res.status, json, text };
+    return { status: res.status, location: res.headers.get("location"), json, text };
   }
   get(p) { return this.req("GET", p); }
   post(p, form = {}) { return this.req("POST", p, form); }
@@ -88,11 +88,13 @@ function wav(lang, k, text) {
   return ulaw(f);
 }
 
+// One private demo for all three languages (the site allows 5 new demos an hour per address); each language takes
+// another planned call in it.
+const J = new Client();
 async function one(lang) {
   const L = LINES[lang];
-  const J = new Client();
-  await J.post("/demo/signin-as", { role: "owner" });
-  const calls = (await J.get("/api/app/calls")).json ?? [];
+  const calls = (await J.get("/api/app/calls")).json;
+  if (!Array.isArray(calls)) throw new Error("not signed in to a demo (the per-address demo limit may be reached)");
   const call = calls.find((c) => c.purpose === "confirm_deposit" && c.status === "planned") ?? calls.find((c) => c.status === "planned");
   if (!call) return record(lang, "a planned call exists in a fresh demo", false, calls.map((c) => `${c.purpose}:${c.status}`).join(", "));
   const tl = await J.postJson(`/api/app/calls/${call.id}/live/test-line`, {}, { "x-admin-key": ADMIN });
@@ -170,6 +172,8 @@ async function one(lang) {
 
 const health = await fetch(`${BASE}/healthz`).then((r) => r.json());
 console.error(`target ${BASE}, commit ${String(health.commit).slice(0, 7)}`);
+const si = await J.post("/demo/signin-as", { role: "owner" });
+if (/err=/.test(si.location ?? "")) { console.error(`no demo: ${decodeURIComponent(si.location.split("err=")[1])}`); process.exit(1); }
 for (const l of ONLY) {
   try { await one(l); } catch (e) { record(l, "the check ran", false, (e).message); }
 }

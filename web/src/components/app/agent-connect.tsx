@@ -17,7 +17,7 @@ interface McpRow { server: string; agent_id: string; method: string; tool: strin
 export function ConnectAssistant() {
   const { session } = useSession();
   const owner = session?.me?.role === "owner";
-  const [key, setKey] = useState<string | null>(null);
+  const [key, setKey] = useState<string | null | undefined>(undefined); // undefined while loading
   const [show, setShow] = useState(false);
   const [rows, setRows] = useState<McpRow[] | null>(null);
   const [trying, setTrying] = useState(false);
@@ -84,7 +84,7 @@ export function ConnectAssistant() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-ink-2">{t("Demo key")}</span>
-          <code className="rounded bg-surface-2 px-2 py-1 font-mono text-xs" data-testid="demo-key">{key ? shown : t("not available (not a demo workspace)")}</code>
+          <code className="rounded bg-surface-2 px-2 py-1 font-mono text-xs" data-testid="demo-key">{key === undefined ? t("Loading…") : key ? shown : t("not available (not a demo workspace)")}</code>
           {key ? (
             <>
               <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" aria-pressed={show} onClick={() => setShow((v) => !v)}>{show ? <EyeOff className="inline size-4" aria-hidden="true" /> : <Eye className="inline size-4" aria-hidden="true" />} {show ? t("Hide") : t("Show")}</button>
