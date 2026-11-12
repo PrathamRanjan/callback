@@ -1,0 +1,2 @@
+{ "name": "guard-browser", "private": true, "type": "module", "scripts": { "parity": "node parity.test.mjs" },
+  "dependencies": { "onnxruntime-node": "^1.20.0"} }
