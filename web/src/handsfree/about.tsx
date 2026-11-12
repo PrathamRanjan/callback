@@ -86,16 +86,16 @@ function SimDemo() {
     <div className="rounded-[12px] border border-line bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{t("Simulated gaze demo")}</p>
-        <button type="button" className="min-h-11 rounded-[8px] border border-line px-3 text-sm" onClick={() => setPlaying((v) => !v)} aria-pressed={playing}>
+        <button type="button" className="min-h-11 rounded-[10px] border border-line px-3 text-sm" onClick={() => setPlaying((v) => !v)} aria-pressed={playing}>
           {playing ? <Pause className="inline size-4" aria-hidden="true" /> : <Play className="inline size-4" aria-hidden="true" />} {playing ? t("Pause") : t("Play")}
         </button>
       </div>
       <p className="mt-1 text-xs text-ink-2">{t("A scripted gaze path with 28 px of random jitter moves through the page's own snapping and dwell code. No camera is used; nothing here is real.")}</p>
-      <div ref={box} className="relative mt-3 grid gap-2 overflow-hidden rounded-[10px] border border-line bg-paper p-3" aria-hidden="true" data-hf-ignore>
+      <div ref={box} className="relative mt-3 grid gap-2 overflow-hidden rounded-[14px] border border-line bg-paper p-3" aria-hidden="true" data-hf-ignore>
         {CARDS.map((c) => (
-          <div key={c.id} data-demo={c.id} className={cn("flex min-h-[52px] flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line px-3 py-1", held === c.id && "outline outline-[3px] outline-brand")}>
+          <div key={c.id} data-demo={c.id} className={cn("flex min-h-[52px] flex-wrap items-center justify-between gap-2 rounded-[10px] border border-line px-3 py-1", held === c.id && "outline outline-[3px] outline-brand")}>
             <span className="min-w-0 text-sm"><b>{c.who}</b> · {t(c.what)}{done === c.id ? ` · ${t("call started (demo)")}` : ""}</span>
-            <span data-demo={`call-${c.id}`} className={cn("shrink-0 rounded-[8px] bg-ink px-3 py-2 text-xs font-medium text-paper", held === `call-${c.id}` && "outline outline-[3px] outline-brand outline-offset-2")}>{t("Call now")}</span>
+            <span data-demo={`call-${c.id}`} className={cn("shrink-0 rounded-[10px] bg-ink px-3 py-2 text-xs font-medium text-paper", held === `call-${c.id}` && "outline outline-[3px] outline-brand outline-offset-2")}>{t("Call now")}</span>
           </div>
         ))}
         {card ? (
@@ -103,8 +103,8 @@ function SimDemo() {
             <p className="text-sm font-semibold">{t("Check before it happens")}</p>
             <p className="text-xs">{t("This places a call to a customer: {0}. Confirm to go ahead.", [who(card)])}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <span data-demo="cancel" className={cn("rounded-[8px] border border-line px-3 py-3 text-center text-sm", held === "cancel" && "outline outline-[3px] outline-brand")}>{t("Cancel")}</span>
-              <span data-demo="confirm" className={cn("rounded-[8px] bg-ink px-3 py-3 text-center text-sm font-semibold text-paper", held === "confirm" && "outline outline-[3px] outline-brand")}>{t("Confirm")}</span>
+              <span data-demo="cancel" className={cn("rounded-[10px] border border-line px-3 py-3 text-center text-sm", held === "cancel" && "outline outline-[3px] outline-brand")}>{t("Cancel")}</span>
+              <span data-demo="confirm" className={cn("rounded-[10px] bg-ink px-3 py-3 text-center text-sm font-semibold text-paper", held === "confirm" && "outline outline-[3px] outline-brand")}>{t("Confirm")}</span>
             </div>
           </div>
         ) : null}
@@ -135,7 +135,7 @@ export function HandsFreeAbout() {
       <h2 className="text-h2 font-semibold">{t("Hands-free: look and say")}</h2>
       <p className="text-sm">{t("For people who can't easily use a mouse or a touch screen. Point with your eyes (after a 9-dot calibration) or your head; the pointer snaps to the nearest button, and looking at it for about a second fills a ring and presses it. A wink can press too. Voice commands work in English, Hindi, Indonesian and Brazilian Portuguese. Start it from Display and help, or with Alt+Shift+H.")}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" data-risk="none" className="min-h-11 rounded-[8px] bg-ink px-4 text-sm font-medium text-paper" onClick={() => setHandsFreeActive(true)}>{t("Start hands-free here")}</button>
+        <button type="button" data-risk="none" className="min-h-11 rounded-[10px] bg-ink px-4 text-sm font-medium text-paper" onClick={() => setHandsFreeActive(true)}>{t("Start hands-free here")}</button>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-[12px] border border-line bg-surface p-3 text-sm">
@@ -151,7 +151,7 @@ export function HandsFreeAbout() {
       </div>
       <SimDemo />
       <figure className="grid gap-1">
-        <video className="w-full rounded-[10px] border border-line" src="/media/handsfree-demo.webm" controls muted playsInline preload="metadata" aria-describedby="hf-video-cap">
+        <video className="w-full rounded-[14px] border border-line" src="/media/handsfree-demo.webm" controls muted playsInline preload="metadata" aria-describedby="hf-video-cap">
           <track kind="captions" src="/media/handsfree-demo.vtt" srcLang="en" label={t("English descriptions")} default />
         </video>
         <figcaption id="hf-video-cap" className="text-xs text-ink-2">{t("A 30-second recording of hands-free in Callback, driven by simulated gaze in a headless browser (not a person's eyes): it snaps to a call, the confirm card stops the call until Confirm is held, a plain link opens with no card, and “stop” turns it off. No sound.")}</figcaption>

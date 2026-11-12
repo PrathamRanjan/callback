@@ -84,7 +84,7 @@ function MoneyTimeline({ d, owner, onChange }: { d: CallData; owner: boolean; on
       ) : (
         <p className="text-sm text-ink-2">{t("No PayPal moves yet. When the customer agrees, the gate checks the amount and creates the order here.")}</p>
       )}
-      {d.item?.captured ? <p className="mt-3 rounded-[8px] bg-done-soft px-3 py-2 text-sm">{t("Paid through PayPal:")}{" "}{money(d.item.settled_cents)}{" "}{t("captured.")}</p> : null}
+      {d.item?.captured ? <p className="mt-3 rounded-[10px] bg-done-soft px-3 py-2 text-sm">{t("Paid through PayPal:")}{" "}{money(d.item.settled_cents)}{" "}{t("captured.")}</p> : null}
     </Panel>
   );
 }

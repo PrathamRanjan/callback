@@ -47,7 +47,7 @@ export function LangButtons() {
           lang={l.code}
           aria-checked={lang === l.code}
           onClick={() => void setLang(l.code as Lang)}
-          className={cn("min-h-11 rounded-[8px] border border-line bg-paper px-3 text-[0.95rem] font-medium", lang === l.code && "border-brand bg-brand-soft")}
+          className={cn("min-h-11 rounded-[10px] border border-line bg-paper px-3 text-[0.95rem] font-medium", lang === l.code && "border-brand bg-brand-soft")}
         >
           {l.name}
         </button>

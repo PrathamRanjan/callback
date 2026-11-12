@@ -41,7 +41,7 @@ export function ConnectAssistant() {
       <div className="rounded-[12px] border border-line bg-surface p-4 text-sm">
         <h2 className="flex items-center gap-2 text-h2 font-semibold"><Plug className="size-5" aria-hidden="true" />{t("Connect your assistant")}</h2>
         <p className="mt-1">{t("Start a demo as the owner to get a demo key for your own workspace, a config to paste into your MCP client, and a live view of every tool call it makes.")}</p>
-        <Link to="/try" className="mt-3 inline-flex min-h-11 items-center rounded-[8px] bg-ink px-4 font-medium text-paper">{t("Be the owner")}</Link>
+        <Link to="/try" className="mt-3 inline-flex min-h-11 items-center rounded-[10px] bg-ink px-4 font-medium text-paper">{t("Be the owner")}</Link>
       </div>
     );
   }
@@ -80,25 +80,25 @@ export function ConnectAssistant() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-ink-2">{t("Server")}</span>
           <code className="rounded bg-surface-2 px-2 py-1 font-mono text-xs">{url}</code>
-          <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => copy(url, t("server address"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy")}</button>
+          <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => copy(url, t("server address"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy")}</button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-ink-2">{t("Demo key")}</span>
           <code className="rounded bg-surface-2 px-2 py-1 font-mono text-xs" data-testid="demo-key">{key === undefined ? t("Loading…") : key ? shown : t("not available (not a demo workspace)")}</code>
           {key ? (
             <>
-              <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" aria-pressed={show} onClick={() => setShow((v) => !v)}>{show ? <EyeOff className="inline size-4" aria-hidden="true" /> : <Eye className="inline size-4" aria-hidden="true" />} {show ? t("Hide") : t("Show")}</button>
-              <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => copy(key, t("demo key"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy")}</button>
+              <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" aria-pressed={show} onClick={() => setShow((v) => !v)}>{show ? <EyeOff className="inline size-4" aria-hidden="true" /> : <Eye className="inline size-4" aria-hidden="true" />} {show ? t("Hide") : t("Show")}</button>
+              <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => copy(key, t("demo key"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy")}</button>
             </>
           ) : null}
         </div>
       </div>
       <div>
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-ink-2">{t("MCP client config (Streamable HTTP)")}</span><button type="button" className="min-h-11 rounded-[8px] border border-line px-3" disabled={!key} onClick={() => key && copy(config.replace(shown, key), t("config"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy with key")}</button></div>
-        <pre className="max-w-full overflow-x-auto rounded-[8px] bg-surface-2 p-3 font-mono text-xs" tabIndex={0} aria-label={t("MCP client config")}>{config}</pre>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-ink-2">{t("MCP client config (Streamable HTTP)")}</span><button type="button" className="min-h-11 rounded-[10px] border border-line px-3" disabled={!key} onClick={() => key && copy(config.replace(shown, key), t("config"))}><Copy className="inline size-4" aria-hidden="true" /> {t("Copy with key")}</button></div>
+        <pre className="max-w-full overflow-x-auto rounded-[10px] bg-surface-2 p-3 font-mono text-xs" tabIndex={0} aria-label={t("MCP client config")}>{config}</pre>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="min-h-11 rounded-[8px] bg-ink px-4 font-medium text-paper" disabled={!key || trying} onClick={tryIt}>{trying ? t("Calling…") : t("Try it from here: call get_plan")}</button>
+        <button type="button" className="min-h-11 rounded-[10px] bg-ink px-4 font-medium text-paper" disabled={!key || trying} onClick={tryIt}>{trying ? t("Calling…") : t("Try it from here: call get_plan")}</button>
         <span className="text-xs text-ink-2">{t("A real MCP request from this page, with your key, read-only.")}</span>
       </div>
       <div>

@@ -72,7 +72,7 @@ export default function MessagesPage() {
       <div className="grid gap-6 lg:grid-cols-[300px_1fr] [&>*]:min-w-0">
         <Section id="threads" title={t("Conversations")}>
           {threads.length ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+            <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
               {[{ address: d.owner_address } as Msg, ...threads.filter((t) => t.address !== d.owner_address)].map((t) => (
                 <li key={t.address}>
                   <button type="button" onClick={() => setAddr(t.address)} aria-current={current === t.address} className={`w-full px-4 py-3 text-left hover:bg-surface-2 ${current === t.address ? "bg-brand-soft" : ""}`}>
@@ -87,10 +87,10 @@ export default function MessagesPage() {
         <Section id="thread" title={who(current)} hint={t("Simulator: send a message as this person, the way it would arrive by Telegram or SMS. Type approve:<id> to decide a hold as the owner.")}>
           <Panel className="p-4">
             {d.thread.length ? (
-              <ol className="mb-4 max-h-[420px] space-y-2 overflow-y-auto">
+              <ol className="mb-4 max-h-[420px] space-y-2 overflow-y-auto" tabIndex={0} aria-label={t("Conversation")}>
                 {d.thread.map((m, k) => (
                   <li key={k} className={m.direction === "in" ? "pl-10 text-right" : "pr-10"}>
-                    <span className={`inline-block max-w-full rounded-[10px] px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.direction === "in" ? "bg-surface-2" : "bg-brand-soft"}`}>{m.body}</span>
+                    <span className={`inline-block max-w-full rounded-[14px] px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.direction === "in" ? "bg-surface-2" : "bg-brand-soft"}`}>{m.body}</span>
                     <div className="mt-0.5 text-[0.7rem] text-ink-2 [overflow-wrap:anywhere]">{m.channel} · {m.status} · {when(m.at)}</div>
                   </li>
                 ))}

@@ -120,7 +120,7 @@ export default function CustomerPage() {
         <div className="min-w-0">
           <Section id="items" title={t("Money")}>
             {d.items.length ? (
-              <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+              <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
                 {d.items.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                     <span className="lamp" data-s={moneyLamp(i.status)} aria-hidden="true" />
@@ -140,7 +140,7 @@ export default function CustomerPage() {
           </Section>
           <Section id="calls" title={t("Calls")}>
             {d.calls.length ? (
-              <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+              <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
                 {d.calls.map((x) => (
                   <li key={x.id}>
                     <Link to={`/calls/${x.id}`} className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-surface-2">

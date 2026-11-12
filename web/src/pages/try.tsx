@@ -67,11 +67,11 @@ export default function Try() {
   return (
     <PublicShell>
       <div className="mx-auto max-w-[720px] px-4 py-10">
-        <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>{t("Who do you want to be?")}</h1>
+        <h1 className="font-display text-h1 font-[800]">{t("Who do you want to be?")}</h1>
         <p className="mt-2 text-lead text-ink-2">{t("Pick a role. We'll tell you who you are, then walk you through what your day looks like with Callback.")}</p>
         <p className="mt-2 text-ink-2">{data?.business?.name ?? "Brightside Physio & Pilates"}{" "}{t("is a demo studio in Sydney. Your first tap builds your own private copy of it (a few seconds): nobody else sees what you do, and it is removed after two days without a visit. Payments go through the real PayPal sandbox; nothing real is charged.")}</p>
-        {data && !data.demo ? <p className="mt-3 rounded-[8px] bg-hold-soft p-3 text-sm">{t("Demo mode is off on this server. Sign in with your access key below.")}</p> : null}
-        {err ? <p role="alert" data-testid="try-error" className="mt-3 rounded-[8px] border border-hold bg-hold-soft p-3 text-sm">{err}</p> : null}
+        {data && !data.demo ? <p className="mt-3 rounded-[10px] bg-hold-soft p-3 text-sm">{t("Demo mode is off on this server. Sign in with your access key below.")}</p> : null}
+        {err ? <p role="alert" data-testid="try-error" className="mt-3 rounded-[10px] border border-hold bg-hold-soft p-3 text-sm">{err}</p> : null}
         <ul className="mt-6 grid gap-3">
           {people.map((p) => (
             <li key={p.id}>
@@ -83,7 +83,7 @@ export default function Try() {
                   <p className="text-sm text-ink-2">{p.d}</p>
                 </div>
                 <div className="flex flex-col gap-1 sm:items-end">
-                  <Button onClick={() => go(p.id)} disabled={busy !== null || (data ? !data.demo : false)} aria-busy={busy === p.id} className="sm:w-auto">
+                  <Button variant={p.id === "owner" ? "default" : "outline"} onClick={() => go(p.id)} disabled={busy !== null || (data ? !data.demo : false)} aria-busy={busy === p.id} className="sm:w-auto">
                     {busy === p.id ? <Loader2 className="animate-spin" /> : null}
                     {p.cta} <ArrowRight />
                   </Button>

@@ -100,7 +100,7 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
                   role="radio"
                   aria-checked={d.text === sz}
                   onClick={() => set("text", sz)}
-                  className={cn("h-12 rounded-[8px] border border-line bg-paper font-medium", d.text === sz && "border-brand bg-brand-soft")}
+                  className={cn("h-12 rounded-[10px] border border-line bg-paper font-medium", d.text === sz && "border-brand bg-brand-soft")}
                   style={{ fontSize: sz === "normal" ? "0.95rem" : sz === "large" ? "1.1rem" : "1.25rem" }}
                 >
                   {sz === "normal" ? t("Normal") : sz === "large" ? t("Large") : t("Largest")}
@@ -119,7 +119,7 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
               {speaking ? <VolumeX /> : <Volume2 />} {speaking ? t("Stop reading") : t("Read this page aloud")}
             </Button>
           ) : null}
-          <div className="mt-6 rounded-[10px] bg-paper p-4 text-sm text-ink-2">
+          <div className="mt-6 rounded-[14px] bg-paper p-4 text-sm text-ink-2">
             <p className="mb-2 font-medium text-ink">{t("Reading the lamps")}</p>
             <ul className="space-y-1.5">
               <li className="flex items-center gap-2"><span className="lamp" data-s="ready" aria-hidden="true" />{t("Ready: a call is planned and allowed.")}</li>

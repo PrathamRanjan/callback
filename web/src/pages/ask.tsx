@@ -35,14 +35,14 @@ function Rail({ steps, live, highlight }: { steps: Step[]; live: boolean; highli
   return (
     <div className="space-y-2" aria-live="polite">
       <p className="text-xs text-ink-2">{plural(tools.length, "tool call")} · {plural(models.length, "model step")}{models.length ? ` · ${models.at(-1)?.result?.model}` : ""}</p>
-      {notes.map((n) => <p key={n.step} className="rounded-[8px] bg-hold-soft px-3 py-2 text-xs">{n.result?.note}</p>)}
+      {notes.map((n) => <p key={n.step} className="rounded-[10px] bg-hold-soft px-3 py-2 text-xs">{n.result?.note}</p>)}
       <ol className="space-y-2">
         {steps.filter((s) => s.tool === "ask.tool" || s.tool === "ask.model").map((s) => {
           if (s.tool === "ask.model") return <li key={s.step} className="flex items-center gap-2 px-1 text-xs text-ink-2"><Bot className="size-3.5" aria-hidden="true" />{t("Model step")}{" "}{s.result?.step}: {s.result?.calls ? t("asked for {0} tool{1}", [s.result.calls, s.result.calls === 1 ? "" : "s"]) : t("wrote the answer")} <span className="ml-auto num">{s.duration_ms}{" "}{t("ms")}</span></li>;
           const r = s.result ?? {};
           const src = SOURCE[r.source] ?? SOURCE.callback;
           return (
-            <li key={s.step} id={`fact-${r.fact}`} className={`rounded-[10px] border p-3 text-sm transition-colors ${highlight === r.fact ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}>
+            <li key={s.step} id={`fact-${r.fact}`} className={`rounded-[14px] border p-3 text-sm transition-colors ${highlight === r.fact ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded bg-paper px-1.5 font-mono text-xs">{r.fact}</span>
                 <span className="font-mono text-[0.8rem] font-semibold">{r.name}</span>
@@ -201,7 +201,7 @@ export default function AskPage() {
           <Proposals items={d.proposals} reload={reload} />
           <Section id="recent" title={t("Earlier questions")} className="mt-6">
             {d.runs.length ? (
-              <ul className="divide-y divide-line rounded-[10px] border border-line bg-surface">{d.runs.map((r) => (
+              <ul className="divide-y divide-line rounded-[14px] border border-line bg-surface">{d.runs.map((r) => (
                 <li key={r.id}><button type="button" className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-surface-2" onClick={() => { setRunId(r.id); watch(r.id); }}>
                   <span className="min-w-0 flex-1 truncate">{r.subject}</span><StateChip s={r.status === "done" ? "done" : r.status === "running" ? "live" : "off"}>{r.status}</StateChip><span className="text-xs text-ink-2 num">{when(r.started_at)}</span>
                 </button></li>

@@ -452,7 +452,7 @@ export default function Controller({ onOff }: { onOff: () => void }) {
   return (
     <>
       <div ref={pointer} aria-hidden="true" data-hf-ignore className="pointer-events-none fixed left-0 top-0 z-[75] size-4 rounded-full border-2 border-paper bg-brand opacity-0 shadow transition-opacity" />
-      <div ref={box} aria-hidden="true" data-hf-ignore className="pointer-events-none fixed left-0 top-0 z-[74] rounded-[10px] border-[3px] border-brand opacity-0" style={{ boxShadow: "0 0 0 3px var(--paper, #fff)" }}>
+      <div ref={box} aria-hidden="true" data-hf-ignore className="pointer-events-none fixed left-0 top-0 z-[74] rounded-[14px] border-[3px] border-brand opacity-0" style={{ boxShadow: "0 0 0 3px var(--paper, #fff)" }}>
         <svg className="absolute -right-5 -top-5 size-10" viewBox="0 0 40 40">
           <circle cx="20" cy="20" r="18" fill="var(--paper, #fff)" stroke="currentColor" strokeOpacity="0.15" strokeWidth="4" />
           <circle ref={ring} cx="20" cy="20" r="18" fill="none" stroke="var(--brand, #2a6)" strokeWidth="4" strokeDasharray="113" strokeDashoffset="113" transform="rotate(-90 20 20)" />
@@ -468,14 +468,14 @@ export default function Controller({ onOff }: { onOff: () => void }) {
           <span className="text-ink-2">· {statusText}</span>
         </span>
         {source === "camera" ? (
-          <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => setHf({ mode: s.mode === "gaze" ? "head" : "gaze" })} aria-label={s.mode === "gaze" ? t("Switch to head pointer") : t("Switch to gaze")}>
+          <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => setHf({ mode: s.mode === "gaze" ? "head" : "gaze" })} aria-label={s.mode === "gaze" ? t("Switch to head pointer") : t("Switch to gaze")}>
             {s.mode === "gaze" ? <Move className="inline size-4" aria-hidden="true" /> : <Eye className="inline size-4" aria-hidden="true" />} {s.mode === "gaze" ? t("Head") : t("Gaze")}
           </button>
         ) : null}
-        {source === "camera" && s.mode === "gaze" ? <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => startCalibration()}>{t("Calibrate")}</button> : null}
-        {s.voice !== "off" ? <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => voice.current?.talk()} aria-label={t("Talk: say one command")}><Mic className="inline size-4" aria-hidden="true" /> {voiceState === "listening" ? t("Listening") : t("Talk")}</button> : null}
-        <button type="button" className="min-h-11 rounded-[8px] border border-line px-3" onClick={() => setHf({ debug: !s.debug })} aria-pressed={s.debug} aria-label={t("Debug panel")}><Bug className="inline size-4" aria-hidden="true" /></button>
-        <button type="button" data-risk="none" className="min-h-11 rounded-[8px] bg-ink px-3 font-medium text-paper" onClick={onOff}><Square className="inline size-4" aria-hidden="true" /> {t("Stop hands-free")}</button>
+        {source === "camera" && s.mode === "gaze" ? <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => startCalibration()}>{t("Calibrate")}</button> : null}
+        {s.voice !== "off" ? <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => voice.current?.talk()} aria-label={t("Talk: say one command")}><Mic className="inline size-4" aria-hidden="true" /> {voiceState === "listening" ? t("Listening") : t("Talk")}</button> : null}
+        <button type="button" className="min-h-11 rounded-[10px] border border-line px-3" onClick={() => setHf({ debug: !s.debug })} aria-pressed={s.debug} aria-label={t("Debug panel")}><Bug className="inline size-4" aria-hidden="true" /></button>
+        <button type="button" data-risk="none" className="min-h-11 rounded-[10px] bg-ink px-3 font-medium text-paper" onClick={onOff}><Square className="inline size-4" aria-hidden="true" /> {t("Stop hands-free")}</button>
         {notice ? <p className="basis-full px-2 pb-1 text-xs text-ink-2" data-testid="hf-notice">{notice}</p> : null}
         {moved && !calib ? (
           <p className="basis-full px-2 pb-1 text-xs">
@@ -498,8 +498,8 @@ export default function Controller({ onOff }: { onOff: () => void }) {
               <p className="mt-2 text-sm">{t("Accuracy: about {0} px on average, {1} px at the worst dot. Measured by leaving each dot out of the fit and checking where it lands.", [calib.result.meanPx, calib.result.worstPx])}</p>
               {calib.result.meanPx > 160 ? <p className="mt-2 text-sm text-ink-2">{t("That's loose for small buttons. Try again in better light, or switch to the head pointer.")}</p> : null}
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <button type="button" className="min-h-11 rounded-[8px] bg-ink px-4 font-medium text-paper" onClick={() => { setCalib(null); setStatus("on"); }}>{t("Use it")}</button>
-                <button type="button" className="min-h-11 rounded-[8px] border border-line px-4" onClick={() => startCalibration()}>{t("Calibrate again")}</button>
+                <button type="button" className="min-h-11 rounded-[10px] bg-ink px-4 font-medium text-paper" onClick={() => { setCalib(null); setStatus("on"); }}>{t("Use it")}</button>
+                <button type="button" className="min-h-11 rounded-[10px] border border-line px-4" onClick={() => startCalibration()}>{t("Calibrate again")}</button>
               </div>
             </div>
           )}
@@ -514,15 +514,15 @@ export default function Controller({ onOff }: { onOff: () => void }) {
             {req.risk !== "handover" && req.label ? <p className="mt-2 text-sm text-ink-2">{t("Button: {0}", [req.label])}</p> : null}
             <p className="mt-3 text-xs text-ink-2">{t("Look at Confirm for twice as long, say “confirm”, or press it. Cancel, Esc or “stop” leaves everything as it was.")}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <button type="button" autoFocus className="min-h-16 rounded-[10px] border border-line px-4 text-base font-medium" onClick={() => answer(false)}>{t("Cancel")}</button>
-              <button type="button" data-hf-confirm className="min-h-16 rounded-[10px] bg-ink px-4 text-base font-semibold text-paper" onClick={() => answer(true)}>{req.risk === "handover" ? t("Go to PayPal") : t("Confirm")}</button>
+              <button type="button" autoFocus className="min-h-16 rounded-[14px] border border-line px-4 text-base font-medium" onClick={() => answer(false)}>{t("Cancel")}</button>
+              <button type="button" data-hf-confirm className="min-h-16 rounded-[14px] bg-ink px-4 text-base font-semibold text-paper" onClick={() => answer(true)}>{req.risk === "handover" ? t("Go to PayPal") : t("Confirm")}</button>
             </div>
           </div>
         </div>
       ) : null}
 
       {s.debug && dbg ? (
-        <div className="fixed right-3 top-16 z-[71] w-64 rounded-[10px] border border-line bg-surface/95 p-3 font-mono text-[0.7rem] shadow-lg" data-hf-ignore role="region" aria-label={t("Hands-free debug panel")}>
+        <div className="fixed right-3 top-16 z-[71] w-64 rounded-[14px] border border-line bg-surface/95 p-3 font-mono text-[0.7rem] shadow-lg" data-hf-ignore role="region" aria-label={t("Hands-free debug panel")}>
           <div>{t("source")}: {dbg.source} · {t("{0} fps", [dbg.fps])}</div>
           <div>{t("face")}: {String(dbg.face)} · {t("yaw")} {dbg.yaw}°</div>
           <div>{t("blink")} L {dbg.blinkL} · R {dbg.blinkR}</div>

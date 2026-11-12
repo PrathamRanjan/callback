@@ -57,7 +57,7 @@ export function TakeTheCall({ callId, voice, onChange, typeButton }: { callId: s
       <h2 className="font-semibold">{t("Take the call yourself")}</h2>
       <p className="mb-3 text-sm text-ink-2">{t("You play the customer. The agent runs on")}{" "}{voice.model}{t("; every amount and PayPal move still goes through the gate. Calls stop after")}{" "}{Math.round(voice.cap_seconds / 60)}{" "}{t("minutes.")}</p>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-[10px] border border-line p-3">
+        <div className="min-w-0 rounded-[14px] border border-line p-3">
           <h3 className="mb-1 flex items-center gap-1.5 font-medium"><PhoneCall className="size-4" aria-hidden="true" />{t("Call my phone")}</h3>
           {voice.phone ? (
             <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); void ring(); }}>
@@ -67,9 +67,9 @@ export function TakeTheCall({ callId, voice, onChange, typeButton }: { callId: s
               <Button type="submit" disabled={busy || !consent || !number.trim()} aria-busy={busy}>{t("Ring my phone")}</Button>
               <p className="text-xs text-ink-2">{t("Numbers in")}{" "}{voice.phone_countries.join(", ")}{" "}{t("only. One call per number an hour.")}</p>
             </form>
-          ) : <p className="text-sm text-ink-2">{t("Off on this deployment.")}{" "}{voice.phone_why_off}</p>}
+          ) : <p className="text-sm text-ink-2 [overflow-wrap:anywhere]">{t("Off on this deployment.")}{" "}{voice.phone_why_off}</p>}
         </div>
-        <div className="rounded-[10px] border border-line p-3">
+        <div className="min-w-0 rounded-[14px] border border-line p-3">
           <h3 className="mb-1 flex items-center gap-1.5 font-medium"><Mic className="size-4" aria-hidden="true" />{t("Talk in the browser")}</h3>
           {voice.live ? (
             <>
@@ -77,7 +77,7 @@ export function TakeTheCall({ callId, voice, onChange, typeButton }: { callId: s
               <Button type="button" variant="outline" onClick={() => void browser.start()} disabled={browser.state === "starting"} aria-pressed={browser.state === "on"}>{browser.state === "on" ? <MicOff /> : <Mic />}{browser.state === "on" ? t("Stop") : t("Start talking")}</Button>
               {browser.state === "error" && browser.note ? (
                 // A refusal (daily limit, microphone blocked) must be impossible to miss: it says why and what to do.
-                <div role="alert" className="mt-2 rounded-[8px] border border-hold bg-hold-soft p-2.5 text-sm">
+                <div role="alert" className="mt-2 rounded-[10px] border border-hold bg-hold-soft p-2.5 text-sm">
                   <p className="font-medium">{t("Live voice didn't start")}</p>
                   <p>{browser.note}</p>
                   <p className="mt-1 text-ink-2">{t("You can still take this call: press Start typing, the same agent and checks by text.")}</p>
@@ -86,7 +86,7 @@ export function TakeTheCall({ callId, voice, onChange, typeButton }: { callId: s
             </>
           ) : <p className="text-sm text-ink-2">{t("Off: no voice model key on this deployment.")}</p>}
         </div>
-        <div className="rounded-[10px] border border-line p-3">
+        <div className="min-w-0 rounded-[14px] border border-line p-3">
           <h3 className="mb-1 font-medium">{t("Type instead")}</h3>
           <p className="mb-2 text-sm text-ink-2">{t("The same agent and checks, by text. Works with a screen reader.")}</p>
           {typeButton}
@@ -154,7 +154,7 @@ export function SignalStrip({ s }: { s: SignalState | null }) {
   if (!s) return <p className="text-sm text-ink-2">{t("No transcript decisions yet. They are asked on every customer turn.")}</p>;
   const fired = SIGNAL_LABELS.filter(([n]) => s.fired?.[n]);
   return (
-    <div className="rounded-[10px] border border-line p-3">
+    <div className="rounded-[14px] border border-line p-3">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-medium">{t("Decisions on the transcript")}</h3><span className="text-xs text-ink-2">{s.not_run ? t("Not run on the last turn: {0}", [s.not_run]) : s.source ?? ""}{" "}{t("· acts at 80%, a set line, not calibrated")}</span></div>
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {SIGNAL_LABELS.map(([n, label]) => {

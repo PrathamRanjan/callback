@@ -90,7 +90,7 @@ export default function ApprovalsPage() {
           <Panel className="p-4">
             <LimitsForm g={g} onDone={refresh} />
             {a.evidence.length ? (
-              <div className="mt-4 rounded-[8px] bg-paper p-3 text-sm">
+              <div className="mt-4 rounded-[10px] bg-paper p-3 text-sm">
                 <div className="mb-1 flex items-center gap-1.5 font-medium"><Sparkles className="size-4" />{t("Learned from your decisions")}</div>
                 <ul className="list-disc space-y-1 pl-5 text-ink-2">{a.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
                 {changes ? <ActButton path="/ops/guard/autonomy/adopt" size="sm" variant="outline" className="mt-2" onDone={refresh}>{t("Use the suggested limits")}</ActButton> : null}

@@ -75,7 +75,7 @@ export default function RulesPage() {
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0" data-tour="policy">
         <Section id="active" title={t("Active rules")}>
           <Panel className="p-4">
-            <p className="mb-3 whitespace-pre-wrap rounded-[8px] bg-paper p-3 text-sm">{p.active.text}</p>
+            <p className="mb-3 whitespace-pre-wrap rounded-[10px] bg-paper p-3 text-sm">{p.active.text}</p>
             <RulesList r={p.active.rules} />
           </Panel>
         </Section>
@@ -91,15 +91,15 @@ export default function RulesPage() {
             {p.draft ? (
               <div className="mt-4 space-y-3 border-t border-line pt-4">
                 {p.draft.ai_failed ? (
-                  <div role="alert" className="rounded-[8px] bg-off-soft p-3 text-sm">
+                  <div role="alert" className="rounded-[10px] bg-off-soft p-3 text-sm">
                     <b>{t("I couldn't read that with the AI model.")}</b>{" "}{t("Nothing was changed. The numbers below were read by code only, so these rules can't be adopted yet.")}
                     <div className="mt-2"><Button size="sm" variant="outline" onClick={() => reload()} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : null}{t("Try again")}</Button></div>
                   </div>
                 ) : null}
                 <div className="flex items-center gap-2"><StateChip s={p.draft.refused.length || p.draft.ai_failed ? "off" : "ready"}>{p.draft.refused.length || p.draft.ai_failed ? t("Can't adopt") : t("Ready to adopt")}</StateChip><span className="text-xs text-ink-2">{p.draft.ai_failed ? t("Numbers read by code only") : p.draft.source === "model" ? t("Read by the AI model; numbers by code") : t("Read by the rules arm (test only)")}</span></div>
                 <RulesList r={p.draft.rules} />
-                {p.draft.refused.length ? <div className="rounded-[8px] bg-off-soft p-3 text-sm"><b>{t("Refused:")}</b> {p.draft.refused.join("; ")}</div> : null}
-                {p.draft.unexpressed.length ? <div className="rounded-[8px] bg-ready-soft p-3 text-sm"><b>{t("Couldn't express as a rule:")}</b> {p.draft.unexpressed.join("; ")}</div> : null}
+                {p.draft.refused.length ? <div className="rounded-[10px] bg-off-soft p-3 text-sm"><b>{t("Refused:")}</b> {p.draft.refused.join("; ")}</div> : null}
+                {p.draft.unexpressed.length ? <div className="rounded-[10px] bg-ready-soft p-3 text-sm"><b>{t("Couldn't express as a rule:")}</b> {p.draft.unexpressed.join("; ")}</div> : null}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => save("activate")} disabled={busy || p.draft.refused.length > 0 || p.draft.ai_failed}>{t("Adopt these rules")}</Button>
                   <Button variant="outline" onClick={() => save("draft")} disabled={busy || p.draft.ai_failed}>{t("Save as draft")}</Button>
@@ -118,7 +118,7 @@ export default function RulesPage() {
           <Kpi label={t("Collected without you")} value={money(bt.collected_auto_cents)} hint={t("{0} minutes of calls saved", [bt.minutes_saved])} />
         </div>
         {bt.rows.length ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {bt.rows.slice(0, 15).map((r) => (
               <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
                 <span className="lamp" data-s={r.decision === "run" ? "done" : r.decision === "wait" ? "hold" : "off"} aria-hidden="true" />

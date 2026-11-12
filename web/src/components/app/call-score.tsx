@@ -75,7 +75,7 @@ function stepNode(s: Step, lane: Lane) {
 function turnNode(tn: Turn) {
   const Icon = tn.who === "agent" ? Phone : User;
   return (
-    <div className={cn("rounded-[8px] px-3 py-2", tn.who === "agent" ? "bg-brand-soft" : "bg-surface-2")}>
+    <div className={cn("rounded-[10px] px-3 py-2", tn.who === "agent" ? "bg-brand-soft" : "bg-surface-2")}>
       <div className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-ink-2"><Icon className="size-3.5" aria-hidden="true" />{tn.who === "agent" ? t("Callback") : t("Customer")}</div>
       <p className="text-[0.95rem] leading-snug">{tn.text}</p>
       {tn.quarantined?.length ? <p className="mt-1 text-xs font-medium text-hold">{t("Ignored as an instruction:")}{" "}{tn.quarantined.join(", ")}</p> : null}
@@ -105,7 +105,7 @@ export function CallScore({ transcript, trace, empty }: { transcript: Turn[]; tr
     { k: "money", label: "Money", icon: Wallet },
   ];
   return (
-    <div className="overflow-hidden rounded-[10px] border border-line bg-surface" data-tour="call-score">
+    <div className="overflow-hidden rounded-[14px] border border-line bg-surface" data-tour="call-score">
       <div className="hidden grid-cols-[3.5rem_1.25fr_1fr_1fr] border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-wide text-ink-2 md:grid" aria-hidden="true">
         <div className="px-3 py-2">{t("Time")}</div>
         {LANES.map((l) => (

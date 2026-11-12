@@ -29,7 +29,7 @@ export function HandsFreeHost() {
   }, []);
   if (!on) return null;
   return (
-    <Suspense fallback={<div role="status" className="fixed bottom-24 left-3 z-[70] rounded-[10px] border border-line bg-surface px-3 py-2 text-sm shadow lg:bottom-4">{t("Loading hands-free…")}</div>}>
+    <Suspense fallback={<div role="status" className="fixed bottom-24 left-3 z-[70] rounded-[14px] border border-line bg-surface px-3 py-2 text-sm shadow lg:bottom-4">{t("Loading hands-free…")}</div>}>
       <Controller onOff={() => setHandsFreeActive(false)} />
     </Suspense>
   );

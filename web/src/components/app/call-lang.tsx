@@ -40,7 +40,7 @@ export function CallTranslation({ callId, callLang, lines, cached }: { callId: s
     }
   };
   return (
-    <div className="mt-3 rounded-[10px] border border-line p-3" lang={to}>
+    <div className="mt-3 rounded-[14px] border border-line p-3" lang={to}>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-medium">{t("In {0}", [langInfo(to).name])}</h3>
         <MachineTranslated />

@@ -45,7 +45,7 @@ export function CallLine({ c }: { c: CallRow }) {
 
 export function CallList({ rows, label, tour }: { rows: CallRow[]; label: string; tour?: string }) {
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface" aria-label={label} data-tour={tour}>
+    <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface" aria-label={label} data-tour={tour}>
       {rows.map((c) => <CallLine key={c.id} c={c} />)}
     </ul>
   );

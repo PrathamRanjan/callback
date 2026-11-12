@@ -49,7 +49,7 @@ function PlanPicker({ token, item, plans }: { token: string; item: string; plans
   const [option, setOption] = useState(plans[0]?.id ?? "");
   const id = `plan-${item}`;
   return (
-    <div className="mt-3 rounded-[10px] border border-line bg-surface-2 p-3" data-tour="portal-plan">
+    <div className="mt-3 rounded-[14px] border border-line bg-surface-2 p-3" data-tour="portal-plan">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1">
           <NativeSelect id={id} label={t("Or split it into payments")} value={option} onChange={(e) => setOption(e.target.value)}>
@@ -81,9 +81,9 @@ export default function PortalPage() {
         {error && !d ? <ErrorState error={error} retry={reload} /> : loading && !d ? <Rows n={3} /> : d ? (
           <>
             <p className="text-sm text-ink-2">{d.business.name}</p>
-            <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "112%" }}>{t("Hi")}{" "}{d.first_name}</h1>
+            <h1 className="font-display text-h1 font-[800]">{t("Hi")}{" "}{d.first_name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-2"><MachineTranslated />{t("Amounts are in US dollars, the currency PayPal charges.")}</p>
-            {back ? <p role="status" className="mt-4 rounded-[10px] bg-done-soft px-4 py-3 text-sm font-medium">{back}</p> : null}
+            {back ? <p role="status" className="mt-4 rounded-[14px] bg-done-soft px-4 py-3 text-sm font-medium">{back}</p> : null}
             {d.verify_code ? (
               <Panel className="mt-4 flex items-center gap-3 border-brand/40 bg-brand-soft p-4">
                 <ShieldCheck className="size-6 flex-none" aria-hidden="true" />
@@ -115,7 +115,7 @@ export default function PortalPage() {
                         <ActButton path={`/c/${token}/settle/${o.id}`} fields={{ choice: "credit" }} variant="outline" icon={<Gift />} onDone={reload} className="h-12 flex-1">{t("Keep as class credit")}</ActButton>
                       </>
                     ) : o.hold?.status === "authorized" ? (
-                      <div className="w-full rounded-[10px] border border-line bg-surface-2 p-3 text-sm" role="status">
+                      <div className="w-full rounded-[14px] border border-line bg-surface-2 p-3 text-sm" role="status">
                         <StateChip s="live">{money(o.hold.cents)}{" "}{t("held, not charged")}</StateChip>
                         <p className="mt-2 text-ink-2">{t("It is charged only if you attend, and released if you cancel in time. PayPal authorization")}{" "}<span className="font-mono">{o.hold.authorization_id}</span>{o.hold.expires_at ? t(", valid until {0}", [o.hold.expires_at.slice(0, 10)]) : ""}.</p>
                       </div>
@@ -157,20 +157,20 @@ export default function PortalPage() {
               )}
             </Panel>
 
-            <a href={d.telegram} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-4 text-sm font-medium hover:bg-surface-2" target="_blank" rel="noreferrer">
+            <a href={d.telegram} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-[14px] border border-line bg-surface px-4 text-sm font-medium hover:bg-surface-2" target="_blank" rel="noreferrer">
               <MessageCircle className="size-4" />{" "}{t("Get updates on Telegram instead")}
             </a>
 
             {d.messages.length ? (
               <>
                 <h2 className="mt-8 text-xl font-semibold">{t("Messages from us")}</h2>
-                <ul className="mt-3 space-y-2">{d.messages.map((m, k) => <li key={k} className="break-words rounded-[10px] bg-brand-soft px-3 py-2 text-sm [overflow-wrap:anywhere]">{m.body}<div className="mt-0.5 text-[0.7rem] text-ink-2">{m.channel}</div></li>)}</ul>
+                <ul className="mt-3 space-y-2">{d.messages.map((m, k) => <li key={k} className="break-words rounded-[14px] bg-brand-soft px-3 py-2 text-sm [overflow-wrap:anywhere]">{m.body}<div className="mt-0.5 text-[0.7rem] text-ink-2">{m.channel}</div></li>)}</ul>
               </>
             ) : null}
             {d.settled.length ? (
               <>
                 <h2 className="mt-8 text-xl font-semibold">{t("Done")}</h2>
-                <ul className="mt-3 divide-y divide-line rounded-[10px] border border-line bg-surface">{d.settled.map((s) => <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="lamp" data-s={moneyLamp(s.status)} aria-hidden="true" /><span className="flex-1">{s.title}</span><span className="text-ink-2">{word(s.status)}</span><span className="num font-medium">{money(s.cents)}</span>{s.capture_id ? <span className="basis-full text-xs text-ink-2">{t("PayPal capture")}{" "}<span className="font-mono">{s.capture_id}</span>{s.via_wallet ? t(", paid from the demo's saved sandbox wallet") : ""}</span> : null}</li>)}</ul>
+                <ul className="mt-3 divide-y divide-line rounded-[14px] border border-line bg-surface">{d.settled.map((s) => <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="lamp" data-s={moneyLamp(s.status)} aria-hidden="true" /><span className="flex-1">{s.title}</span><span className="text-ink-2">{word(s.status)}</span><span className="num font-medium">{money(s.cents)}</span>{s.capture_id ? <span className="basis-full text-xs text-ink-2">{t("PayPal capture")}{" "}<span className="font-mono">{s.capture_id}</span>{s.via_wallet ? t(", paid from the demo's saved sandbox wallet") : ""}</span> : null}</li>)}</ul>
               </>
             ) : null}
             <h2 className="mt-8 text-xl font-semibold" id="got-a-message" data-tour="portal-check">{t("Got a message about this?")}</h2>

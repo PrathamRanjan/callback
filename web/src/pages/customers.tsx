@@ -64,7 +64,7 @@ export default function CustomersPage() {
       />
       <Input type="search" placeholder={t("Find a customer")} aria-label={t("Find a customer")} value={q} onChange={(e) => setQ(e.target.value)} className="mb-4 h-11 md:max-w-[320px]" />
       {error && !data ? <ErrorState error={error} retry={reload} /> : loading && !data ? <Rows n={6} /> : rows.length ? (
-        <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+        <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
           {rows.map((c) => {
             const s = c.dnc || !c.consent || c.consent.revoked_at ? "off" : c.owed_cents ? "ready" : c.owed_to_them_cents ? "hold" : "done";
             return (

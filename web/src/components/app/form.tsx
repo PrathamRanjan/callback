@@ -47,7 +47,7 @@ export function ActionDialog({ trigger, title, description, path, submit, childr
         </DialogHeader>
         <form onSubmit={go} className="grid gap-4" noValidate={false}>
           {children}
-          {err ? <p role="alert" className="rounded-[8px] bg-off-soft px-3 py-2 text-sm">{err}</p> : null}
+          {err ? <p role="alert" className="rounded-[10px] bg-off-soft px-3 py-2 text-sm">{err}</p> : null}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t("Cancel")}</Button>
             <Button type="submit" disabled={busy} aria-busy={busy}>{busy ? <Loader2 className="animate-spin" /> : null}{submit}</Button>

@@ -63,7 +63,7 @@ export default function MoneyPage() {
       <Section id="moves" title={t("Every money move")} hint={t("Read back from PayPal, newest first.")}>
         <Segmented className="mb-3" label={t("Show money moves")} value={f} onChange={setF} options={["all", "pay_link", "hold", "invoice", "plan", "refund"].map((k) => ({ v: k, label: <>{k === "all" ? t("All") : KINDS[k]}<span className="ml-1 text-xs num">{d.moves.filter((m) => k === "all" || m.kind === k).length}</span></> }))} />
         {moves.length ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {moves.map((m) => (
               <li key={`${m.kind}-${m.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="lamp" data-s={moneyLamp(m.status)} aria-hidden="true" />
@@ -84,7 +84,7 @@ export default function MoneyPage() {
       </Section>
       <Section id="holds" title={t("Deposit holds")} hint={t("Held on the customer's PayPal, not charged. Charge after they attend; release if they cancelled in time.")}>
         {d.holds.filter((h) => h.status !== "failed").length ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {d.holds.filter((h) => h.status !== "failed").map((h) => (
               <li key={h.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="lamp" data-s={h.status === "authorized" ? "live" : h.status === "captured" ? "done" : h.status === "link_sent" ? "ready" : "idle"} aria-hidden="true" />

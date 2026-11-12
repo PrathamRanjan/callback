@@ -12,12 +12,11 @@ import { LangMenu } from "./lang-menu";
 import { t } from "@/i18n";
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 font-display text-[1.2rem] font-[800] tracking-tight", className)} style={{ fontStretch: "120%" }}>
-      <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true">
-        <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--brand)" />
-        <circle cx="8" cy="12" r="2.6" fill="var(--brand-ink)" />
-        <circle cx="16" cy="12" r="2.6" fill="none" stroke="var(--brand-ink)" strokeWidth="2" />
-        <path d="M10.6 12h2.8" stroke="var(--brand-ink)" strokeWidth="2" strokeLinecap="round" />
+    <span className={cn("inline-flex items-center gap-2 font-display text-[1.25rem] font-[750] tracking-[-0.03em]", className)}>
+      <svg viewBox="0 0 24 24" className="size-7" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="23" height="23" rx="7.5" fill="var(--brand)" />
+        <path d="M6 12v0M9 9.2v5.6M12 6.5v11M15 9.2v5.6M18 11v2" stroke="var(--brand-ink)" strokeWidth="2.1" strokeLinecap="round" />
+        <circle cx="19.3" cy="4.7" r="2.4" fill="var(--signal)" stroke="var(--brand)" strokeWidth="1.2" />
       </svg>
       {t("Callback")}
     </span>
@@ -58,12 +57,12 @@ export function PublicShell({ children, wide = false }: { children: ReactNode; w
     <div className="min-h-dvh bg-paper text-ink">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">{t("Skip to content")}</a>
       <OfflineBar />
-      <header className="border-b border-line">
+      <header className="sticky top-0 z-40 border-b border-line bg-paper/80 backdrop-blur-md">
         {/* Wraps instead of scrolling sideways at 320 px with the Largest text setting (spec A7 reflow). */}
         <div className={cn("mx-auto flex min-h-16 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2", wide ? "max-w-[1180px]" : "max-w-[720px]")}>
           <Link to="/" aria-label={t("Callback home")}><Wordmark /></Link>
           <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
-            <Button asChild variant="ghost" size="sm"><Link to="/judge">{t("For judges")}</Link></Button>
+            <Button asChild variant="ghost" size="sm" className="hidden min-[420px]:inline-flex"><Link to="/judge">{t("For judges")}</Link></Button>
             <LangMenu showName />
             <Button variant="ghost" size="icon" aria-label={t("Display and help")} onClick={() => setHelp(true)}><Accessibility /></Button>
             <ThemeMenu />

@@ -106,7 +106,7 @@ export default function ProofPage() {
       </Section>
       <Section id="runs" title={t("Agent runs")} hint={t("Every run, with each tool call, gate decision and PayPal debug id.")}>
         {p.runs.length ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-surface">
             {p.runs.slice(0, 20).map((r) => (
               <li key={r.id}>
                 <Link to={`/trace/${r.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-surface-2">

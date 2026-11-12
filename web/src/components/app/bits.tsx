@@ -25,7 +25,7 @@ export function Lamp({ s, label, showLabel = false, className }: { s: LampState;
 export function StateChip({ s, children }: { s: LampState; children?: ReactNode }) {
   const bg: Record<LampState, string> = { ready: "bg-ready-soft", live: "bg-live-soft", hold: "bg-hold-soft", done: "bg-done-soft", off: "bg-off-soft", idle: "bg-surface-2" };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-ink whitespace-nowrap num", bg[s])}>
+    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 font-sans text-xs font-medium normal-case tracking-normal text-ink num", bg[s])}>
       <span className="lamp scale-75" data-s={s} aria-hidden="true" />
       {children ?? LAMP_LABEL[s]}
     </span>
@@ -39,8 +39,8 @@ export function PageHead({ title, kicker, happened, needs, next, actions }: { ti
   return (
     <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
-        {kicker ? <div className="mb-1 text-sm text-ink-2 num">{kicker}</div> : null}
-        <h1 className="text-[1.75rem] font-[750] md:text-h1">{title}</h1>
+        {kicker ? <div className="mb-2 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-ink-2 num">{kicker}</div> : null}
+        <h1 className="text-[2rem] font-[750] md:text-[2.6rem]">{title}</h1>
         {happened || needs || next ? (
           <dl className="mt-3 grid gap-1 text-[0.95rem] text-ink-2 sm:grid-cols-[auto_1fr] sm:gap-x-3">
             {happened ? (<><dt className="font-medium text-ink">{t("What happened")}</dt><dd>{happened}</dd></>) : null}
@@ -71,7 +71,7 @@ export function Section({ title, hint, children, actions, id, className }: { tit
 
 export function Panel({ children, className, ...rest }: { children?: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("rounded-[10px] border border-line bg-surface", className)} {...rest}>
+    <div className={cn("rounded-[16px] border border-line bg-surface shadow-[var(--shadow-card)]", className)} {...rest}>
       {children}
     </div>
   );
@@ -111,7 +111,7 @@ export function Rows({ n = 4 }: { n?: number }) {
   return (
     <div className="space-y-2" aria-busy="true" aria-label={t("Loading")}>
       {Array.from({ length: n }, (_, i) => (
-        <Skeleton key={i} className="h-16 w-full rounded-[10px] bg-surface-2" />
+        <Skeleton key={i} className="h-16 w-full rounded-[14px] bg-surface-2" />
       ))}
     </div>
   );
@@ -188,7 +188,7 @@ export function Kpi({ label, value, hint, s }: { label: string; value: ReactNode
         {s ? <span className="lamp scale-75" data-s={s} aria-hidden="true" /> : null}
         {label}
       </div>
-      <div className="kpi-value font-display text-[1.75rem] font-[750] leading-none num">{value}</div>
+      <div className="kpi-value font-display text-[1.85rem] font-[700] leading-none tracking-[-0.02em] num">{value}</div>
       {hint ? <div className="text-xs text-ink-2">{hint}</div> : null}
     </Panel>
   );

@@ -34,7 +34,7 @@ export default function TracePage() {
               {s.args || s.result ? (
                 <details className="mt-2 text-xs">
                   <summary className="cursor-pointer py-1 font-medium text-ink-2">{t("Arguments and result")}</summary>
-                  <pre className="mt-1 max-h-[300px] overflow-auto rounded-[8px] bg-paper p-2 font-mono text-[0.72rem] leading-relaxed">{JSON.stringify({ args: s.args, result: s.result }, null, 2)}</pre>
+                  <pre className="mt-1 max-h-[300px] overflow-auto rounded-[10px] bg-paper p-2 font-mono text-[0.72rem] leading-relaxed">{JSON.stringify({ args: s.args, result: s.result }, null, 2)}</pre>
                 </details>
               ) : null}
             </Panel>

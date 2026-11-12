@@ -36,13 +36,19 @@ async function noSideScroll(page: Page) {
   expect(over, `no horizontal scroll on ${new URL(page.url()).pathname}: ${wide.join(" / ")}`).toBeLessThanOrEqual(0);
 }
 
-test("landing: promise, three steps, trust lanes, no priceless pricing block, FAQ; no sideways scroll at 360px", async ({ page }) => {
+test("landing: promise, why, three steps, trust lanes, judging criteria, priced plans, FAQ; no sideways scroll at 360px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("money calls");
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /AI proposes\. Code decides\. PayPal moves\./ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Pricing" })).toHaveCount(0); // spec B2 C6: tiers with no prices removed
+  await expect(page.getByRole("heading", { name: /lose money in the calls nobody has time to make/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Why Callback deserves to win." })).toBeVisible();
+  for (const c of ["Technological implementation", "Design", "Potential impact", "Innovation"]) await expect(page.getByRole("heading", { name: c, exact: true })).toBeVisible();
+  // Pricing came back on 13 Nov with real prices (spec B2 C6 removed only tiers that had none), marked as planned.
+  await expect(page.getByRole("heading", { name: "Pricing" })).toBeVisible();
+  await expect(page.getByText("Planned pricing")).toBeVisible();
+  await expect(page.getByText("$39", { exact: true })).toBeVisible();
   await expect(page.getByText("Amounts come from your records.")).toBeVisible();
   await page.getByRole("button", { name: "Who does it call, and when?" }).click();
   await expect(page.getByText("Only customers with consent on file")).toBeVisible();

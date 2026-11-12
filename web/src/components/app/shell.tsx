@@ -55,8 +55,8 @@ export function DemoRibbon() {
   // Demo numbers are fictional, so calls and texts to them stay in the simulator even when Twilio is connected.
   const sim = [i.phone ? t("calls to demo numbers") : t("phone calls"), i.sms ? t("texts to demo numbers") : "SMS"];
   return (
-    <div className="border-b border-line bg-surface-2 text-[0.8rem] text-ink" role="note" aria-label={t("Demo status")}>
-      <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
+    <div className="border-b border-line bg-brand-soft/60 text-[0.8rem] text-ink" role="note" aria-label={t("Demo status")}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
         <span className="font-semibold">{session.workspace ? t("Your private demo") : t("Demo studio")}</span>
         {session.workspace?.seed_note ? <span className="text-ink-2" role="status">{serverText(session.workspace.seed_note)}</span> : null}
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="live" aria-hidden="true" />{t("Live:")}{" "}{live || t("nothing external")}</span>
@@ -100,8 +100,8 @@ function SideLink({ item, pending, onClick }: { item: NavItem; pending: number; 
       data-tour={item.tour}
       className={({ isActive }) =>
         cn(
-          "flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink md:min-h-10",
-          isActive && "bg-brand-soft text-ink",
+          "flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[0.95rem] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink md:min-h-10",
+          isActive && "bg-brand-soft text-ink shadow-[inset_3px_0_0_var(--brand)]",
         )
       }
     >
@@ -187,10 +187,11 @@ export function AppShell() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">{t("Skip to content")}</a>
       <OfflineBar />
       <DemoRibbon />
-      <div className="mx-auto flex max-w-[1240px]">
-        <aside className="sticky top-0 hidden h-dvh w-[232px] flex-none flex-col gap-1 border-r border-line px-3 py-4 lg:flex" aria-label={t("Main")}>
+      <div className="flex">
+        {/* The rail is the console from the landing page: always dark (the .dark tokens apply inside it), in both themes. */}
+        <aside className="dark sticky top-0 hidden h-dvh w-[240px] flex-none flex-col gap-1 border-r border-line bg-[var(--console)] px-3 py-4 text-ink lg:flex" aria-label={t("Main")}>
           <Link to="/today" className="mb-4 px-2"><Wordmark /></Link>
-          <button type="button" onClick={() => setPal(true)} className="mb-3 flex h-10 items-center gap-2 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink-2 hover:text-ink">
+          <button type="button" onClick={() => setPal(true)} className="mb-3 flex h-10 items-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-sm text-ink-2 hover:text-ink">
             <Search className="size-4" />{" "}{t("Go to…")}{" "}<kbd className="ml-auto font-mono text-xs">⌘K</kbd>
           </button>
           <nav className="flex flex-col gap-0.5">
@@ -223,7 +224,7 @@ export function AppShell() {
             </span>
           </header>
           <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pb-28 pt-5 outline-none md:px-8 md:pt-8 lg:pb-12">
-            <Outlet />
+            <div className="mx-auto w-full max-w-[1040px]"><Outlet /></div>
           </main>
         </div>
       </div>
@@ -261,8 +262,8 @@ export function AppShell() {
           </SheetHeader>
           <nav className="grid gap-0.5 px-4 pb-6">
             {items.filter((i) => !bottom.includes(i)).map((i) => <SideLink key={i.to} item={i} pending={pending} onClick={() => setMore(false)} />)}
-            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); setHelp(true); }}><Accessibility className="size-[18px]" />{t("Display and help")}</button>
-            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); void signOut(); }}><LogOut className="size-[18px]" />{t("Sign out")}</button>
+            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); setHelp(true); }}><Accessibility className="size-[18px]" />{t("Display and help")}</button>
+            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); void signOut(); }}><LogOut className="size-[18px]" />{t("Sign out")}</button>
           </nav>
         </SheetContent>
       </Sheet>

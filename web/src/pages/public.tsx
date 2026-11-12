@@ -19,7 +19,7 @@ function Page({ title, lead, children }: { title: string; lead: ReactNode; child
     <PublicShell wide>
       <div className="mx-auto max-w-[1080px] px-4 py-8">
         <p className="text-sm"><Link to="/judge" className="underline">{t("For judges")}</Link></p>
-        <h1 className="mt-1 break-words font-display text-h1 font-[800] hyphens-auto" style={{ fontStretch: "115%" }}>{title}</h1>
+        <h1 className="mt-1 break-words font-display text-h1 font-[800] hyphens-auto">{title}</h1>
         <div className="mt-2 max-w-[72ch] text-ink-2">{lead}</div>
         <div className="mt-6 grid gap-6">{children}</div>
       </div>

@@ -1,8 +1,6 @@
-import "@fontsource-variable/archivo/standard.css";
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
-import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource-variable/bricolage-grotesque/index.css";
+import "@fontsource-variable/hanken-grotesk/index.css";
+import "@fontsource-variable/jetbrains-mono/index.css";
 import "./index.css";
 import { StrictMode, Suspense, lazy, useCallback, useEffect, useState, type ReactNode, useContext } from "react";
 import { createRoot } from "react-dom/client";

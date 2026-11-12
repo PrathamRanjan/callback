@@ -101,7 +101,7 @@ export default function JudgePage() {
       <div className="mx-auto max-w-[1080px] px-4 py-8">
         {error && !d ? <ErrorState error={error} retry={reload} /> : loading && !d ? <Rows n={6} /> : d ? (
           <>
-            <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>{t("For judges")}</h1>
+            <h1 className="font-display text-h1 font-[800]">{t("For judges")}</h1>
             <p className="mt-2 max-w-[68ch] text-ink-2">{t("Callback is an AI agent that phones a small studio's customers about money and settles it through PayPal. The AI talks; ordinary code decides what money may move; PayPal moves it. Pick a path below. Each step opens the exact screen, with any text already typed, and ticks itself here when the server records it.")}</p>
             <p className="mt-2 max-w-[68ch] text-sm text-ink-2">{t("Three things to look at: a held move the owner approves while the customer waits on the line; the call's transcript decisions with their probabilities; and")}{" "}<a href="/accessibility" className="underline">{t("accessibility")}</a>{" "}{t("(axe on every journey, 200% text, keyboard only, voice input on Ask), with the dates each check ran.")}</p>
 
