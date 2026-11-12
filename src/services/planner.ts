@@ -22,6 +22,12 @@ export interface Candidate {
 
 const purposeOf = (o: Obligation): CallPurpose => (o.kind === "deposit" ? "confirm_deposit" : o.kind === "invoice" ? "chase_invoice" : "cancel_class");
 
+/** Nothing left to call about: paid, credited, refunded or void, or a deposit or invoice with no balance left. */
+export function settled(o: Obligation): boolean {
+  if (["paid", "credited", "refunded", "void"].includes(o.status)) return true;
+  return o.kind !== "class_cancel" && balanceOf(o) <= 0;
+}
+
 export async function candidates(q: Queryable, businessId: string, now?: Date): Promise<Candidate[]> {
   const at = now ?? (await nowOf(q, businessId));
   const pol = await activePolicy(businessId, q);
@@ -83,6 +89,21 @@ export async function planCalls(q: Queryable, businessId: string, by = "worker",
     await run.step({ actor: "policy", tool: status === "planned" ? "consent.allow" : "consent.block", args: { customer: c.customer.name, purpose: c.purpose }, policy: c.verdict.ok ? null : c.verdict.consent_ok ? "hours" : "consent", gate: c.verdict.ok ? "allowed" : "denied", result: { call: id, reasons: c.verdict.reasons, next_window: c.verdict.next_window } });
     await logEvent(q, { businessId, customerId: c.customer.id, callId: id, type: status === "planned" ? "call.planned" : "call.blocked", summary: `${c.purpose.replace(/_/g, " ")} for ${c.customer.name}: ${reason}`, actor: by });
     status === "planned" ? planned++ : blocked++;
+  }
+  // A call still waiting for an item that no longer needs one (paid since it was planned, or money now held on it) is
+  // retired with the reason, so nobody is rung about money they have already paid.
+  const waiting = (await q.query<{ id: string; customer_id: string; obligation_id: string }>("SELECT id, customer_id, obligation_id FROM calls WHERE business_id = $1 AND status IN ('planned','blocked') AND obligation_id IS NOT NULL", [businessId])).rows;
+  if (waiting.length) {
+    const obs = new Map((await obligationsOf(q, businessId)).map((o) => [o.id, o]));
+    const held = new Set((await q.query<{ obligation_id: string }>("SELECT obligation_id FROM holds WHERE business_id = $1 AND status = 'authorized'", [businessId])).rows.map((r) => r.obligation_id));
+    for (const w of waiting) {
+      const o = obs.get(w.obligation_id);
+      if (!o || !(settled(o) || held.has(o.id))) continue;
+      const why = held.has(o.id) ? "not needed: money is held on it and charged if they attend" : "not needed: nothing left to collect";
+      await q.query("UPDATE calls SET status = 'skipped', reason = $2, ended_at = now() WHERE id = $1 AND status IN ('planned','blocked')", [w.id, why]);
+      await logEvent(q, { businessId, customerId: w.customer_id, callId: w.id, type: "call.skipped", summary: `Skipped: ${why}`, actor: by });
+      skipped++;
+    }
   }
   await run.end("done");
   return { planned, blocked, skipped, runId: run.id };

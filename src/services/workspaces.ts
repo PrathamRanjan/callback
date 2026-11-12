@@ -229,6 +229,8 @@ async function seedPayments(db: Db, id: string | null, seeded: WorkspaceSeed) {
     } else await db.query("INSERT INTO settings (key, value) VALUES ('showcase_note', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [note]);
   }
   await logEvent(db, { businessId: biz.id, type: "seed.payments", summary: `${done} of ${jobs.length} seed payments made from the saved demo wallet and read back from PayPal`, actor: "system" });
+  // The plan was written before these payments: re-plan so no call waits on an item that is now paid.
+  await planCalls(db, biz.id, "demo");
 }
 
 /**

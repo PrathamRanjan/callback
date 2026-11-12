@@ -22,6 +22,7 @@ import { GtError } from "../lib/util.js";
 import { balanceOf, bizById, callAttempts, callById, customerById, logEvent, nowOf, obligationById, type Call, type Customer, type Obligation, type Turn } from "../store.js";
 import { resumeRun, Run, startRun } from "../trace.js";
 import { markStep } from "./wsrefs.js";
+import { settled } from "./planner.js";
 import { applyDiscount, createInvoice, createPlan, optionsFor, sendPayLink, settleCancelledClass, type Ctx } from "./money.js";
 import { actionFor, markSignalsNotRun, readTurn, recordSignals } from "../voice/signals.js";
 import { detectLang, line, normLang, type Lang } from "../lib/lang.js";
@@ -43,6 +44,14 @@ export async function startCall(q: Queryable, callId: string, mode: Call["mode"]
     await run.end("failed");
     await q.query("UPDATE calls SET status = 'blocked', reason = $2, run_id = $3 WHERE id = $1", [call.id, `kill switch on ${killed.scope}`, run.id]);
     throw new GtError(`Calls are stopped by the kill switch on ${killed.scope}.`, "killed");
+  }
+  // Code, not the plan, decides there is still something to call about: an item paid since it was planned is not called.
+  const item = call.obligation_id ? await obligationById(q, call.obligation_id) : null;
+  if (item && settled(item)) {
+    await run.step({ actor: "code", tool: "obligation.check", args: { status: item.status }, gate: "denied", result: { reason: "nothing left to collect" } });
+    await run.end("failed");
+    await q.query("UPDATE calls SET status = 'skipped', reason = $2, run_id = $3, ended_at = now() WHERE id = $1", [call.id, "not needed: nothing left to collect", run.id]);
+    throw new GtError(`Not calling ${customer.name}: ${item.title} is already paid.`, "nothing_owed", 409);
   }
   // Eval mode may run a blocked call to measure the policy; a real call never may.
   if (!verdict.ok && !(mode === "eval" && opts.force)) {

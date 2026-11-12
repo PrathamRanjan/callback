@@ -48,6 +48,24 @@ describe("planner", () => {
 });
 
 describe("calls through the gate", () => {
+  it("an item paid after the plan was written is not called: re-planning retires the call, and starting it is refused", async () => {
+    const { db, seeded } = await freshWorld();
+    const { planCalls } = await import("../src/services/planner.js");
+    const id = await callFor(db, seeded.obligations.priya_deposit);
+    expect((await callById(db, id)).status).toBe("planned");
+    // Paid elsewhere (the saved wallet, a webhook) after planning.
+    await db.query("UPDATE obligations SET settled_cents = amount_cents, status = 'paid' WHERE id = $1", [seeded.obligations.priya_deposit]);
+    await expect(startCall(db, id, "simulator", "test")).rejects.toThrow(/already paid/);
+    expect((await callById(db, id)).status).toBe("skipped");
+    // And a second planned call on another paid item is retired by the planner without anyone starting it.
+    const tom = await callFor(db, seeded.obligations.tom_invoice);
+    await db.query("UPDATE obligations SET settled_cents = amount_cents, status = 'paid' WHERE id = $1", [seeded.obligations.tom_invoice]);
+    await planCalls(db, seeded.business.id, "test", NOW);
+    const c = await callById(db, tom);
+    expect(c.status).toBe("skipped");
+    expect(c.reason).toMatch(/nothing left to collect/);
+  });
+
   it("a caller who answers in Portuguese gets the pay link on PayPal's pt-BR page, though their record says English", async () => {
     const { db, fake, seeded } = await freshWorld();
     const id = await callFor(db, seeded.obligations.priya_deposit);

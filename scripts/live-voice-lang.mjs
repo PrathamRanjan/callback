@@ -173,7 +173,7 @@ async function one(lang) {
 const health = await fetch(`${BASE}/healthz`).then((r) => r.json());
 console.error(`target ${BASE}, commit ${String(health.commit).slice(0, 7)}`);
 const si = await J.post("/demo/signin-as", { role: "owner" });
-if (/err=/.test(si.location ?? "")) { console.error(`no demo: ${decodeURIComponent(si.location.split("err=")[1])}`); process.exit(1); }
+if (/err=/.test(si.location ?? "") || si.status >= 400) { console.error(`no demo: HTTP ${si.status} ${si.json?.message ?? decodeURIComponent((si.location ?? "").split("err=")[1] ?? "")}`); process.exit(1); }
 for (const l of ONLY) {
   try { await one(l); } catch (e) { record(l, "the check ran", false, (e).message); }
 }
