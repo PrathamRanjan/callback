@@ -13,6 +13,10 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "web", "src");
 const ts = createRequire(join(ROOT, "web", "package.json"))("typescript");
+if (!ts?.ScriptTarget) {
+  console.error("i18n check: web/node_modules/typescript is missing (the root TypeScript has no compiler API). Run: npm --prefix web ci");
+  process.exit(2);
+}
 const LOCALES = ["hi-IN", "id-ID", "pt-BR"];
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 
