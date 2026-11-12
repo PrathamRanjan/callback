@@ -155,6 +155,12 @@ async function one(lang) {
   record(lang, "code detected the caller's language and kept it on the call", s?.call?.lang === lang, `call.lang = ${s?.call?.lang}`);
   record(lang, "the agent switched to the caller's language", agentAfter.length > 0 && agentAfter.every(L.is), agentAfter.map((l) => `"${l.slice(0, 90)}"`).join(" | ") || "the agent said nothing after the customer spoke");
 
+  // The link texted during the call goes out in the language the caller spoke (and PayPal's page opens in it: the
+  // same language value sets the order's locale, which PayPal does not echo back, so the text is what can be seen).
+  const msgs = ((await J.get("/api/app/messages")).json?.recent ?? []).filter((m) => /^out/i.test(m.direction ?? "") && /paypal/i.test(m.body ?? ""));
+  const sms = msgs.sort((x, y) => String(y.at).localeCompare(String(x.at)))[0]?.body ?? "";
+  record(lang, "the PayPal link texted during the call is in the caller's language", L.is(sms), sms ? `"${sms.replace(/https?:\/\/\S+/g, "<link>").slice(0, 120)}"` : "no PayPal text sent");
+
   const t = await J.postJson(`/api/app/calls/${call.id}/translate`, { lang: "en" });
   const lines = t.json?.translation?.lines ?? t.json?.translation ?? [];
   const flat = Array.isArray(lines) ? lines.map((x) => (typeof x === "string" ? x : x.text ?? "")).join(" ") : JSON.stringify(lines);

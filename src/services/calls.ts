@@ -174,7 +174,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   let ended = false;
   let outcome: Outcome | null = d.outcome;
   const o = call.obligation_id ? await obligationById(q, call.obligation_id) : null;
-  const ctxMoney: Ctx = { q, run, businessId: call.business_id, businessName: ctx.business, callId: call.id, agentScope: `agent:${call.id}` };
+  const ctxMoney: Ctx = { q, run, businessId: call.business_id, businessName: ctx.business, callId: call.id, agentScope: `agent:${call.id}`, lang: ctx.lang };
   const bizName = ctx.business;
   try {
     if (d.tool === "send_pay_link" && o) {

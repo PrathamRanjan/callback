@@ -38,7 +38,7 @@ export async function carryOutApproved(payload: any, by: string): Promise<CarryO
   const customer = await customerById(db, o.customer_id);
   const biz = await bizById(db, o.business_id);
   const run = await startRun({ actor: "owner", subject: `Carry out the approved ${payload.action} for ${customer.name}`, entity: "obligation", entityId: o.id }, db);
-  const ctx: Ctx = { q: db, run, businessId: biz.id, businessName: biz.name, callId: call?.id ?? null, agentScope: scope || "owner" };
+  const ctx: Ctx = { q: db, run, businessId: biz.id, businessName: biz.name, callId: call?.id ?? null, agentScope: scope || "owner", lang: call?.lang ?? null };
   const cents = Number(payload.cents ?? 0);
   try {
     let message: string;

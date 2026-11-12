@@ -48,6 +48,16 @@ describe("planner", () => {
 });
 
 describe("calls through the gate", () => {
+  it("a caller who answers in Portuguese gets the pay link on PayPal's pt-BR page, though their record says English", async () => {
+    const { db, fake, seeded } = await freshWorld();
+    const id = await callFor(db, seeded.obligations.priya_deposit);
+    await startCall(db, id, "simulator", "test");
+    const r = await customerSays(db, id, "Sim, pode mandar o link de pagamento agora, obrigada.");
+    expect(r.tool).toBe("send_pay_link");
+    expect((await callById(db, id)).lang).toBe("pt-BR");
+    expect(fake.bodies.find((b) => b.method === "createOrder")!.body).toMatchObject({ amountCents: 6000, locale: "pt-BR" });
+  });
+
   it("agreeable deposit: link sent at the recorded balance, trace has the gate before PayPal", async () => {
     const { db, fake, seeded } = await freshWorld();
     const id = await callFor(db, seeded.obligations.priya_deposit);

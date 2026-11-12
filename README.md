@@ -367,3 +367,85 @@ The first two GitHub runs were refused a demo with "This address has started 5 d
 | 4 | A stranger completes one path in under three minutes on a phone | **Not met.** It needs a person; the script takes about 30 s |
 | 5 | /proof, /paypal, /ai and /accessibility show today's date and real data | **Met today** (robot judge checks /proof's run date; /accessibility shows 11 Nov). /proof stays current only if the nightly AI eval runs, which needs the owner's `OPENAI_API_KEY` secret and `AI_EVAL_NIGHTLY` variable |
 | 6 | The README's judge section, live-versus-simulated table and criteria mapping are current | **Met** for what is in this README. Owner items are listed in docs/STATE_OF_THE_UNION.md |
+
+## Languages, hands-free "Look and Say", connect your assistant (12 Nov 2026)
+
+These are extras. The core flow (plan → call → gate → PayPal → proof) is unchanged, and its tests run first in English.
+
+### In four languages
+
+- **English · हिन्दी · Bahasa Indonesia · Português (Brasil).** The picker sits on the first screen and in every header. `?lang=hi-IN` works on any link. The choice is remembered on the device and, once signed in, for the user.
+- **How it is built:**
+  - all 1,416 interface strings go through `t()`, with a glossary for terms that must stay fixed (PayPal, deposit, hold, do-not-call);
+  - the translations were made by machine (`npm run i18n:translate`, `gpt-6.1-sol`); the customer's payment page and every translated transcript carry a **Machine-translated** label;
+  - `npm test` starts with `scripts/i18n-check.mjs`, which fails on a missing key, a dropped `{placeholder}`, or English typed straight into a screen or into a prop people see or hear (confirm prompts, labels, placeholders, titles, aria-labels).
+- **Money** is always US dollars, formatted for the language: `US$ 1.540,68` in Portuguese, `$1,890.00` in Hindi. Code formats the amount; translation never touches the number.
+- **The AI:** Ask answers in the chosen language, and the call agent speaks the caller's language. Policy reading and the scam check still answer in English. Messages to a customer go out in the customer's language. PayPal's pages open in the matching locale (pt-BR, id-ID; Hindi uses en-IN, because PayPal has no Hindi checkout).
+- **Calls in four languages.** The greeting uses the language on the customer's record. When the caller answers in another of the four languages, code detects it from their words and keeps it on the call. The agent then carries on in that language.
+  - Transcripts are stored exactly as spoken.
+  - The owner can press **Translate** to get a machine translation, labelled as such, next to the original.
+- **Screenshots:** `docs/screenshots/lang/` has the landing page, Today, a call and a customer in each language (taken by `e2e/languages.spec.ts`, which walks one full flow per language and fails on any untranslated string).
+
+### Hands-free: Look and Say
+
+Turn it on with the eye button in the header or **Alt+Shift+H**. A camera light shows while it is on.
+
+- **The camera stays on the device.** MediaPipe's face landmarker runs in the browser (wasm served from this site). No image or landmark is sent anywhere.
+- **Pointing:**
+  - Calibrate with nine dots. Each dot is checked against a model fitted without it (leave-one-out), and the page shows your accuracy in pixels. The calibration is saved on this device.
+  - The gaze point is smoothed and snaps to the nearest button, with votes that decay. Drift is corrected as you use it. If eye tracking is poor, use head mode.
+- **Pressing:** dwell (look and wait), say "click", or wink.
+  - A blink freezes the pointer.
+  - Moving the real mouse hands control straight back.
+  - Esc, the word "stop" in any of the four languages, or looking away stops everything.
+- **Voice:** a wake word ("Callback, …") or push-to-talk.
+  - Noise and echo gates: the app's own speech and playing audio are not heard as commands.
+  - "This one" means the button you are looking at.
+  - Spoken requests go to the app's own tools, at most 10 steps.
+- **Money and messages need a confirm card, enforced in code.** Anything that moves money, places or ends a call, sends a message, or changes consent shows a card first, and Confirm needs twice the normal dwell. Before pressing, the page reads the button's current state. The PayPal checkout is handed back to your hands, with a message saying so.
+- **Fallbacks:** with no camera, a refused camera, or offline before the face model has loaded, it switches to keyboard scan. A highlight steps through the buttons and Space presses one. The bar says why.
+- **`/accessibility#hands-free`** has:
+  - a 30-second recording (simulated gaze, captioned);
+  - a live simulated-gaze demo;
+  - the measured numbers.
+
+Simulated benchmark (the page's own snapping and dwell code on synthetic gaze; 300 looks at random targets among 48 buttons of 120 × 44 px on 1280 × 800, 0.7 s dwell, seed 7):
+
+| Gaze jitter | Right button | Wrong button | Nothing pressed | Mean time |
+|---|---|---|---|---|
+| 20 px | 100% | 0% | 0% | 1.07 s |
+| 40 px | 100% | 0% | 0% | 1.08 s |
+| 60 px | 100% | 0% | 0% | 1.15 s |
+| 80 px | 99.7% | 0% | 0.3% | 1.48 s |
+| 120 px | 76% | 0% | 24% | 3.03 s |
+
+This tests the snapping and dwell code, not a camera or a real person's eyes.
+
+### Connect your assistant (`/agents`)
+
+The demo owner sees:
+- their workspace's MCP key (hidden until **Show**);
+- a config to paste into any MCP client;
+- a **Try it from here** button that makes one real read-only MCP call;
+- a panel listing every MCP request to the workspace as it arrives (tool, arguments cut to 300 characters, status, time).
+
+The key works only on that demo workspace and a demo reset issues a new one. Push-to-talk (dictation) is on the call simulator and the Messages box.
+
+### Checks before merge (12 Nov 2026, branch `lang-handsfree`)
+
+| Check | Result |
+|---|---|
+| `npm test` (language check, then unit and flow tests) | 156/156; 1,416 keys translated in all three languages |
+| `npm run e2e` (all browser journeys, including the core English flows, axe, reflow at 320 px, one full flow per language, hands-free on simulated gaze and on real MediaPipe with a fake camera) | 26 passed, 1 skipped on purpose (screenshot capture) |
+| Live calls in Hindi, Indonesian and Portuguese (`scripts/live-voice-lang.mjs`): a robot caller speaks lines recorded with macOS voices over the phone-bridge socket; GPT-Live, the gate and the PayPal sandbox are real | 18/18 on a local server with the production settings: language detected and kept on the call, agent switched language, PayPal link texted in the caller's language, English translation for the owner, original unchanged, call ended |
+| PayPal's own page in the caller's language | A Portuguese caller's sandbox order opened PayPal checkout in Portuguese ("Pague com PayPal") in a browser set to US English. Nothing was typed on PayPal |
+
+**Found and fixed by these checks:**
+- A caller who switched language mid-call got the pay-link text and PayPal's page in their *record's* language (English). The call's detected language now reaches the money step. `test/flows.test.ts` covers it, and the test fails without the fix.
+- Payment and consent confirm prompts and the Approve button were still in English. The language check now fails on English in any prop people see or hear.
+
+### Not verified
+
+- **No real person has used hands-free.** Gaze was tested with simulated input and with real MediaPipe on a fake camera, but not with real eyes, a real webcam, or a real microphone.
+- Wink detection and head mode have unit tests only.
+- The translations were checked by script (placeholders, coverage, layout at 320 px), not by native speakers.

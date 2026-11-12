@@ -16,9 +16,9 @@ import { GtError } from "../lib/util.js";
 import { paypal, toValue, UnknownOutcomeError, type PPAuthorization, type PPOrder } from "../paypal/index.js";
 import { balanceOf, customerById, logEvent, obligationById, type Customer, type Obligation } from "../store.js";
 import type { Run } from "../trace.js";
-import type { Ctx } from "./money.js";
+import { langFor, type Ctx } from "./money.js";
 import { noteRef, wsCustomId } from "./wsrefs.js";
-import { customerText, normLang, paypalLocale, usd as langUsd } from "../lib/lang.js";
+import { customerText, paypalLocale, usd as langUsd } from "../lib/lang.js";
 
 export interface Hold {
   id: string;
@@ -74,11 +74,11 @@ export async function sendHoldLink(ctx: Ctx, o: Obligation, customer: Customer):
   await ctx.q.query("INSERT INTO holds (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id, via) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7,'link')", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
   const pp = paypal();
   try {
-    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, intent: "AUTHORIZE", customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: `Hold: ${o.title}`.slice(0, 120), brand: ctx.businessName, locale: paypalLocale(customer.lang), intent: "AUTHORIZE", returnUrl: `${customerUrl(customer)}?held=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
+    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, intent: "AUTHORIZE", customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: `Hold: ${o.title}`.slice(0, 120), brand: ctx.businessName, locale: paypalLocale(langFor(ctx, customer)), intent: "AUTHORIZE", returnUrl: `${customerUrl(customer)}?held=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
     await noteRef("paypal.order", order.id);
     await ctx.q.query("UPDATE holds SET paypal_order_id = $2, approve_url = $3, status = 'link_sent' WHERE id = $1", [id, order.id, order.approveUrl]);
     const url = order.approveUrl ?? customerUrl(customer);
-    const lang = normLang(customer.lang);
+    const lang = langFor(ctx, customer);
     await textCustomer(customer, lang && lang !== "en" ? customerText("hold_link", lang, { business: ctx.businessName, amount: langUsd(cents, lang), item: o.title, url }) : `${ctx.businessName}: approve a hold of ${usd(cents)} for ${o.title}. It is charged only if you attend, and released if you cancel in time: ${url}`, "obligation", o.id, ctx.q);
     await logEvent(ctx.q, { businessId: ctx.businessId, customerId: customer.id, callId: ctx.callId, type: "hold.link_sent", summary: `Hold link for ${usd(cents)} sent to ${customer.name} (charged only if they attend)`, actor: ctx.agentScope, data: { orderId: order.id } });
     await appendAudit("money.hold_link", "obligation", o.id, { cents, orderId: order.id, by: ctx.agentScope }, ctx.q);
