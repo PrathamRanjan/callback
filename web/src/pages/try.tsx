@@ -23,6 +23,7 @@ export default function Try() {
   const { data } = useData<DemoInfo>("/api/app/demo");
   const [busy, setBusy] = useState<string | null>(null);
   const [key, setKey] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   // The seed's names, used while the demo info loads (or if it can't), so the card never reads "the owner, the owner".
   const owner = data?.people.find((p) => p.role === "owner")?.name ?? "Maya Chen";
   const staff = data?.people.find((p) => p.role === "staff")?.name ?? t("the front desk");
@@ -30,6 +31,7 @@ export default function Try() {
   // There is no "skip": owner and customer always start with who you are and the walkthrough (tour/story.ts).
   const go = async (who: "owner" | "staff" | "customer") => {
     setBusy(who);
+    setErr(null);
     try {
       const info = data ?? (await getJson<DemoInfo>("/api/app/demo")); // a fast click can beat the first load
       void info;
@@ -48,6 +50,8 @@ export default function Try() {
       }
       nav(next && next.startsWith("/") ? next : who === "owner" ? "/today" : "/calls");
     } catch (e) {
+      // Shown on the page as well as in a toast: a limit message must not vanish before it's read.
+      setErr((e as Error).message);
       toast.error((e as Error).message);
     } finally {
       setBusy(null);
@@ -67,6 +71,7 @@ export default function Try() {
         <p className="mt-2 text-lead text-ink-2">{t("Pick a role. We'll tell you who you are, then walk you through what your day looks like with Callback.")}</p>
         <p className="mt-2 text-ink-2">{data?.business?.name ?? "Brightside Physio & Pilates"}{" "}{t("is a demo studio in Sydney. Your first tap builds your own private copy of it (a few seconds): nobody else sees what you do, and it is removed after two days without a visit. Payments go through the real PayPal sandbox; nothing real is charged.")}</p>
         {data && !data.demo ? <p className="mt-3 rounded-[8px] bg-hold-soft p-3 text-sm">{t("Demo mode is off on this server. Sign in with your access key below.")}</p> : null}
+        {err ? <p role="alert" data-testid="try-error" className="mt-3 rounded-[8px] border border-hold bg-hold-soft p-3 text-sm">{err}</p> : null}
         <ul className="mt-6 grid gap-3">
           {people.map((p) => (
             <li key={p.id}>
