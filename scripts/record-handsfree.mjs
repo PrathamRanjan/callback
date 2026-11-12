@@ -19,7 +19,7 @@ const setup = await b.newContext({ viewport: { width: 1100, height: 700 } });
 await setup.addInitScript(init);
 const s0 = await setup.newPage();
 await s0.goto(`${base}/try`);
-await s0.getByRole("button", { name: "Be the owner" }).click();
+await s0.getByRole("button", { name: "Skip the walkthrough" }).click();
 await s0.waitForURL((u) => !u.pathname.startsWith("/try"));
 await s0.goto(`${base}/calls`);
 await s0.locator("main a[href^='/calls/']").first().waitFor();

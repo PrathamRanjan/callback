@@ -107,7 +107,7 @@ function combine(res: RuleResult): Assessment {
 
 const OWNER_CHANGE = /\b(i'?m|this is|it'?s)\s+(the\s+)?(owner|boss|manager|[A-Z][a-z]+ from the office)\b[\s\S]{0,160}\b(change|update|switch|move)\b[\s\S]{0,80}\b(payout|bank|paypal|account|details|email)/i;
 
-/** An inbound message (Telegram, WhatsApp, SMS, a pasted email). Rules only on the server; the browser adds the text model. */
+/** An inbound message (Telegram, SMS, a pasted email). Rules only on the server; the browser adds the text model. */
 export function assessMessage(text: string): Assessment & { words: string[]; ownerImpersonation: boolean } {
   const scan = scanText(text);
   const res = payeeRules({ payeeAgeDays: null, detailsChangedDaysAgo: null, detailsChangeSource: null, amountCents: 1, historyMedianCents: null, velocity10m: 0, velocity24hSumRatio: 1, requestChannelUntrusted: true, hourLocal: 12, text });

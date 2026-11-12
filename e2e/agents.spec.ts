@@ -9,7 +9,7 @@ test("agents: a stranger is offered a demo; the owner gets a hidden demo key, a 
 
   await page.addInitScript(() => { localStorage.setItem("cb-tour-seen-owner", "1"); localStorage.setItem("cb-tour-seen-staff", "1"); });
   await page.goto("/try");
-  await page.getByRole("button", { name: "Be the owner" }).click();
+  await page.getByRole("button", { name: "Skip the walkthrough" }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
   await page.goto("/agents");
   const panel = page.getByTestId("connect-assistant");

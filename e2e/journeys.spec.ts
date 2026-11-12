@@ -4,7 +4,15 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function be(page: Page, who: "owner" | "front desk" | "customer") {
   await page.goto("/try");
-  await page.getByRole("button", { name: `Be the ${who}` }).click();
+  // The owner and customer cards start the guided walkthrough (tour/story.ts); tests that aren't about it skip or close it.
+  if (who === "owner") await page.getByRole("button", { name: "Skip the walkthrough" }).click();
+  else if (who === "front desk") await page.getByRole("button", { name: "Be the front desk" }).click();
+  else {
+    await page.getByRole("button", { name: "Start as the customer" }).click();
+    await page.waitForURL(/\/c\//);
+    await page.locator(".driver-popover-close-btn").click();
+    await expect(page.locator(".driver-popover")).toHaveCount(0);
+  }
   // Wait for the sign-in to land: on the live site a goto right after the click raced the cookie back to /try.
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
 }
@@ -148,7 +156,7 @@ test("judge page: linked from the landing header, one tap starts a private demo 
   await page.getByRole("banner").getByRole("link", { name: "For judges" }).click();
   await expect(page).toHaveURL(/\/judge$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("For judges");
-  await expect(page.getByRole("heading", { name: "What is live, what is simulated" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What is live, what is simulated" })).toHaveCount(0);
   const step = page.locator('[data-step="call_placed"]');
   await expect(step).toHaveAttribute("data-done", "0");
   await step.getByRole("button", { name: "Open Priya's call" }).click();

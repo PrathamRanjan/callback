@@ -1,5 +1,5 @@
 /**
- * Channels (roadmap B.8): SMS (Twilio) for the pay link mid-call, Telegram and WhatsApp Cloud API with reply buttons,
+ * Channels (roadmap B.8): SMS (Twilio) for the pay link mid-call, Telegram with reply buttons,
  * an in-app simulator so the demo runs without a phone, and web push for the owner's PWA. Outbound messages are
  * queued in channel_messages and sent by the worker; inbound messages are matched to a customer or the owner by
  * party_links. Customers are addressed by their status token (party "customer"); the owner by business id.
@@ -13,7 +13,7 @@ import { newId } from "../lib/ids.js";
 import { pushTo } from "./push.js";
 
 export type Party = "customer" | "owner";
-export type Channel = "sms" | "telegram" | "whatsapp" | "simulator";
+export type Channel = "sms" | "telegram" | "simulator";
 export interface Button {
   id: string;
   label: string;
@@ -25,7 +25,6 @@ export function setChannelFetch(f: typeof fetch | null) {
 }
 
 export const telegramReady = () => Boolean(config.channels.telegramToken);
-export const whatsappReady = () => Boolean(config.channels.whatsappToken && config.channels.whatsappPhoneId);
 export const smsReady = () => Boolean(config.voice.twilioSid && config.voice.twilioToken && config.voice.twilioFrom);
 
 /** Queue a message to an address; delivered by the send_channel_message job. */
@@ -80,14 +79,6 @@ export async function deliver(messageId: string): Promise<void> {
       const data = (await res.json()) as any;
       if (!data.ok) throw new Error(`Telegram: ${data.description ?? res.status}`);
       externalId = String(data.result?.message_id ?? "");
-    } else if (m.channel === "whatsapp" && whatsappReady()) {
-      const payload = buttons.length
-        ? { messaging_product: "whatsapp", to: m.address, type: "interactive", interactive: { type: "button", body: { text: m.body }, action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: `${m.id}:${b.id}`, title: b.label.slice(0, 20) } })) } } }
-        : { messaging_product: "whatsapp", to: m.address, type: "text", text: { body: m.body } };
-      const res = await fetchImpl(`https://graph.facebook.com/v21.0/${config.channels.whatsappPhoneId}/messages`, { method: "POST", headers: { Authorization: `Bearer ${config.channels.whatsappToken}`, "content-type": "application/json" }, body: JSON.stringify(payload) });
-      const data = (await res.json()) as any;
-      if (!res.ok) throw new Error(`WhatsApp: ${data.error?.message ?? res.status}`);
-      externalId = data.messages?.[0]?.id ?? null;
     } else if (m.channel !== "simulator") {
       await db.query("UPDATE channel_messages SET status = 'simulated' WHERE id = $1", [messageId]);
       return;
@@ -147,22 +138,6 @@ export async function telegramUpdate(update: any): Promise<void> {
   }
   const msg = update.message;
   if (msg?.text) await receive("telegram", String(msg.chat.id), msg.text, null, null);
-}
-
-/** WhatsApp Cloud API webhook body -> receive(). */
-export async function whatsappUpdate(body: any): Promise<void> {
-  for (const entry of body.entry ?? []) {
-    for (const change of entry.changes ?? []) {
-      for (const m of change.value?.messages ?? []) {
-        if (m.type === "interactive" && m.interactive?.button_reply) {
-          const bid = String(m.interactive.button_reply.id);
-          const cut = bid.indexOf(":");
-          const [replyTo, buttonId] = cut > 0 ? [bid.slice(0, cut), bid.slice(cut + 1)] : [null, bid];
-          await receive("whatsapp", m.from, m.interactive.button_reply.title ?? "", buttonId ?? null, replyTo ?? null);
-        } else if (m.type === "text") await receive("whatsapp", m.from, m.text?.body ?? "", null, null);
-      }
-    }
-  }
 }
 
 /** Twilio inbound SMS webhook (form-encoded) -> receive(). "STOP" revokes consent via the handler. */

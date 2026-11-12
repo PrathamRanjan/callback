@@ -209,6 +209,21 @@
 .driver-popover.cb-tour .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--surface); }
 .driver-popover.cb-tour .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--surface); }
 .driver-popover.cb-tour .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--surface); }
+/* The story's "who you are" card: centred, a little wider and larger than a step. */
+.driver-popover.cb-tour.cb-story-card { max-width: min(520px, calc(100vw - 32px)); padding: 24px; }
+.driver-popover.cb-tour.cb-story-card .driver-popover-title { font-size: 1.5rem; line-height: 1.2; }
+.driver-popover.cb-tour.cb-story-card .driver-popover-description { font-size: 1.02rem; }
+/* The corner button that carries a story on while the visitor uses the page. */
+.cb-story-pill {
+  position: fixed; right: 16px; bottom: 16px; z-index: 1000000;
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); font: 500 0.875rem var(--font-sans);
+}
+.cb-story-pill .cb-story-next { background: var(--brand); color: var(--brand-ink); border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 600; }
+.cb-story-pill .cb-story-close { color: var(--ink-2); width: 40px; height: 40px; border-radius: 999px; font-size: 1.25rem; }
+.cb-story-pill button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (max-width: 640px) { .cb-story-pill { left: 16px; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); justify-content: space-between; } }
 
 /* Display and help profile (kept from the accessibility layer, restyled). */
 html.a11y-large { font-size: 118%; }

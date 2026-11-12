@@ -172,10 +172,6 @@ export default function JudgePage() {
               })}
             </div>
 
-            <h2 className="mt-8 text-h2 font-semibold">{t("What is live, what is simulated")}</h2>
-            <p className="mt-1 text-sm text-ink-2">{t("Built from this server's configuration when you opened the page.")}</p>
-            <div className="mt-3"><LiveTable rows={d.live} /></div>
-
             <h2 className="mt-8 text-h2 font-semibold">{t("Pages you can read without signing in")}</h2>
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {d.pages.map((p) => (

@@ -92,9 +92,23 @@ function Tours() {
       if (document.querySelector(".driver-popover")) void import("@/tour/tours").then((t) => t.endTour());
       return;
     }
+    void import("@/tour/story").then((s) => s.endStory());
     void import("@/tour/tours").then((t) => t.startTour(kind));
     return () => void import("@/tour/tours").then((t) => t.endTour());
   }, [loc.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
+/** The guided walkthrough that "Try the live demo" starts: shows the step whose page is open (tour/story.ts). */
+function StoryRunner() {
+  const loc = useLocation();
+  const nav = useNavigate();
+  useEffect(() => {
+    void import("@/tour/story").then((s) => s.setStoryNavigate((p) => nav(p)));
+  }, [nav]);
+  useEffect(() => {
+    void import("@/tour/story").then((s) => (s.storyActive() ? s.show() : undefined));
+  }, [loc.pathname]);
   return null;
 }
 
@@ -107,6 +121,7 @@ function App(_: { lang: string }) {
       <SessionProvider>
         <TooltipProvider delayDuration={300}>
           <Tours />
+          <StoryRunner />
           <Suspense fallback={<Fallback />}>
             <Routes>
               <Route path="/" element={<Landing />} />

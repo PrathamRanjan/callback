@@ -168,7 +168,7 @@ export default function AskPage() {
       {d.brain !== "model" ? <Panel className="mb-6 p-4 text-sm" role="alert">{t("The AI model isn't available here, so Ask can't run. Nothing is answered by rules instead.")}</Panel> : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] [&>*]:min-w-0">
         <div>
-          <Panel className="p-4">
+          <Panel className="p-4" data-tour="ask-box">
             <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); void ask(q); }}>
               <Label htmlFor="ask-q">{t("Ask about your calls, customers, rules or PayPal")}</Label>
               <Textarea id="ask-q" rows={3} value={q} onChange={(e) => setQ(e.target.value)} className="text-base md:text-sm" placeholder={t("Who will you call today, and who won't you call?")} />

@@ -2,14 +2,14 @@ import { randomBytes } from "node:crypto";
 import { icon } from "./icons.js";
 /**
  * Foundation routes (roadmap B.2, B.3, B.4, B.5, B.7, B.8, B.10): traces, eval explorer, money desk, channels and
- * webhooks (Telegram, WhatsApp, Twilio SMS, PayPal), PWA, evidence page, judge mode, llms.txt, skill.md, MCP.
+ * webhooks (Telegram, Twilio SMS, PayPal), PWA, evidence page, judge mode, llms.txt, skill.md, MCP.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Router, type Request } from "express";
 import { aiUsageSummary, hasOpenAI, providerLabel } from "../ai/provider.js";
-import { conversation, receive, recentMessages, smsReady, smsUpdate, telegramReady, telegramUpdate, whatsappUpdate } from "../channels/index.js";
+import { conversation, receive, recentMessages, smsReady, smsUpdate, telegramReady, telegramUpdate } from "../channels/index.js";
 import { pushReady, subscribe } from "../channels/push.js";
 import { routeTelegram } from "../channels/router.js";
 import { config } from "../config.js";
@@ -252,14 +252,6 @@ export function foundationRouter(): Router {
       if (ws && !(await getWorkspace(ws))) ws = null;
       return inWorkspace(ws, () => telegramUpdate(u));
     });
-    res.json({ ok: true });
-  }));
-  r.get("/webhooks/whatsapp", (req, res) => {
-    if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === config.channels.whatsappVerifyToken) return res.send(String(req.query["hub.challenge"]));
-    res.status(403).end();
-  });
-  r.post("/webhooks/whatsapp", page(async (req, res) => {
-    await whatsappUpdate(req.body ?? {});
     res.json({ ok: true });
   }));
   r.post("/webhooks/sms", page(async (req, res) => {

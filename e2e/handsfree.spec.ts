@@ -16,7 +16,7 @@ async function owner(page: Page) {
     localStorage.setItem("cb-hf", JSON.stringify({ mode: "gaze", dwellMs: 700, voice: "off" }));
   });
   await page.goto("/try");
-  await page.getByRole("button", { name: "Be the owner" }).click();
+  await page.getByRole("button", { name: "Skip the walkthrough" }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
 }
 async function lookAt(page: Page, name: string | RegExp) {

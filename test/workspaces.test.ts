@@ -129,6 +129,12 @@ describe("private demo workspaces", () => {
     expect(anon.paths.length).toBe(3);
     expect(anon.paths[0].steps.every((s: any) => s.href === null)).toBe(true); // no demo yet: the first tap builds one
     expect(anon.live.find((r: any) => r.piece.startsWith("Phone calls")).live).toBe(false);
+    // An earlier test moved A's clock a day on; from a Friday that is a Saturday, which isn't a calling day. Move on to
+    // Monday first, so the call this test places can start and the blocked call it opens is blocked by a rule, whatever
+    // weekday the suite runs on.
+    const clock = new Date((await A.get("/api/app/session")).json.business.clock);
+    const dow = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", weekday: "short" }).format(clock);
+    if (dow === "Sat" || dow === "Sun") await A.post("/demo/clock", { days: dow === "Sat" ? "2" : "1" });
     const before = (await A.get("/api/public/judge")).json;
     expect(before.workspace.qr_svg).toMatch(/^<svg/);
     expect(before.workspace.join_url).toContain("/demo/join/");

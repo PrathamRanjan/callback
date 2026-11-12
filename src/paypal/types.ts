@@ -100,7 +100,7 @@ export interface PPBalance {
 export interface PayPalApi {
   readonly env: "sandbox" | "live";
   verifyCredentials(): Promise<{ appId?: string; scopes: string[] }>;
-  /** Pay link: a buyer-approved order (intent CAPTURE) the customer opens from the SMS or WhatsApp message. */
+  /** Pay link: a buyer-approved order (intent CAPTURE) the customer opens from the SMS or Telegram message. */
   createOrder(input: OrderInput & { returnUrl: string; cancelUrl: string }, requestId: string): Promise<{ id: string; status: string; approveUrl: string | null }>;
   /** Saved-wallet payment (demo only): an order paid from a vaulted PayPal wallet with no buyer login. Intent CAPTURE
    * completes at once; the caller still reads the order back before changing any state. */

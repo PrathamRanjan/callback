@@ -104,13 +104,15 @@ export default function Landing() {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Button size="lg" className="h-12 px-6 text-base" asChild>
-              <Link to={session?.me ? "/today" : "/try"}>{session?.me ? t("Open the studio") : t("Try the live demo")} <ArrowRight /></Link>
+              <Link to="/try">{t("Try the live demo")} <ArrowRight /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-12 px-6 text-base" asChild>
-              <Link to="/judge">{t("For judges: 3 minutes")}</Link>
-            </Button>
+            {session?.me ? (
+              <Button size="lg" variant="outline" className="h-12 px-6 text-base" asChild>
+                <Link to="/today">{t("Back to your studio")}</Link>
+              </Button>
+            ) : null}
           </div>
-          <p className="mt-3 text-sm text-ink-2">{t("No sign-up. The demo uses a seeded Sydney studio and the PayPal sandbox.")}</p>
+          <p className="mt-3 text-sm text-ink-2">{t("No sign-up. You pick a role, we tell you who you are, and a short walkthrough shows you around. Payments run on the real PayPal sandbox.")}</p>
           <p className="mt-1 text-sm text-ink-2">{t("Works with a screen reader, at 200% text, and by voice.")}{" "}<Link to="/accessibility" className="inline-flex min-h-11 items-center underline">{t("What was tested")}</Link></p>
         </div>
         <LivePreview />

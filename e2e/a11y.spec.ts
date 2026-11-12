@@ -23,7 +23,15 @@ const out: any = { at: new Date().toISOString(), base: "", commit: null, tags: T
 
 async function be(page: Page, who: "owner" | "front desk" | "customer") {
   await page.goto("/try");
-  await page.getByRole("button", { name: `Be the ${who}` }).click();
+  // The owner and customer cards start the guided walkthrough (tour/story.ts); tests that aren't about it skip or close it.
+  if (who === "owner") await page.getByRole("button", { name: "Skip the walkthrough" }).click();
+  else if (who === "front desk") await page.getByRole("button", { name: "Be the front desk" }).click();
+  else {
+    await page.getByRole("button", { name: "Start as the customer" }).click();
+    await page.waitForURL(/\/c\//);
+    await page.locator(".driver-popover-close-btn").click();
+    await expect(page.locator(".driver-popover")).toHaveCount(0);
+  }
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
 }
 async function quiet(page: Page) {

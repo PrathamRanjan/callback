@@ -16,7 +16,7 @@ test("capture", async ({ browser }) => {
   await prep.addInitScript(() => localStorage.setItem("cb-tour-seen-owner", "1"));
   const p = await prep.newPage();
   await p.goto("/try");
-  await p.getByRole("button", { name: "Be the owner" }).click();
+  await p.getByRole("button", { name: "Skip the walkthrough" }).click();
   await expect(p.locator("[data-tour=today-kpis]")).toBeVisible();
   await p.getByRole("link", { name: /Priya Natarajan/ }).first().click();
   await p.getByRole("button", { name: "Start in simulator" }).click();

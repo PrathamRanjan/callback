@@ -14,7 +14,7 @@ The voice agent that makes a small business's money calls: confirm tomorrow's de
 2. **Watch it refuse.** Ask the agent who it won't call (its tool calls stream into a rail beside the answer), open a call that the rules blocked, and check the 10 Nov "we've moved banks, pay our new PayPal" message, which is now held.
 3. **Approve a held move.** A $360 charge is over the $300 limit and waits for you with what, who, why and how to undo it.
 
-**What is live and what is simulated.** `/judge` builds this table from the server's configuration on every request. On 11 Nov it said: live are PayPal Orders, the saved wallet, Invoicing, Billing plans and Subscriptions, refunds, verified webhooks, PayPal's MCP server (read tools only), the call and policy model (`gpt-6.1-sol`), the Decisions scam check (`gpt-6-luna`), live browser voice, Telegram approvals and web push. Simulated and labelled are calls and texts to the demo customers (Twilio is set up, but no number is allowlisted, so nothing rings), WhatsApp, the seeded samples and each copy's clock.
+**What is live and what is simulated.** Live: PayPal Orders, the saved wallet, Invoicing, Billing plans and Subscriptions, refunds, verified webhooks, PayPal's MCP server (read tools only), the call and policy model (`gpt-6.1-sol`), the Decisions scam check (`gpt-6-luna`), live voice in the browser, Call my phone (US/Canada, UK, Australia, Singapore, India), Telegram approvals and web push. Simulated, and labelled on the screens where they appear: calls and texts to the made-up demo customers (their numbers aren't real), the seeded samples and each copy's clock. WhatsApp was removed on 13 Nov because it was never connected to a real account. The live/simulated table that used to sit on `/judge` was removed the same day; the labels stay on each screen.
 
 **Pages with no sign-in:** `/proof` (every evaluation case), `/ai` (the last model calls), `/paypal` (each PayPal API and a live id), `/who-can-move-money`, `/accessibility`, `/agents` (MCP with a copy-paste command).
 
@@ -39,7 +39,7 @@ The source repository is private for now; making it public is the owner's decisi
 ## Run it
 ```bash
 npm install
-cp .env.example .env        # add PAYPAL_CLIENT_ID / SECRET (sandbox) and optionally OPENAI_API_KEY, Twilio, Telegram, WhatsApp, VAPID
+cp .env.example .env        # add PAYPAL_CLIENT_ID / SECRET (sandbox) and optionally OPENAI_API_KEY, Twilio, Telegram, VAPID
 npm run seed -- --pin       # Brightside Physio & Pilates, 8 customers, clock set to this weekday 11:00 Sydney; prints the owner key
 npm run dev                 # http://localhost:3500
 ```
@@ -58,9 +58,9 @@ Signed in: `/today` plan and refusals · `/ask` the agent with its tool rail · 
 | Turn-based brain and policy reader (`gpt-6.1-sol`, backup `gpt-6-sol`) | `OPENAI_API_KEY` | calls don't start; policy reading shows an error and a retry button (the rules brain is a test and offline-eval arm only) |
 | Live voice (WebRTC) | `OPENAI_API_KEY` | hidden; simulator shown |
 | Phone calls and SMS | `TWILIO_*` | simulator; SMS mirrored to the customer page |
-| Telegram / WhatsApp approvals, web push | tokens / VAPID | simulated, visible on `/ops/channels` |
+| Telegram approvals, web push | tokens / VAPID | simulated, visible on `/ops/channels` |
 
-Webhooks to register when keys arrive: `/webhooks/paypal`, `/webhooks/telegram`, `/webhooks/whatsapp` (verify token `WHATSAPP_VERIFY_TOKEN`), `/webhooks/sms`, `/webhooks/voice/{twiml,gather,status}/:callId`, `/webhooks/voice/events`.
+Webhooks to register when keys arrive: `/webhooks/paypal`, `/webhooks/telegram`, `/webhooks/sms`, `/webhooks/voice/{twiml,gather,status}/:callId`, `/webhooks/voice/events`.
 
 ## Walkthrough (Wave 1 text, kept for reference)
 
@@ -84,7 +84,7 @@ The people at risk on a collections call are the customer, who cannot tell our a
 - **Verify code.** Every call opens with a four-digit code (`verifyCode` in `src/safety/index.ts`, stored in the call state) that the customer's status page `/c/<token>` also shows, so they can check it is really us.
 - **The agent never asks for secrets.** Every line the agent is about to say is scanned (`agentLineUnsafe`); a line asking for a one-time code, password or card number, or moving payment off PayPal, is replaced with a correction, counted as a breach and recorded as a `safety.agent_line` trace step.
 - **Rules in the gate** (`src/guard/dryrun.ts`, step 2b): a refund the customer asks to send to a different account or card is held (`safety.refund_to_other_account`); scam tactics in the customer's words are cautions in the trace; protected mode holds every agent refund and discount for the owner.
-- **Owner impersonation by message.** An inbound Telegram, WhatsApp, SMS or simulator message that claims to be the owner and asks to change payout or bank details is refused, audited (`safety.owner_impersonation`) and listed on `/safety`. Payout details change only in the signed-in settings.
+- **Owner impersonation by message.** An inbound Telegram, SMS or simulator message that claims to be the owner and asks to change payout or bank details is refused, audited (`safety.owner_impersonation`) and listed on `/safety`. Payout details change only in the signed-in settings.
 - **Scam text model in the browser** (`public/safety/`, 23 MB int8 ONNX, fine-tuned MiniLM) scores a pasted message on the owner's device at `/safety`. Advisory; its score never reaches the gate. **Payment-risk model** (`public/safety/risk_lgbm.json`): monotone LightGBM, **trained on synthetic data**, a ranking signal shown with the rule reasons.
 
 Tests: `test/safety.test.ts`; the model's measured results are on `/safety/model-card`.

@@ -79,7 +79,7 @@ describe("foundation routes", () => {
     expect(wh.json.verified).toBe(false);
     expect((await world.db.query("SELECT * FROM webhook_events")).rows).toHaveLength(1);
   });
-  it("channels: simulator, approval by button, STOP by sms, telegram and whatsapp webhooks", async () => {
+  it("channels: simulator, approval by button, STOP by sms, telegram webhook; WhatsApp is gone", async () => {
     expect((await owner.get("/ops/channels")).text).toContain("Connect Telegram");
     const conn = await owner.post("/connect/telegram");
     expect(conn.location).toMatch(/t\.me\/.+start=callback-/);
@@ -102,9 +102,8 @@ describe("foundation routes", () => {
     expect((await world.db.query("SELECT 1 FROM channel_messages WHERE channel = 'push' AND address = $1 AND body LIKE '%$420.00%'", [`owner:${world.seeded.business.id}`])).rows).toHaveLength(1);
     await anon.postJson("/webhooks/telegram", { callback_query: { id: "q1", data: `${note.id}:approve:${apr.id}`, message: { chat: { id: 4242 } } } });
     expect((await world.db.query<{ status: string }>("SELECT status FROM approvals WHERE id = $1", [apr.id])).rows[0].status).toBe("approved");
-    expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=callback-verify&hub.challenge=abc")).text).toBe("abc");
-    expect((await anon.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong")).status).toBe(403);
-    expect((await anon.postJson("/webhooks/whatsapp", { entry: [{ changes: [{ value: { messages: [{ type: "text", from: "61400", text: { body: "hi" } }] } }] }] })).json.ok).toBe(true);
+    // WhatsApp was never connected to a real account, so it was removed (12 Nov): its webhook no longer exists.
+    expect((await anon.postJson("/webhooks/whatsapp", { entry: [] })).status).toBe(404);
     // With a Twilio token set, an unsigned SMS webhook is refused; one signed with the token is accepted.
     const { config } = await import("../src/config.js");
     const { createHmac } = await import("node:crypto");

@@ -44,6 +44,7 @@ export default function MoneyPage() {
   const waiting = d.moves.filter((m) => moneyLamp(m.status) === "ready").length;
   return (
     <>
+      <div data-tour="money">
       <PageHead
         title={t("Money")}
         kicker={d.paypal.configured ? <StateChip s={d.paypal.readable ? "live" : "hold"}>{t("PayPal")}{" "}{d.paypal.env}{d.paypal.readable ? t(" · connected") : t(" · can't read right now")}</StateChip> : <StateChip s="off">{t("PayPal not configured")}</StateChip>}
@@ -52,6 +53,7 @@ export default function MoneyPage() {
         next={waiting ? t("Links or invoices waiting for the customer to pay: {0}.", [waiting]) : t("Nothing waiting on customers.")}
         actions={<ActButton path="/ops/money/readback" variant="outline" icon={<RefreshCw />} onDone={reload}>{t("Read back from PayPal")}</ActButton>}
       />
+      </div>
       <div className="kpi-grid mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label={t("Owed to you")} value={money(d.totals.owed_cents)} s="ready" />
         <Kpi label={t("Paid")} value={money(d.totals.paid_cents)} s="done" />

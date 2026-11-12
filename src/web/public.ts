@@ -12,7 +12,7 @@ import { brainKind, providerLabel } from "../ai/provider.js";
 import { decisionsAvailable, thresholds } from "../ai/decisions.js";
 import { maskEmails } from "../agent/ask.js";
 import { pushReady } from "../channels/push.js";
-import { smsReady, telegramReady, whatsappReady } from "../channels/index.js";
+import { smsReady, telegramReady } from "../channels/index.js";
 import { config } from "../config.js";
 import { getDb, inWorkspace } from "../db.js";
 import { guardSettings } from "../guard/dryrun.js";
@@ -72,7 +72,6 @@ export function liveTable() {
         ]
       : [row("Phone calls", telephonyReady(), "Twilio", "simulated: typed in the simulator and labelled"), row("SMS", smsReady(), "Twilio", "simulated: mirrored to the customer's page and labelled")]),
     row("Telegram approvals", telegramReady(), `@${config.channels.telegramBot}`, "simulated and labelled on Messages"),
-    row("WhatsApp approvals", whatsappReady(), "WhatsApp Cloud API", "simulated and labelled on Messages"),
     row("Web push", pushReady(), "VAPID", "off"),
     { piece: "Seeded samples (customers, three sample calls, three seed payments, one held charge)", live: false, detail: "seeded demo data in your private copy, marked Sample; the seed payments are real sandbox payments" },
     { piece: "The studio clock", live: false, detail: "each private demo has its own clock, moved only by its own +1 day control" },

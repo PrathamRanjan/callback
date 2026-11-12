@@ -173,7 +173,7 @@ export default function PortalPage() {
                 <ul className="mt-3 divide-y divide-line rounded-[10px] border border-line bg-surface">{d.settled.map((s) => <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="lamp" data-s={moneyLamp(s.status)} aria-hidden="true" /><span className="flex-1">{s.title}</span><span className="text-ink-2">{word(s.status)}</span><span className="num font-medium">{money(s.cents)}</span>{s.capture_id ? <span className="basis-full text-xs text-ink-2">{t("PayPal capture")}{" "}<span className="font-mono">{s.capture_id}</span>{s.via_wallet ? t(", paid from the demo's saved sandbox wallet") : ""}</span> : null}</li>)}</ul>
               </>
             ) : null}
-            <h2 className="mt-8 text-xl font-semibold" id="got-a-message">{t("Got a message about this?")}</h2>
+            <h2 className="mt-8 text-xl font-semibold" id="got-a-message" data-tour="portal-check">{t("Got a message about this?")}</h2>
             <p className="mt-1 text-sm text-ink-2">{t("If someone texts or emails you about money for")}{" "}{d.business.name}{t(", paste it here before you pay.")}{" "}{d.business.name}{" "}{t("only ever takes payment on this page, through PayPal.")}</p>
             <div className="mt-3"><ScamCheck endpoint={`/c/${token}/check`} label={tk("Paste the message you got")} note={t("Checked by a model on this device, rules, an AI check and a comparison with the places this business really takes payment.")} tour="portal-scam" /></div>
             <p className="mt-8 text-xs text-ink-2">{t("This page is only for you.")}{" "}{d.business.name}{" "}{t("will never ask for a password, a one-time code or your card number.")}</p>
