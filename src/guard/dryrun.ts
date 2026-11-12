@@ -208,7 +208,7 @@ export async function dryRun(move: MoneyMove, opts: { createApproval?: boolean; 
     const hash = payloadHash(move);
     await db.query("INSERT INTO approvals (id, action, payload_hash, payload, status) VALUES ($1,$2,$3,$4,'pending')", [id, move.action, hash, JSON.stringify({ ...move, reason, ...(safety && safety.level !== "clear" ? { safety_rule: safety.rule, safety_reasons: safety.reasons, safety_risk: safety.risk } : {}) })]);
     await appendAudit("approval.requested", "approval", id, { action: move.action, cents: move.cents ?? null, entity: move.entity, entityId: move.entityId, hash });
-    await notifyParty("owner", move.businessId, `Callback held a ${move.action} of $${((move.cents ?? 0) / 100).toFixed(2)} (${reason}). Approve or decline.`, [{ id: `approve:${id}`, label: "Approve" }, { id: `decline:${id}`, label: "Decline" }], "approval", id, db);
+    await notifyParty("owner", move.businessId, await holdNotice(move, reason, db), [{ id: `approve:${id}`, label: "Approve" }, { id: `decline:${id}`, label: "Decline" }], "approval", id, db);
     return { decision: "held", reason, policy, approvalId: id, checks };
   }
 }
@@ -270,4 +270,25 @@ export async function approvedFor(move: MoneyMove, q?: Queryable): Promise<boole
   const db = q ?? (await getDb());
   const hash = payloadHash(move);
   return (await db.query("SELECT 1 FROM approvals WHERE payload_hash = $1 AND status = 'approved' AND decided_at > now() - interval '1 day' LIMIT 1", [hash])).rows.length > 0;
+}
+
+const ACTION_WORDS: Record<MoneyAction, string> = { charge: "pay link", invoice: "invoice", plan: "payment plan", discount: "discount", refund: "refund", hold: "deposit hold" };
+
+/** The owner's message for a held move (Telegram, push, the in-app feed): what, for whom, why, and what each button does. */
+export async function holdNotice(move: MoneyMove, reason: string, db: Queryable): Promise<string> {
+  let who: { name: string; title: string | null } | undefined;
+  try {
+    who = move.entity === "obligation"
+      ? (await db.query<{ name: string; title: string | null }>("SELECT c.name, o.title FROM obligations o JOIN customers c ON c.id = o.customer_id WHERE o.id = $1", [move.entityId])).rows[0]
+      : (await db.query<{ name: string; title: string | null }>("SELECT c.name, NULL AS title FROM calls k JOIN customers c ON c.id = k.customer_id WHERE k.id = $1", [move.entityId])).rows[0];
+  } catch {
+    who = undefined;
+  }
+  const amount = `$${((move.cents ?? 0) / 100).toFixed(2)}`;
+  return [
+    `Callback held a ${ACTION_WORDS[move.action] ?? move.action} of ${amount}${who ? ` for ${who.name}${who.title ? ` (${who.title})` : ""}` : ""}.`,
+    `Why: ${reason}.`,
+    "Approve carries out exactly this payment, nothing else. Decline sends nothing and charges nothing.",
+    `Details: ${config.appUrl}/approvals`,
+  ].join("\n");
 }

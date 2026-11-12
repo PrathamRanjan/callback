@@ -72,8 +72,23 @@ export function installChannelHandlers() {
         }
       }
       if (m.party?.party === "owner" && /pending|holds?|approvals?/i.test(text)) {
-        const n = (await db.query<{ n: string }>("SELECT count(*) AS n FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1)", [m.party.party_id])).rows[0].n;
-        return `${n} pending approval${n === "1" ? "" : "s"}. Open Needs you in Callback, or reply "approve <id>".`;
+        const rows = (await db.query<{ id: string; action: string; payload: any }>("SELECT id, action, payload FROM approvals WHERE status = 'pending' AND (payload->>'businessId' IS NULL OR payload->>'businessId' = $1) ORDER BY created_at DESC", [m.party.party_id])).rows;
+        if (!rows.length) return "Nothing is waiting for you. Held charges arrive here with Approve and Decline buttons.";
+        const list = rows.slice(0, 5).map((r) => `• ${r.action} of $${((Number(r.payload?.cents) || 0) / 100).toFixed(2)}${r.payload?.reason ? ` (${r.payload.reason})` : ""}: reply "approve ${r.id}" or "decline ${r.id}"`);
+        return `${rows.length} waiting for you:\n${list.join("\n")}${rows.length > 5 ? `\n…and ${rows.length - 5} more in Needs you.` : ""}`;
+      }
+      if (m.party?.party === "owner" && m.channel === "telegram" && /^\/?(help|commands|\?)$/i.test(text)) return OWNER_HELP;
+    }
+    // Every other message is read for scam signals before anything else happens (the same check as the customer page's
+    // "Is this message real?"). It never acts; it warns the sender and puts a note in the owner's feed.
+    if (!m.buttonId && text && m.channel !== "simulator") {
+      const s = assessMessage(text);
+      if (s.level !== "clear") {
+        const bizId = m.party?.party === "owner" ? m.party.party_id : m.party?.party === "customer" ? ((await customerByToken(db, m.party.party_id).catch(() => null))?.business_id ?? null) : null;
+        await appendAudit("safety.inbound_flagged", "channel", `${m.channel}:${m.address}`, { level: s.level, rule: s.rule, reasons: s.reasons });
+        if (bizId) await logEvent(db, { businessId: bizId, type: "safety.flagged", summary: `A ${m.channel} message showed scam signs (${s.words.join("; ") || s.rule})`, actor: "guard", data: { text: text.slice(0, 300), level: s.level } });
+        const head = s.level === "hold" ? "This looks like a scam" : "Careful";
+        return `${head}: it ${s.words.join(", and it ") || "has scam signs"}. Nothing was paid or changed. Pay only on the page Callback sent you, through PayPal. We'll never ask for a card number, a password, a code, gift cards or a new bank account in a message.`;
       }
     }
     // Customer status by token-linked address.
@@ -87,6 +102,9 @@ export function installChannelHandlers() {
         return null;
       }
     }
+    if (m.channel === "telegram") return m.party?.party === "owner" ? OWNER_HELP : "Hi, this is Callback. Owners: open Messages in Callback and tap Connect Telegram. Customers: tap Get updates on Telegram on your page.";
     return null;
   });
 }
+
+const OWNER_HELP = "This chat is connected to Callback. Held charges arrive here with Approve and Decline buttons.\nSend “pending” to see what's waiting, or “approve <id>” / “decline <id>”.\nForward any payment message here and it's checked for scams.";

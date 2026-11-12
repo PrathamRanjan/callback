@@ -38,8 +38,12 @@ it("deep link routes the chat and forwards /start with the code; later messages 
   expect(local.length).toBe(1);
 });
 
-it("an unknown chat gets the app menu; picking one routes it; /switch shows the menu again", async () => {
-  expect(await routeTelegram(upd("hello", 9), async () => undefined)).toBe("menu");
+it("an unknown chat talks to Callback; /switch shows the menu; picking one routes it", async () => {
+  const local: any[] = [];
+  expect(await routeTelegram(upd("hello", 9), async (u) => local.push(u))).toBe("callback");
+  expect(local.length).toBe(1);
+  expect(await routeOf("9")).toBe("callback");
+  expect(await routeTelegram(upd("/switch", 9), async () => undefined)).toBe("menu");
   expect(calls.some((c) => c.url.endsWith("/sendMessage") && c.body.reply_markup?.inline_keyboard)).toBe(true);
   expect(await routeTelegram({ update_id: 2, callback_query: { id: "q", data: "route:makegood", message: { chat: { id: 9 } } } }, async () => undefined)).toBe("menu:makegood");
   expect(await routeOf("9")).toBe("makegood");

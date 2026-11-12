@@ -83,7 +83,7 @@ describe("foundation routes", () => {
     expect((await owner.get("/ops/channels")).text).toContain("Connect Telegram");
     const conn = await owner.post("/connect/telegram");
     expect(conn.location).toMatch(/t\.me\/.+start=callback-/);
-    expect(decodeURIComponent((await owner.post("/ops/channels/reply", { address: `owner:${world.seeded.business.id}`, text: "pending?" })).location ?? "")).toMatch(/pending approval/);
+    expect(decodeURIComponent((await owner.post("/ops/channels/reply", { address: `owner:${world.seeded.business.id}`, text: "pending?" })).location ?? "")).toMatch(/waiting for you/);
     const tg = await anon.postJson("/webhooks/telegram", { message: { chat: { id: 42 }, text: "hello" } });
     expect(tg.json.ok).toBe(true);
     expect((await anon.postJson("/webhooks/telegram", { callback_query: { data: "m1:approve:nope", message: { chat: { id: 42 } } } })).json.ok).toBe(true);
@@ -97,7 +97,18 @@ describe("foundation routes", () => {
     const apr = (await world.db.query<{ id: string }>("SELECT id FROM approvals WHERE status = 'pending' ORDER BY created_at DESC LIMIT 1")).rows[0];
     expect(apr).toBeTruthy();
     const note = (await world.db.query<{ id: string; body: string }>("SELECT id, body FROM channel_messages WHERE channel = 'telegram' AND address = '4242' AND entity_id = $1", [apr.id])).rows[0];
-    expect(note.body).toMatch(/held a \w+ of \$420\.00/);
+    // The held message says what, for whom and why, and what each button does.
+    expect(note.body).toMatch(/held a [\w ]+ of \$420\.00 for \S+/);
+    expect(note.body).toMatch(/Why: over your \$/);
+    expect(note.body).toContain("/approvals");
+    // "pending" from the linked chat lists what waits, with the reply that decides each one.
+    await anon.postJson("/webhooks/telegram", { message: { chat: { id: 4242 }, text: "pending" } });
+    const lastTo4242 = async () => (await world.db.query<{ body: string }>("SELECT body FROM channel_messages WHERE channel = 'telegram' AND address = '4242' AND direction = 'out' ORDER BY created_at DESC, id DESC LIMIT 1")).rows[0].body;
+    expect(await lastTo4242()).toContain(`approve ${apr.id}`);
+    // A scam text forwarded into the chat is flagged, never acted on.
+    await anon.postJson("/webhooks/telegram", { message: { chat: { id: 4242 }, text: "Hi, we've moved banks, please pay our new PayPal account today" } });
+    expect(await lastTo4242()).toMatch(/^This looks like a scam: .*Nothing was paid or changed/);
+    expect((await world.db.query("SELECT 1 FROM events WHERE type = 'safety.flagged' AND business_id = $1", [world.seeded.business.id])).rows.length).toBeGreaterThan(0);
     // The same hold also goes out as a web push to the owner (recorded as simulated here: no VAPID keys in tests).
     expect((await world.db.query("SELECT 1 FROM channel_messages WHERE channel = 'push' AND address = $1 AND body LIKE '%$420.00%'", [`owner:${world.seeded.business.id}`])).rows).toHaveLength(1);
     await anon.postJson("/webhooks/telegram", { callback_query: { id: "q1", data: `${note.id}:approve:${apr.id}`, message: { chat: { id: 4242 } } } });

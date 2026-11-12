@@ -133,7 +133,15 @@ export async function telegramUpdate(update: any): Promise<void> {
     const cut = data.indexOf(":");
     const replyTo = cut > 0 ? data.slice(0, cut) : null;
     const buttonId = cut > 0 ? data.slice(cut + 1) : data || null;
-    await receive("telegram", String(cq.message?.chat?.id ?? cq.from?.id), data, buttonId, replyTo);
+    const reply = await receive("telegram", String(cq.message?.chat?.id ?? cq.from?.id), data, buttonId, replyTo);
+    // A decided hold: the buttons come off the original message and the outcome is written under it, so a second tap can't happen.
+    if (reply && /^(approve|decline):/.test(buttonId ?? "") && cq.message?.message_id && telegramReady()) {
+      await fetchImpl(`https://api.telegram.org/bot${config.channels.telegramToken}/editMessageText`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: cq.message.chat.id, message_id: cq.message.message_id, text: `${cq.message.text ?? ""}\n\n${/^Approved/.test(reply) ? "✅" : /^Declined/.test(reply) ? "⛔" : "ℹ️"} ${reply}`.trim() }),
+      }).catch(() => undefined);
+    }
     return;
   }
   const msg = update.message;

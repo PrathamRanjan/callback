@@ -87,15 +87,19 @@ export async function routeTelegram(update: any, local: (u: any) => Promise<unkn
     const rewritten = { ...update, message: { ...msg, text: start[2] ? `/start ${start[2]}` : "/start" } };
     if (app === "callback") await local(rewritten);
     else await forward(app, rewritten);
-    if (!start[2]) await tg("sendMessage", { chat_id: chatId, text: `Connected to ${TG_APPS[app]}. ${HINT[app]}` });
+    // Callback answers its own bare /start; other apps get the hint from here.
+    if (!start[2] && app !== "callback") await tg("sendMessage", { chat_id: chatId, text: `Connected to ${TG_APPS[app]}. ${HINT[app]}` });
     return app;
   }
   // Any other button press: stop the spinner on the user's phone straight away, whichever app handles it.
   if (cb?.id) await tg("answerCallbackQuery", { callback_query_id: cb.id });
+  // This is Callback's bot (the other apps have their own now), so a chat that never picked an app talks to Callback.
+  // Chats that already picked another app keep being forwarded there; /switch still shows the menu.
   const app = await routeOf(chatId);
   if (!app) {
-    await menu(chatId, "Hi! This bot serves eight PayPal hackathon apps. Which one are you using?");
-    return "menu";
+    await setRoute(chatId, "callback");
+    await local(update);
+    return "callback";
   }
   if (app === "callback") await local(update);
   else await forward(app, update);
