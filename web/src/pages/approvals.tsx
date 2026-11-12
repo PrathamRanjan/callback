@@ -139,7 +139,7 @@ export default function ApprovalsPage() {
                   size="sm"
                   variant={k.engaged ? "outline" : "ghost"}
                   icon={k.engaged ? <Power /> : <OctagonX />}
-                  confirmText={k.engaged ? undefined : `Stop ${SCOPE[k.scope] ?? k.scope}?`}
+                  confirmText={k.engaged ? undefined : t("Stop {0}?", [SCOPE[k.scope] ?? k.scope])}
                   onDone={refresh}
                 >
                   {k.engaged ? t("Start") : t("Stop")}

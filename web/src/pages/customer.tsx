@@ -163,7 +163,7 @@ export default function CustomerPage() {
                 <StateChip s="done">{t("Consent on file")}</StateChip>
                 <p className="mt-2 text-sm">“{c.consent.text}”</p>
                 <p className="text-xs text-ink-2">{c.consent.source} · {when(c.consent.granted_at)}</p>
-                {owner ? <ActButton path={`/customers/${c.id}/consent`} fields={{ op: "revoke" }} variant="outline" size="sm" className="mt-3" confirmText={`Mark ${c.name} do-not-call? Callback will never call them again.`} onDone={reload}>{t("Mark do-not-call")}</ActButton> : null}
+                {owner ? <ActButton path={`/customers/${c.id}/consent`} fields={{ op: "revoke" }} variant="outline" size="sm" className="mt-3" confirmText={t("Mark {0} do-not-call? Callback will never call them again.", [c.name])} onDone={reload}>{t("Mark do-not-call")}</ActButton> : null}
               </>
             ) : (
               <>

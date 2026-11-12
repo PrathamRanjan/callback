@@ -25,6 +25,7 @@ for (const L of LANGS) {
     await page.getByRole("button", { name: /^Language: / }).first().click();
     await page.getByRole("menuitemradio", { name: L.name }).click();
     await expect(page.locator("html")).toHaveAttribute("lang", L.code);
+    await expect(page.getByRole("menu")).toHaveCount(0); // the closing menu is out of the picture
     await page.screenshot({ path: `docs/screenshots/lang/${L.code}-landing.png` });
 
     await page.goto("/try");
@@ -48,7 +49,7 @@ for (const L of LANGS) {
     await page.getByRole("button", { name: T("Start in simulator") }).click();
     const box = page.getByLabel(T("What the customer says"));
     await box.fill(L.line);
-    await page.getByRole("button", { name: T("Say it") }).click();
+    await page.getByRole("button", { name: T("Say it"), exact: true }).click();
     await expect(page.locator("main")).toContainText(L.line, { timeout: 20_000 });
     await page.screenshot({ path: `docs/screenshots/lang/${L.code}-call.png`, fullPage: true });
 
@@ -62,6 +63,6 @@ for (const L of LANGS) {
     await page.screenshot({ path: `docs/screenshots/lang/${L.code}-customer.png`, fullPage: true });
 
     const missing = await page.evaluate(() => (window as any).__cbI18n.missing());
-    expect(missing, "interface text shown with no translation").toEqual([]);
+    expect(missing, `interface text shown with no translation: ${JSON.stringify(missing)}`).toEqual([]);
   });
 }

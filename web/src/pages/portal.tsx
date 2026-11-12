@@ -9,7 +9,7 @@ import { money, moneyLamp, word } from "@/lib/format";
 import { useData, useTitle } from "@/lib/hooks";
 import { useStatusAnnouncer } from "@/lib/announce";
 
-import { savedLang, setLang, t, useLang, type Lang } from "@/i18n";
+import { savedLang, setLang, t, tk, useLang, type Lang } from "@/i18n";
 import { postJson } from "@/lib/api";
 import { MachineTranslated } from "@/components/app/lang-menu";
 
@@ -152,7 +152,7 @@ export default function PortalPage() {
                       <ActButton path={`/c/${token}/callback`} fields={{ at: slot || d.calls.slots[0].at }} variant="outline" icon={<CalendarClock />} onDone={reload} className="h-11">{t("Book it")}</ActButton>
                     </div>
                   ) : null}
-                  <ActButton path={`/c/${token}/stop`} variant="ghost" icon={<PhoneOff />} confirmText={`Stop all calls from ${d.business.name}?`} onDone={reload}>{t("Stop calling me")}</ActButton>
+                  <ActButton path={`/c/${token}/stop`} variant="ghost" icon={<PhoneOff />} confirmText={t("Stop all calls from {0}?", [d.business.name])} onDone={reload}>{t("Stop calling me")}</ActButton>
                 </>
               )}
             </Panel>
@@ -175,7 +175,7 @@ export default function PortalPage() {
             ) : null}
             <h2 className="mt-8 text-xl font-semibold" id="got-a-message">{t("Got a message about this?")}</h2>
             <p className="mt-1 text-sm text-ink-2">{t("If someone texts or emails you about money for")}{" "}{d.business.name}{t(", paste it here before you pay.")}{" "}{d.business.name}{" "}{t("only ever takes payment on this page, through PayPal.")}</p>
-            <div className="mt-3"><ScamCheck endpoint={`/c/${token}/check`} label={t("Paste the message you got")} note={t("Checked by a model on this device, rules, an AI check and a comparison with the places this business really takes payment.")} tour="portal-scam" /></div>
+            <div className="mt-3"><ScamCheck endpoint={`/c/${token}/check`} label={tk("Paste the message you got")} note={t("Checked by a model on this device, rules, an AI check and a comparison with the places this business really takes payment.")} tour="portal-scam" /></div>
             <p className="mt-8 text-xs text-ink-2">{t("This page is only for you.")}{" "}{d.business.name}{" "}{t("will never ask for a password, a one-time code or your card number.")}</p>
           </>
         ) : null}

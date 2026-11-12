@@ -64,8 +64,8 @@ export default function DemoPage() {
           <Panel className="space-y-3 p-4">
             <p className="text-sm">{t("Wipes every demo call, payment record and approval, reseeds the studio and re-plans. PayPal sandbox records already created stay in PayPal.")}</p>
             <div className="flex flex-wrap gap-2">
-              <ActButton path="/demo/reset" fields={{ pin: "1" }} icon={<RotateCcw />} confirmText="Reset the demo studio? Every demo record is wiped." onDone={refresh} disabled={!owner && d.seeded}>{t("Reset, demo morning")}</ActButton>
-              <ActButton path="/demo/reset" fields={{ pin: "0" }} variant="outline" confirmText="Reset on real time? Some calls may be outside calling hours right now." onDone={refresh} disabled={!owner && d.seeded}>{t("Reset, real time")}</ActButton>
+              <ActButton path="/demo/reset" fields={{ pin: "1" }} icon={<RotateCcw />} confirmText={t("Reset the demo studio? Every demo record is wiped.")} onDone={refresh} disabled={!owner && d.seeded}>{t("Reset, demo morning")}</ActButton>
+              <ActButton path="/demo/reset" fields={{ pin: "0" }} variant="outline" confirmText={t("Reset on real time? Some calls may be outside calling hours right now.")} onDone={refresh} disabled={!owner && d.seeded}>{t("Reset, real time")}</ActButton>
             </div>
             {!owner ? <p className="text-xs text-ink-2">{t("Only the owner can reset.")}</p> : null}
           </Panel>

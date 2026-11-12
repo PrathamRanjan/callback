@@ -26,6 +26,11 @@ const RULES: Rule[] = [
   [/^stopped by the owner$/, () => t("stopped by the owner")],
   [/^over your \$([\d,.]+) limit for a (\w+) without asking$/, (m) => t("over your {amount} limit for a {action} without asking", { amount: usd(m[1]), action: t(m[2]) })],
   [/^the customer disputes this item; the owner reviews it first$/, () => t("the customer disputes this item; the owner reviews it first")],
+  [/^Paying 3 sample items from the saved sandbox wallet…$/, () => t("Paying 3 sample items from the saved sandbox wallet…")],
+  [/^The saved demo wallet is not set up, so the seed's sample payments were not made\.$/, () => t("The saved demo wallet is not set up, so the seed's sample payments were not made.")],
+  [/^(\d+) of (\d+) payments confirmed by PayPal so far…$/, (m) => t("{done} of {n} payments confirmed by PayPal so far…", { done: m[1], n: m[2] })],
+  [/^(\d+) of (\d+) payments confirmed by PayPal$/, (m) => t("{done} of {n} payments confirmed by PayPal", { done: m[1], n: m[2] })],
+  [/^not made: (.*)$/, (m) => t("not made: {0}", [m[1]])],
   [/^transcript decision: (\w+)$/, (m) => t("transcript decision: {0}", [m[1].replace(/_/g, " ")])],
 ];
 
@@ -54,5 +59,6 @@ export const SERVER_KEYS = [
   "kill switch on calls: {0}", "customer is on the do-not-call list", "no recorded consent to be called", "consent revoked {0}", "the policy does not allow {0} calls",
   "not a calling day ({day} in {tz})", "outside calling hours: {time} in {tz}, window {start}–{end} (statutory floor 08:00–21:00)", "already {n} attempts today (limit {max})",
   "last attempt under {0} h ago", "skipped by staff", "stopped by the owner", "over your {amount} limit for a {action} without asking",
-  "the customer disputes this item; the owner reviews it first", "transcript decision: {0}", "not called: {0}", "charge", "invoice", "plan", "discount", "refund", "hold",
+  "the customer disputes this item; the owner reviews it first", "transcript decision: {0}", "not called: {0}", "Paying 3 sample items from the saved sandbox wallet…", "The saved demo wallet is not set up, so the seed's sample payments were not made.",
+  "{done} of {n} payments confirmed by PayPal so far…", "{done} of {n} payments confirmed by PayPal", "not made: {0}", "charge", "invoice", "plan", "discount", "refund", "hold",
 ];

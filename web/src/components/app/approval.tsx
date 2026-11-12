@@ -86,7 +86,7 @@ export function ApprovalCard({ a, passkey, onDone, compact = false }: { a: Appro
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3">
         <Button onClick={() => decide("approve")} disabled={busy !== null} aria-busy={busy === "approve"}>
           {busy === "approve" ? <Loader2 className="animate-spin" /> : needsKey ? <Fingerprint /> : <Check />}
-          {needsKey ? t("Approve {0} with passkey", [money(a.cents)]) : `Approve ${a.cents !== null ? money(a.cents) : ""}`.trim()}
+          {needsKey ? t("Approve {0} with passkey", [money(a.cents)]) : (a.cents !== null ? t("Approve {0}", [money(a.cents)]) : t("Approve"))}
         </Button>
         <Button variant="outline" onClick={() => decide("decline")} disabled={busy !== null} aria-busy={busy === "decline"}>
           {busy === "decline" ? <Loader2 className="animate-spin" /> : <X />}{" "}{t("Decline")}

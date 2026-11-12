@@ -8,7 +8,7 @@ import { Panel } from "@/components/app/bits";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 import { money, PURPOSE } from "@/lib/format";
 
-import { t, tlist } from "@/i18n";
+import { t, tk, tlist } from "@/i18n";
 interface Preview {
   business: { name: string; tz: string } | null;
   owed_cents?: number;
@@ -155,7 +155,7 @@ export default function Landing() {
       <section className="mx-auto max-w-[820px] px-4 pb-14" aria-labelledby="try-scam">
         <h2 id="try-scam" className="font-display text-h2 font-[750]" style={{ fontStretch: "112%" }}>{t("Try the scam check")}</h2>
         <p className="mt-2 text-ink-2">{t("Paste any message. A scam model trained for this project scores it in your browser. Nothing you paste leaves this page. The model downloads once (23 MB).")}</p>
-        <div className="mt-4"><ScamCheck deviceOnly label={t("Message to check")} note={t("Checked on this device only. Inside the app, rules, an AI check and a comparison with the business's record also run; green appears only when all of them ran.")} /></div>
+        <div className="mt-4"><ScamCheck deviceOnly label={tk("Message to check")} note={t("Checked on this device only. Inside the app, rules, an AI check and a comparison with the business's record also run; green appears only when all of them ran.")} /></div>
       </section>
 
       <section className="mx-auto max-w-[820px] px-4 py-14" aria-labelledby="faq">

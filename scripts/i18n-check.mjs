@@ -2,7 +2,8 @@
 //   1. a key used in web/src (t("…"), tk("…"), tp(n, "…", "…"), plural(n, "…"), tmap({…}) values, tlist(…, [fields]))
 //      has no entry in hi-IN, id-ID or pt-BR;
 //   2. a translation drops or invents a {placeholder};
-//   3. visible English is written straight into JSX instead of going through t().
+//   3. visible English is written straight into JSX instead of going through t();
+//   4. a prop people see or hear (confirmText, label, placeholder, title, aria-label, alt) is an English literal.
 // Usage: node scripts/i18n-check.mjs [--keys out.json] [--missing out.json]
 import { createRequire } from "node:module";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -17,6 +18,7 @@ const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.a
 
 // Words that stay as they are in every language: brand, product and protocol names.
 const KEEP = /^(Callback|PayPal|MCP|Telegram|WhatsApp|SMS|OpenAI|GPT-Live|axe-core|Render|GitHub|Twilio|JSON|CSV|API|URL|OK|ID|Ask|n\/a|vs|AI)$/;
+const SEEN_PROPS = new Set(["confirmText", "label", "placeholder", "title", "aria-label", "alt", "description"]);
 const SKIP_TAGS = new Set(["code", "kbd", "pre", "samp"]);
 
 function files(d) {
@@ -62,6 +64,13 @@ for (const file of files(SRC)) {
       const tag = p ? p.openingElement.tagName.getText(sf) : "";
       const words = n.text.trim().split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w));
       if (!SKIP_TAGS.has(tag) && words.some((w) => !KEEP.test(w.replace(/[^\w/-]/g, "")))) raw.push(`${where(n)}: ${n.text.trim().slice(0, 80)}`);
+    }
+    if (ts.isJsxAttribute(n) && SEEN_PROPS.has(n.name.getText(sf)) && n.initializer) {
+      let v = n.initializer;
+      if (ts.isJsxExpression(v)) v = v.expression;
+      const s = v && (ts.isStringLiteral(v) || ts.isNoSubstitutionTemplateLiteral(v)) ? v.text : v && ts.isTemplateExpression(v) ? v.head.text + v.templateSpans.map((x) => x.literal.text).join(" ") : null;
+      const words = (s ?? "").split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w));
+      if (words.some((w) => !KEEP.test(w.replace(/[^\w/-]/g, "")))) raw.push(`${where(n)}: ${n.name.getText(sf)}=${(s ?? "").slice(0, 80)}`);
     }
     ts.forEachChild(n, visit);
   };

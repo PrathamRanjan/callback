@@ -94,8 +94,8 @@ export default function MoneyPage() {
                 <div className="num font-medium">{money(h.cents)}</div>
                 {h.status === "authorized" ? (
                   <div className="flex flex-wrap gap-2">
-                    <ActButton path={`/holds/${h.id}/capture`} onDone={reload} confirmText={`Charge ${h.customer} ${money(h.cents)} from the hold?`}>{t("Attended: charge")}</ActButton>
-                    <ActButton path={`/holds/${h.id}/void`} variant="outline" onDone={reload} confirmText={`Release the ${money(h.cents)} hold for ${h.customer}?`}>{t("Cancelled in time: release")}</ActButton>
+                    <ActButton path={`/holds/${h.id}/capture`} onDone={reload} confirmText={t("Charge {name} {amount} from the hold?", { name: h.customer, amount: money(h.cents) })}>{t("Attended: charge")}</ActButton>
+                    <ActButton path={`/holds/${h.id}/void`} variant="outline" onDone={reload} confirmText={t("Release the {amount} hold for {name}?", { name: h.customer, amount: money(h.cents) })}>{t("Cancelled in time: release")}</ActButton>
                   </div>
                 ) : null}
               </li>

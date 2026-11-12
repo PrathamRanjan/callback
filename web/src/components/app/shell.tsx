@@ -17,6 +17,7 @@ import { HandsFreeToggle } from "@/handsfree/host";
 import { TOUR_PAGE } from "@/tour/tours";
 
 import { t, tlist } from "@/i18n";
+import { serverText } from "@/i18n/server-text";
 interface NavItem { to: string; label: string; icon: typeof Inbox; owner?: boolean; tour?: string }
 export const NAV: NavItem[] = tlist([
   { to: "/today", label: "Today", icon: LayoutDashboard, tour: "nav-today" },
@@ -45,7 +46,7 @@ export function DemoRibbon() {
     <div className="border-b border-line bg-surface-2 text-[0.8rem] text-ink" role="note" aria-label={t("Demo status")}>
       <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
         <span className="font-semibold">{session.workspace ? t("Your private demo") : t("Demo studio")}</span>
-        {session.workspace?.seed_note ? <span className="text-ink-2" role="status">{session.workspace.seed_note}</span> : null}
+        {session.workspace?.seed_note ? <span className="text-ink-2" role="status">{serverText(session.workspace.seed_note)}</span> : null}
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="live" aria-hidden="true" />{t("Live:")}{" "}{live || t("nothing external")}</span>
         <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="idle" aria-hidden="true" />{t("Simulated:")}{" "}{sim.join(", ")}{session.business?.pinned ? t(", the clock") : ""}</span>
         {session.business ? <span className="num text-ink-2">{t("Studio time")}{" "}{session.business.clock_local}</span> : null}
