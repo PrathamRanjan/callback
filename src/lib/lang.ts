@@ -95,7 +95,7 @@ export function amountsSpoken(s: string): string[] {
   });
 }
 
-type Line = "hold_sent" | "ai_failed" | "stop" | "wrong_person" | "abuse" | "time_cap";
+type Line = "hold_sent" | "ai_failed" | "stop" | "wrong_person" | "abuse" | "time_cap" | "next_cancel" | "next_pay" | "held_wait" | "held_later" | "held_discount_tail" | "denied_discount" | "denied" | "failed" | "paypal_failed" | "what_link" | "what_invoice" | "what_plan" | "what_refund" | "dispute" | "correction";
 const LINES: Record<Line, Record<Lang, string>> = {
   hold_sent: {
     en: "Done. I've texted you a PayPal link to hold {amount} for {item}. It's charged only if you attend, and released if you cancel in time.",
@@ -132,6 +132,96 @@ const LINES: Record<Line, Record<Lang, string>> = {
     "hi-IN": "इस डेमो कॉल का समय पूरा हो गया है, इसलिए मैं यहीं रुकती हूँ। धन्यवाद। नमस्ते।",
     "id-ID": "Waktu untuk panggilan demo ini sudah habis, jadi saya berhenti di sini. Terima kasih. Sampai jumpa.",
     "pt-BR": "Chegamos ao limite de tempo desta ligação de demonstração, então vou parar aqui. Obrigada. Tchau.",
+  },
+  next_cancel: {
+    en: "Would you like a credit or a refund?",
+    "hi-IN": "क्या आप क्रेडिट लेना चाहेंगे या रिफ़ंड?",
+    "id-ID": "Apakah Anda mau kredit atau pengembalian dana?",
+    "pt-BR": "Você prefere um crédito ou um reembolso?",
+  },
+  next_pay: {
+    en: "I can text a PayPal link for {amount}, or send an invoice. Which suits?",
+    "hi-IN": "मैं {amount} के लिए PayPal लिंक मैसेज कर सकती हूँ, या इनवॉइस भेज सकती हूँ। आपके लिए क्या ठीक रहेगा?",
+    "id-ID": "Saya bisa mengirim tautan PayPal untuk {amount} lewat SMS, atau mengirim tagihan. Mana yang cocok?",
+    "pt-BR": "Posso mandar por mensagem um link do PayPal de {amount} ou enviar uma fatura. O que fica melhor para você?",
+  },
+  held_wait: {
+    en: "One moment while I check that with {business}'s owner. Nothing has been charged.",
+    "hi-IN": "एक पल रुकिए, मैं {business} के मालिक से यह पूछ रही हूँ। कोई पैसा नहीं कटा है।",
+    "id-ID": "Sebentar, saya tanyakan dulu ke pemilik {business}. Belum ada yang ditagih.",
+    "pt-BR": "Um momento enquanto confirmo isso com o proprietário de {business}. Nada foi cobrado.",
+  },
+  held_later: {
+    en: "I'll need {business}'s owner to confirm that; they'll be in touch shortly, and nothing has been charged. ",
+    "hi-IN": "इसके लिए {business} के मालिक की मंज़ूरी चाहिए; वे जल्द ही आपसे संपर्क करेंगे, और कोई पैसा नहीं कटा है। ",
+    "id-ID": "Untuk itu perlu persetujuan pemilik {business}; mereka akan segera menghubungi Anda, dan belum ada yang ditagih. ",
+    "pt-BR": "Preciso que o proprietário de {business} confirme isso; ele vai entrar em contato em breve, e nada foi cobrado. ",
+  },
+  held_discount_tail: {
+    en: "Meanwhile the original amount stands.",
+    "hi-IN": "तब तक पूरी रकम ही लागू है।",
+    "id-ID": "Sementara itu, jumlah awal tetap berlaku.",
+    "pt-BR": "Enquanto isso, o valor original continua valendo.",
+  },
+  denied_discount: {
+    en: "I'm not able to go that far; what I can offer is in the options I gave you.",
+    "hi-IN": "मैं इतनी छूट नहीं दे सकती; जो मैं दे सकती हूँ, वह उन्हीं विकल्पों में है जो मैंने बताए।",
+    "id-ID": "Saya tidak bisa memberi sebanyak itu; yang bisa saya tawarkan ada di pilihan yang sudah saya sebutkan.",
+    "pt-BR": "Não consigo ir tão longe; o que posso oferecer está nas opções que passei.",
+  },
+  denied: {
+    en: "I can't do that from here.",
+    "hi-IN": "मैं यहाँ से यह नहीं कर सकती।",
+    "id-ID": "Saya tidak bisa melakukannya dari sini.",
+    "pt-BR": "Não consigo fazer isso daqui.",
+  },
+  failed: {
+    en: "I couldn't do that just now.",
+    "hi-IN": "मैं अभी यह नहीं कर पाई।",
+    "id-ID": "Saya belum bisa melakukannya sekarang.",
+    "pt-BR": "Não consegui fazer isso agora.",
+  },
+  paypal_failed: {
+    en: "I couldn't set up {what} with PayPal just now, and nothing has been charged. The office will follow up with you today.",
+    "hi-IN": "मैं अभी PayPal पर {what} तैयार नहीं कर पाई, और कोई पैसा नहीं कटा है। ऑफ़िस आज ही आपसे संपर्क करेगा।",
+    "id-ID": "Saya belum bisa menyiapkan {what} di PayPal sekarang, dan belum ada yang ditagih. Kantor akan menghubungi Anda hari ini.",
+    "pt-BR": "Não consegui preparar {what} no PayPal agora, e nada foi cobrado. O escritório vai falar com você hoje.",
+  },
+  what_link: {
+    en: "the payment link",
+    "hi-IN": "पेमेंट लिंक",
+    "id-ID": "tautan pembayaran",
+    "pt-BR": "o link de pagamento",
+  },
+  what_invoice: {
+    en: "the invoice",
+    "hi-IN": "इनवॉइस",
+    "id-ID": "tagihan",
+    "pt-BR": "a fatura",
+  },
+  what_plan: {
+    en: "the payment plan",
+    "hi-IN": "किस्तों का प्लान",
+    "id-ID": "rencana cicilan",
+    "pt-BR": "o parcelamento",
+  },
+  what_refund: {
+    en: "the refund",
+    "hi-IN": "रिफ़ंड",
+    "id-ID": "pengembalian dana",
+    "pt-BR": "o reembolso",
+  },
+  dispute: {
+    en: "I've noted that you dispute this. The office will check the record and get back to you, and we won't ask for payment until then. Would a callback help?",
+    "hi-IN": "मैंने नोट कर लिया है कि आप इससे सहमत नहीं हैं। ऑफ़िस रिकॉर्ड जाँचकर आपसे संपर्क करेगा, और तब तक हम भुगतान नहीं माँगेंगे। क्या आपको कॉलबैक चाहिए?",
+    "id-ID": "Saya sudah mencatat bahwa Anda tidak setuju dengan tagihan ini. Kantor akan memeriksa catatannya dan menghubungi Anda, dan kami tidak akan meminta pembayaran sampai saat itu. Apakah Anda mau ditelepon kembali?",
+    "pt-BR": "Anotei que você contesta essa cobrança. O escritório vai verificar o registro e retornar, e não vamos pedir pagamento até lá. Quer que a gente ligue de volta?",
+  },
+  correction: {
+    en: "Let me correct that: we never ask for codes, passwords or card details on a call. Anything to pay goes through the PayPal link on your account page.",
+    "hi-IN": "मैं इसे सुधार दूँ: हम कॉल पर कभी कोड, पासवर्ड या कार्ड की जानकारी नहीं माँगते। कोई भी भुगतान आपके अकाउंट पेज पर दिए PayPal लिंक से ही होता है।",
+    "id-ID": "Saya luruskan: kami tidak pernah meminta kode, kata sandi, atau data kartu lewat telepon. Semua pembayaran lewat tautan PayPal di halaman akun Anda.",
+    "pt-BR": "Deixa eu corrigir: nunca pedimos códigos, senhas ou dados de cartão numa ligação. Qualquer pagamento é feito pelo link do PayPal na página da sua conta.",
   },
 };
 /** A line the server itself says, in the call's language. {amount} and {item} are filled from the record. */

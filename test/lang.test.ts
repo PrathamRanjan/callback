@@ -50,6 +50,20 @@ describe("languages on the server (spec B, item 5)", () => {
     expect(customerText("pay_link", "id-ID", { business: "Studio", amount: "US$40.00", item: "Kelas", url: "https://x" })).toBe("Studio: ini tautan PayPal Anda untuk US$40.00 (Kelas): https://x");
   });
 
+  it("every line code says on a call exists in all four languages, with the same placeholders", () => {
+    const keys = ["next_cancel", "next_pay", "held_wait", "held_later", "held_discount_tail", "denied_discount", "denied", "failed", "paypal_failed", "what_link", "what_invoice", "what_plan", "what_refund", "dispute", "correction"] as const;
+    for (const k of keys) {
+      const en = line(k, "en", {});
+      for (const l of ["hi-IN", "id-ID", "pt-BR"] as const) {
+        const s = line(k, l, {});
+        expect(s, `${k} ${l}`).not.toBe(en);
+        expect([...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort(), `${k} ${l}`).toEqual([...en.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort());
+      }
+    }
+    expect(line("paypal_failed", "pt-BR", { what: line("what_link", "pt-BR") })).toBe("Não consegui preparar o link de pagamento no PayPal agora, e nada foi cobrado. O escritório vai falar com você hoje.");
+    expect(line("failed", "en")).toBe("I couldn't do that just now.");
+  });
+
   it("PayPal gets a checkout locale only for non-English customers (English orders are unchanged)", () => {
     expect(paypalLocale("en")).toBeUndefined();
     expect(paypalLocale(undefined)).toBeUndefined();

@@ -95,7 +95,7 @@ async function one(lang) {
   const L = LINES[lang];
   const calls = (await J.get("/api/app/calls")).json;
   if (!Array.isArray(calls)) throw new Error("not signed in to a demo (the per-address demo limit may be reached)");
-  const call = calls.find((c) => c.purpose === "confirm_deposit" && c.status === "planned") ?? calls.find((c) => c.status === "planned");
+  const call = calls.find((c) => c.purpose === "confirm_deposit" && c.status === "planned") ?? calls.find((c) => c.status === "planned" && c.purpose !== "cancel_class"); // the robot asks for a payment link
   if (!call) return record(lang, "a planned call exists in a fresh demo", false, calls.map((c) => `${c.purpose}:${c.status}`).join(", "));
   const tl = await J.postJson(`/api/app/calls/${call.id}/live/test-line`, {}, { "x-admin-key": ADMIN });
   if (tl.status !== 200) return record(lang, "the test line starts the call", false, `HTTP ${tl.status} ${tl.json?.message ?? ""}`);

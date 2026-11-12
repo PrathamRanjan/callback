@@ -170,7 +170,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
     await run.step({ actor: "code", tool: "signals.collection_stopped", args: { picked: d.tool }, gate: "denied", result: { reason: "the customer disputes this item; the owner reviews it first" } });
     d.tool = "none";
     d.option_id = null;
-    d.say = "I've noted that you dispute this. The office will check the record and get back to you, and we won't ask for payment until then. Would a callback help?";
+    d.say = line("dispute", ctx.lang);
   }
   await run.step({ actor: d.brain === "model" ? "model" : "code", tool: d.brain === "code" ? "signals.act" : `brain.${d.brain}`, args: { turn }, result: { say: d.say, tool: d.tool, option_id: d.option_id, outcome: d.outcome, reason: d.reason, model: d.model ?? null } });
   if (d.brain === "model") await markStep("ai_turn").catch(() => undefined);
@@ -257,22 +257,22 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
       toolResult = `Held for the owner: ${e.message}`;
       // On live voice the owner can approve while the customer waits (spec B2 item 4); the agent says the result then.
       say = opts.signals === "native"
-        ? `One moment while I check that with ${bizName}'s owner. Nothing has been charged.`
-        : `I'll need ${bizName}'s owner to confirm that; they'll be in touch shortly, and nothing has been charged. ` + (d.tool === "apply_discount" ? "Meanwhile the original amount stands." : "");
+        ? line("held_wait", ctx.lang, { business: bizName })
+        : line("held_later", ctx.lang, { business: bizName }) + (d.tool === "apply_discount" ? line("held_discount_tail", ctx.lang) : "");
     } else if (e instanceof GateDenied) {
       gate = "denied";
       toolResult = `Refused by the guard: ${e.message}`;
-      say = d.tool === "apply_discount" ? `I'm not able to go that far; what I can offer is in the options I gave you.` : `I can't do that from here. ${nextLine(ctx)}`;
+      say = d.tool === "apply_discount" ? line("denied_discount", ctx.lang) : `${line("denied", ctx.lang)} ${nextLine(ctx)}`;
       await q.query("UPDATE calls SET breaches = breaches + 1 WHERE id = $1", [call.id]);
     } else if (e instanceof GtError) {
       gate = "denied";
       toolResult = e.message;
-      say = `I couldn't do that just now. ${nextLine(ctx)}`;
+      say = `${line("failed", ctx.lang)} ${nextLine(ctx)}`;
     } else {
       gate = "denied";
       toolResult = `PayPal error: ${(e as Error).message.slice(0, 120)}`;
-      const what = d.tool === "create_invoice" ? "the invoice" : d.tool === "create_plan" ? "the payment plan" : d.tool === "settle_refund" ? "the refund" : "the payment link";
-      say = `I couldn't set up ${what} with PayPal just now, and nothing has been charged. The office will follow up with you today.`;
+      const what = line(d.tool === "create_invoice" ? "what_invoice" : d.tool === "create_plan" ? "what_plan" : d.tool === "settle_refund" ? "what_refund" : "what_link", ctx.lang);
+      say = line("paypal_failed", ctx.lang, { what });
       await run.step({ actor: "paypal", tool: "error", result: { error: (e as Error).message.slice(0, 300) } });
     }
   }
@@ -280,7 +280,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   if (unsafe.unsafe) {
     await run.step({ actor: "guard", tool: "safety.agent_line", args: { why: unsafe.why }, gate: "denied", result: { replaced: true } });
     await q.query("UPDATE calls SET breaches = breaches + 1 WHERE id = $1", [call.id]);
-    say = `Let me correct that: we never ask for codes, passwords or card details on a call. Anything to pay goes through the PayPal link on your account page. ${nextLine(ctx)}`;
+    say = `${line("correction", ctx.lang)} ${nextLine(ctx)}`;
   }
   transcript.push({ who: "agent", text: say, at: new Date().toISOString(), tool: d.tool === "none" ? null : d.tool });
   if (toolResult) transcript.push({ who: "system", text: toolResult, at: new Date().toISOString() });
@@ -347,7 +347,7 @@ export function deriveOutcome(state: Call["state"], o: Obligation | null, held =
   return "declined";
 }
 
-const nextLine = (ctx: BrainContext) => (ctx.purpose === "cancel_class" ? "Would you like a credit or a refund?" : `I can text a PayPal link for ${ctx.balance_text}, or send an invoice. Which suits?`);
+const nextLine = (ctx: BrainContext) => (ctx.purpose === "cancel_class" ? line("next_cancel", ctx.lang) : line("next_pay", ctx.lang, { amount: ctx.balance_text }));
 
 export async function endCall(q: Queryable, callId: string, outcome: Outcome | string | null, by: string) {
   const call = await callById(q, callId);

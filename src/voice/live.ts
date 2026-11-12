@@ -221,7 +221,7 @@ export class LiveCall {
     const bad = amountsIn(this.saying).filter((a) => !this.allowed.has(a));
     if (!bad.length) return;
     for (const a of bad) this.allowed.add(a); // correct each one once
-    this.send({ type: "session.instructions.append", delegation_id: null, content: `Stop. You said $${bad.join(", $")}, which is not on the account. Say: "Sorry, let me correct that." Then say only the amounts the results gave you.` });
+    this.send({ type: "session.instructions.append", delegation_id: null, content: `Stop. You said $${bad.join(", $")}, which is not on the account. Say "Sorry, let me correct that" in the language of the conversation. Then say only the amounts the results gave you.` });
     publish({ call: this.callId, kind: "guard", text: `Corrected an amount the voice model said: $${bad.join(", $")}` });
     void this.inWs(async () => {
       const db = await getDb();
