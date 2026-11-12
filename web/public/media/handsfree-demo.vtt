@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00.000 --> 00:05.000
+[Simulated gaze, no camera] The pointer moves to "Start in simulator" and the ring fills. A confirm card stops the call.
+
+00:05.000 --> 00:09.000
+Gaze rests on Cancel. The card closes and nothing happens.
+
+00:09.000 --> 00:18.000
+Again. This time gaze holds on Confirm for twice the usual time, and the simulator call starts.
+
+00:18.000 --> 00:27.000
+Gaze rests on "Calls" in the menu. A plain link opens with no card.
+
+00:27.000 --> 00:32.000
+"Stop" turns hands-free off. There is no sound in this recording.

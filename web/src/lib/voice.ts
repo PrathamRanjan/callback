@@ -18,6 +18,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
     pc.current?.getSenders().forEach((s) => s.track?.stop());
     pc.current?.close();
     pc.current = null;
+    (window as unknown as { __cbLiveAudio?: boolean }).__cbLiveAudio = false;
     setState("off");
     setNote(t("Live voice stopped."));
     onChange();
@@ -39,6 +40,8 @@ export function useLiveVoice(callId: string, onChange: () => void) {
       }
       conn.ontrack = (e) => {
         if (audio.current) audio.current.srcObject = e.streams[0];
+        // Hands-free voice commands ignore what they hear while call audio plays (its echo gate).
+        (window as unknown as { __cbLiveAudio?: boolean }).__cbLiveAudio = true;
       };
       mic.getTracks().forEach((t) => conn.addTrack(t, mic));
       // GPT-Live's event channel. The server watches the same session on its sideband and acts there; the browser
@@ -132,7 +135,10 @@ export function useLiveEvents(callId: string, enabled: boolean) {
  * what you say is typed into the box as you speak; you read, change and send it yourself. The browser never plays
  * the session's audio. It stops when you press again, after 60 seconds, or when you leave the page.
  */
-export function useDictation(onText: (text: string) => void) {
+export function useDictation(onText: (text: string) => void, opts: { action?: string } = {}) {
+  // Ask keeps its own words; other boxes name their own button ("Say it", "Send inbound").
+  const stopped = () => (opts.action ? t("Voice input stopped. Check the words, then press {0}.", [opts.action]) : t("Voice input stopped. Check the words, then press Ask."));
+  const capped = () => (opts.action ? t("Voice input stops after a minute. Check the words, then press {0}.", [opts.action]) : t("Voice input stops after a minute. Check the words, then press Ask."));
   const [state, setState] = useState<"off" | "starting" | "on" | "error">("off");
   const [note, setNote] = useState("");
   const [heard, setHeard] = useState("");
@@ -140,7 +146,7 @@ export function useDictation(onText: (text: string) => void) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const text = useRef("");
 
-  const stop = (why = t("Voice input stopped. Check the words, then press Ask.")) => {
+  const stop = (why = stopped()) => {
     if (timer.current) clearTimeout(timer.current);
     pc.current?.getSenders().forEach((s) => s.track?.stop());
     pc.current?.close();
@@ -183,7 +189,7 @@ export function useDictation(onText: (text: string) => void) {
       conn.onconnectionstatechange = () => {
         if (conn.connectionState === "connected") {
           setState("on");
-          setNote(t("Listening (gpt-live-1). Speak your question; press again to stop."));
+          setNote(opts.action ? t("Listening (gpt-live-1). Speak; press again to stop.") : t("Listening (gpt-live-1). Speak your question; press again to stop."));
         } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) stop(t("The voice connection dropped. Type instead, or try again."));
       };
       setNote(t("Connecting to the voice model…"));
@@ -191,7 +197,7 @@ export function useDictation(onText: (text: string) => void) {
       await conn.setLocalDescription(offer);
       const r = await postJson<{ answer: string; max_seconds: number }>("/api/app/voice/dictate", { sdp: offer.sdp });
       await conn.setRemoteDescription({ type: "answer", sdp: r.answer });
-      timer.current = setTimeout(() => stop(t("Voice input stops after a minute. Check the words, then press Ask.")), (r.max_seconds ?? 60) * 1000);
+      timer.current = setTimeout(() => stop(capped()), (r.max_seconds ?? 60) * 1000);
     } catch (e) {
       pc.current?.getSenders().forEach((s) => s.track?.stop());
       pc.current?.close();

@@ -289,6 +289,20 @@ ALTER TABLE people ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'en';
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'en';
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS lang TEXT;
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS translations JSONB NOT NULL DEFAULT '{}';
+-- Every MCP request an outside assistant makes, for the /agents watch panel (spec C). Arguments cut to 300 chars.
+CREATE TABLE IF NOT EXISTS mcp_calls (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL,
+  server TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  method TEXT NOT NULL,
+  tool TEXT,
+  args TEXT,
+  status INTEGER,
+  ms INTEGER,
+  at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mcp_calls_biz_at ON mcp_calls (business_id, at DESC);
 CREATE INDEX IF NOT EXISTS obligations_biz ON obligations(business_id, created_at);
 CREATE INDEX IF NOT EXISTS customers_biz ON customers(business_id, name);
 CREATE INDEX IF NOT EXISTS events_biz ON events(business_id, at DESC);

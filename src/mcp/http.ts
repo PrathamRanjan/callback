@@ -22,6 +22,25 @@ export async function serveMcp(req: Request, res: Response, build: () => McpServ
   }
 }
 
+/**
+ * Notes each JSON-RPC message of an MCP request (method, tool name, arguments cut to 300 characters) once the response
+ * is sent, for the "watch the tool calls" panel on /agents. Never throws into the request.
+ */
+export function logMcp(req: Request, res: Response, _who: { businessId: string; server: "owner" | "customer"; agentId: string }, write: (rows: { method: string; tool: string | null; args: string | null }[], status: number, ms: number) => Promise<void>) {
+  const t0 = Date.now();
+  const body = req.body;
+  const msgs = (Array.isArray(body) ? body : [body]).filter((m) => m && typeof m === "object" && typeof m.method === "string") as { method: string; params?: { name?: unknown; arguments?: unknown } }[];
+  if (!msgs.length) return;
+  res.on("finish", () => {
+    const rows = msgs.map((m) => ({
+      method: m.method.slice(0, 60),
+      tool: m.method === "tools/call" && typeof m.params?.name === "string" ? m.params.name.slice(0, 60) : null,
+      args: m.method === "tools/call" && m.params?.arguments !== undefined ? JSON.stringify(m.params.arguments).slice(0, 300) : null,
+    }));
+    write(rows, res.statusCode, Date.now() - t0).catch((e) => console.warn("mcp log failed", (e as Error).message));
+  });
+}
+
 /** Agent identity for audit and rate limits: X-Agent-Id header, else the User-Agent, else "anonymous-agent". */
 export function agentIdOf(req: Request): string {
   const h = (req.header("x-agent-id") || req.header("user-agent") || "anonymous-agent").replace(/[^\w .:/@()-]/g, "").slice(0, 80);

@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { store } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { LangButtons } from "./lang-menu";
+import { HandsFreeSettings } from "@/handsfree/panel";
 
-import { t } from "@/i18n";
+import { langInfo, t } from "@/i18n";
 /** "Display and help": the accessibility kit. Settings stay on this device; each one is a class on <html>. */
 export interface Display { text: "normal" | "large" | "xl"; contrast: boolean; readable: boolean; calm: boolean; targets: boolean }
 const KEY = "cb-display";
@@ -69,6 +70,7 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
     const text = (document.getElementById("main")?.innerText ?? "").replace(/\s+/g, " ").slice(0, 6000);
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 0.95;
+    u.lang = langInfo().speech; // read in the page's language (spec B5)
     u.onend = () => setSpeaking(false);
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
@@ -87,6 +89,7 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
             <legend className="mb-2 text-[0.95rem] font-medium">{t("Language")}</legend>
             <LangButtons />
           </fieldset>
+          <HandsFreeSettings />
           <fieldset className="py-3">
             <legend className="mb-2 text-[0.95rem] font-medium">{t("Text size")}</legend>
             <div className="grid grid-cols-3 gap-2" role="radiogroup">

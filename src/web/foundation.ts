@@ -13,7 +13,7 @@ import { conversation, receive, recentMessages, smsReady, smsUpdate, telegramRea
 import { pushReady, subscribe } from "../channels/push.js";
 import { routeTelegram } from "../channels/router.js";
 import { config } from "../config.js";
-import { currentWs, getDb, inWorkspace } from "../db.js";
+import { currentWs, getDb, inWorkspace, type Queryable } from "../db.js";
 import { getWorkspace, splitCustomId, wsForRef, wsFromSecret } from "../services/workspaces.js";
 import { CASES, harnessContext, renderAdversarialReport, runAdversarial } from "../eval/adversarial.js";
 import { personas, renderPersonaReport, runPersonaSuite } from "../eval/personas.js";
@@ -27,7 +27,7 @@ import { GtError } from "../lib/util.js";
 import { paypal, paypalConfigured, PayPalError, WEBHOOK_EVENTS, withMockResponse } from "../paypal/index.js";
 import { readBack } from "../services/money.js";
 import { buildCustomerServer, buildOwnerServer } from "../mcp/tools.js";
-import { agentIdOf, serveMcp } from "../mcp/http.js";
+import { agentIdOf, logMcp, serveMcp } from "../mcp/http.js";
 import { balanceOf, callsOf, customerByToken, firstBiz, obligationsOf } from "../store.js";
 import { loadRun, recentRuns, renderTrace, startRun } from "../trace.js";
 import { liveReady } from "../voice/live.js";
@@ -358,16 +358,25 @@ X-Agent-Id: my-agent</pre><p class="small">Tools: get_plan, list_calls, get_call
     const { personByKey } = await import("./auth.js");
     const p = key ? await personByKey(key) : await me(req);
     if (!p || p.role !== "owner") return res.status(401).json({ jsonrpc: "2.0", error: { code: -32001, message: "Owner key required (Authorization: Bearer <key>)" }, id: null });
+    const logDb = await getDb(); // this workspace's database, taken now: the log is written after the response
+    logMcp(req, res, { businessId: p.business_id, server: "owner", agentId: agentIdOf(req) }, (rows, status, ms) => writeMcpLog(logDb, p.business_id, "owner", agentIdOf(req), rows, status, ms));
     await serveMcp(req, res, () => buildOwnerServer(p.business_id, agentIdOf(req)));
   });
   r.all("/c/:token/mcp", async (req, res) => {
     const db = await getDb();
     const c = await customerByToken(db, req.params.token).catch(() => null);
     if (!c) return res.status(404).json({ jsonrpc: "2.0", error: { code: -32001, message: "No such customer link" }, id: null });
+    logMcp(req, res, { businessId: c.business_id, server: "customer", agentId: agentIdOf(req) }, (rows, status, ms) => writeMcpLog(db, c.business_id, "customer", agentIdOf(req), rows, status, ms));
     await serveMcp(req, res, () => buildCustomerServer(c, agentIdOf(req)));
   });
 
   return r;
+}
+
+async function writeMcpLog(db: Queryable, businessId: string, server: string, agentId: string, rows: { method: string; tool: string | null; args: string | null }[], status: number, ms: number) {
+  for (const r of rows) await db.query("INSERT INTO mcp_calls (id, business_id, server, agent_id, method, tool, args, status, ms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)", [newId("mcp"), businessId, server, agentId, r.method, r.tool, r.args, status, ms]);
+  // Keep the newest 200 per business: it's a watch panel, not an archive (the run traces are the record).
+  await db.query("DELETE FROM mcp_calls WHERE business_id = $1 AND id NOT IN (SELECT id FROM mcp_calls WHERE business_id = $1 ORDER BY at DESC LIMIT 200)", [businessId]);
 }
 
 function writeReport(name: string, md: string) {

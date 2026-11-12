@@ -15,6 +15,7 @@ import { getJson } from "@/lib/api";
 import { SessionCtx, type Session } from "@/lib/hooks";
 import { applyTheme } from "@/lib/theme";
 import { initLang, useLang } from "@/i18n";
+import { HandsFreeHost } from "@/handsfree/host";
 import Landing from "@/pages/landing";
 import Try from "@/pages/try";
 
@@ -149,6 +150,7 @@ function App(_: { lang: string }) {
           {/* The one polite live region for payment status changes (spec A7); see lib/announce.ts. */}
           <div id="cb-status-live" role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
           <Toaster />
+          <HandsFreeHost />
         </TooltipProvider>
       </SessionProvider>
     </BrowserRouter>

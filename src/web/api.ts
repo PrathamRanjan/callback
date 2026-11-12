@@ -175,6 +175,15 @@ export function apiRouter(): Router {
     return calls.map((c) => callRow(c, custs, obls));
   }));
 
+  /** The MCP watch panel on /agents (spec C): what outside assistants asked this business's MCP servers, newest first. Owner only. */
+  r.get("/api/app/agents/log", json(async (req) => {
+    const p = await who(req);
+    if (p.role !== "owner") throw new GtError("Only the owner can see what assistants asked.", "forbidden", 403);
+    const db = await getDb();
+    const rows = (await db.query<any>("SELECT server, agent_id, method, tool, args, status, ms, at FROM mcp_calls WHERE business_id = $1 ORDER BY at DESC LIMIT 40", [p.business_id])).rows;
+    return { calls: rows.map((r) => ({ ...r, status: r.status === null ? null : Number(r.status), ms: r.ms === null ? null : Number(r.ms), at: new Date(r.at).toISOString() })) };
+  }));
+
   /** A machine translation of the call's transcript for the reader (spec item 5.2). The original stays as spoken. */
   r.post("/api/app/calls/:id/translate", json(async (req) => {
     const p = await who(req);

@@ -285,6 +285,13 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     // Translating a call: signed in only; without an AI model it says so (503) and the original stays.
     expect((await anon.postJson(`/api/app/calls/${id}/translate`, { lang: "hi-IN" })).status).toBe(401);
     expect([409, 503]).toContain((await judge.postJson(`/api/app/calls/${id}/translate`, { lang: "hi-IN" })).status);
+    // The MCP watch panel on /agents (spec C): owner only; an MCP call shows up with its tool name, cut arguments.
+    expect((await anon.get("/api/app/agents/log", { accept: "application/json" })).status).toBe(401);
+    const rpc = await judge.postJson("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_calls", arguments: { status: "planned" } } }, { accept: "application/json, text/event-stream", "x-agent-id": "journey-test" });
+    expect(rpc.status).toBe(200);
+    await new Promise((res) => setTimeout(res, 50)); // the log is written once the response has gone
+    const log = (await judge.get("/api/app/agents/log", { accept: "application/json" })).json.calls;
+    expect(log[0]).toMatchObject({ server: "owner", agent_id: "journey-test", method: "tools/call", tool: "list_calls", args: '{"status":"planned"}', status: 200 });
     const dep = world.seeded.obligations.priya_deposit;
     const r = await anon.post(`/c/${world.seeded.customers.priya.token}/hold/${dep}`);
     // Earlier steps in this journey moved Priya's item on, so this is refused one way or another; never a 5xx.

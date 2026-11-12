@@ -1,3 +1,4 @@
+import { DictateButton } from "@/components/app/dictate";
 import { useMemo, useState } from "react";
 import { Bell, BellRing, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -96,7 +97,7 @@ export default function MessagesPage() {
               </ol>
             ) : <p className="mb-4 text-sm text-ink-2">{t("Nothing in this conversation yet.")}</p>}
             <form
-              className="flex flex-col gap-2 sm:flex-row sm:items-end"
+              className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
               onSubmit={async (e) => {
                 e.preventDefault();
                 setBusy(true);
@@ -114,6 +115,7 @@ export default function MessagesPage() {
             >
               <div className="grid flex-1 gap-1.5"><Label htmlFor="msg">{t("Message from")}{" "}{who(current)}</Label><Input id="msg" value={text} onChange={(e) => setText(e.target.value)} required className="h-11" placeholder={t("Can you call me tomorrow?")} /></div>
               <Button type="submit" disabled={busy || !text.trim()}><Send />{" "}{t("Send inbound")}</Button>
+              <div className="flex basis-full flex-wrap items-center gap-2"><DictateButton id="msg-voice" action={t("Send inbound")} onText={(v) => setText(v.slice(0, 500))} /></div>
             </form>
           </Panel>
         </Section>

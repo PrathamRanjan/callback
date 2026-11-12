@@ -1,3 +1,4 @@
+import { confirmAction } from "@/handsfree/confirm";
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "sonner";
@@ -152,8 +153,11 @@ export function ActButton({ path, fields, children, onDone, follow = false, vari
       className={className}
       disabled={busy || disabled}
       aria-busy={busy}
-      onClick={async () => {
-        if (confirmText && !window.confirm(confirmText)) return;
+      data-act={path}
+      data-confirm={confirmText}
+      onClick={async (e) => {
+        // Hands-free asks on its own confirm card (a native dialog can't be pressed by gaze); otherwise the browser's.
+        if (confirmText && !(await confirmAction(confirmText, e.currentTarget))) return;
         setBusy(true);
         try {
           const r = await act(path, fields);

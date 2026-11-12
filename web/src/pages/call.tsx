@@ -1,3 +1,4 @@
+import { DictateButton } from "@/components/app/dictate";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, PhoneCall, PhoneOff, Play, RefreshCw, Send, SkipForward, Sparkles } from "lucide-react";
@@ -168,6 +169,7 @@ export default function CallPage() {
                 <Textarea id="say" value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder={t("Yes, send me the link.")} className="min-h-[72px] text-base" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void say(text); } }} />
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit" disabled={sending || !text.trim()} aria-busy={sending}><Send />{" "}{t("Say it")}</Button>
+                  <DictateButton id="say-voice" action={t("Say it")} onText={(v) => setText(v.slice(0, 500))} />
                 </div>
               </form>
               {d.samples.length ? (

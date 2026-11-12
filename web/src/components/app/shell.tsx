@@ -13,6 +13,7 @@ import { DisplayHelp } from "./display-help";
 import { ThemeMenu, Wordmark } from "./public-shell";
 import { OfflineBar } from "./bits";
 import { LangMenu } from "./lang-menu";
+import { HandsFreeToggle } from "@/handsfree/host";
 import { TOUR_PAGE } from "@/tour/tours";
 
 import { t, tlist } from "@/i18n";
@@ -190,6 +191,7 @@ export function AppShell() {
             <div className="flex flex-wrap items-center gap-1">
               <LangMenu />
               <ThemeMenu />
+              <HandsFreeToggle />
               <Button variant="ghost" size="icon" aria-label={t("Display and help")} onClick={() => setHelp(true)} data-tour="display-help"><Accessibility /></Button>
               <Button variant="ghost" size="icon" aria-label={t("Take the tour")} onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour"><BookOpenCheck /></Button>
               <Button variant="ghost" size="icon" aria-label={t("Sign out")} onClick={signOut}><LogOut /></Button>

@@ -1,4 +1,6 @@
 /** Pages a judge reads without signing in (spec A3.2). Each reads /api/public/*; nothing here is typed as live by hand. */
+import { HandsFreeAbout, HandsFreeProof } from "@/handsfree/about";
+import { ConnectAssistant } from "@/components/app/agent-connect";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Check, Copy, X } from "lucide-react";
@@ -117,6 +119,10 @@ export function PublicProof() {
           </>
         )}
       </Load>
+      <section className="grid gap-2">
+        <H2>{t("Hands-free")}</H2>
+        <HandsFreeProof />
+      </section>
     </Page>
   );
 }
@@ -287,6 +293,7 @@ export function AccessibilityPage() {
         <H2>{t("Built in")}</H2>
         <p className="text-sm">A <b>{t("Display and help")}</b>{" "}{t("button on every page, the customer's included: text size, high contrast, an easier-to-read font (Atkinson Hyperlegible), read aloud, voice input where the browser supports it on the device, plain words, bigger targets, more time and no motion. Choices stay in this browser. Every page has a skip link and a visible focus ring. Status lamps always carry a word for screen readers, never colour alone.")}</p>
       </section>
+      <HandsFreeAbout />
       <section className="grid gap-2">
         <H2>{t("Automated checks, last run")}</H2>
         <Load<{ run: A11yRun | null }> path="/api/public/a11y">
@@ -308,6 +315,7 @@ export function AccessibilityPage() {
           <li>{t("Voice input on Ask (gpt-live-1) was checked by a robot that fed GPT-Live a recorded question; no person has tried it in a browser yet. Read aloud was tried only in desktop Chrome.")}</li>
           <li>{t("Taking a call by voice (phone or browser) was checked for what it says and does, not for accessibility.")}</li>
           <li>{t("Contrast is checked only by axe's rules on the pages listed, in the default and dark themes.")}</li>
+          <li>{t("Hands-free has not been tried by a person with a real camera: gaze and head pointing, wink and calibration accuracy on real eyes are unmeasured. The end-to-end tests use simulated gaze and Chromium's fake camera. Voice commands were tested through the same code path with typed text, not a microphone.")}</li>
         </ul>
       </section>
     </Page>
@@ -318,6 +326,7 @@ export function AccessibilityPage() {
 export function Agents() {
   return (
     <Page title={t("For AI agents")} lead={<>{t("An outside assistant can use Callback over MCP. It gets the same gate, rules and limits as the owner: anything over the limits is held for the owner's approval, whoever asked.")}</>}>
+      <ConnectAssistant />
       <Load<Facts> path="/api/public/facts">
         {(d) => (
           <>
