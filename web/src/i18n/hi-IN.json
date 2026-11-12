@@ -795,6 +795,7 @@
  "not made: {0}": "नहीं किए गए: {0}",
  "Not measured": "मापा नहीं गया",
  "Not measured: accuracy with real people's eyes. Webcam gaze is usually far looser than the low rows above; if your calibration says more than about 120 px, the head pointer or keyboard scan will be easier.": "जो नहीं मापा गया: असली लोगों की आँखों के साथ सटीकता। वेबकैम से नज़र की पहचान आम तौर पर ऊपर कम कंपन वाली पंक्तियों से काफ़ी कम सटीक होती है; अगर आपका कैलिब्रेशन करीब 120 px से ज़्यादा दिखाता है, तो सिर वाला पॉइंटर या कीबोर्ड स्कैन आसान होगा।",
+ "not needed now: being paid from the saved demo wallet": "अभी ज़रूरत नहीं है: सेव किए गए डेमो वॉलेट से भुगतान हो रहा है",
  "not needed: money is held on it and charged if they attend": "ज़रूरत नहीं: इस पर पैसा होल्ड है और उनके आने पर चार्ज किया जाएगा",
  "not needed: nothing left to collect": "ज़रूरत नहीं: वसूलने के लिए कुछ बाकी नहीं है",
  "Not readable": "पढ़ नहीं सकते",

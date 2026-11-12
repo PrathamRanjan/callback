@@ -195,6 +195,9 @@ async function seedWorkspace(db: Db, id: string | null): Promise<WorkspaceSeed> 
   }
   await run.end("done");
   await planCalls(db, bizId, "demo", clock);
+  // The three items the seed pays from the saved wallet right after the page opens are not called meanwhile; the
+  // re-plan after those payments brings a call back for any payment that failed.
+  if (config.paypal.demoVaultToken) await db.query("UPDATE calls SET status = 'skipped', reason = $2, ended_at = now() WHERE obligation_id = ANY($1::text[]) AND status IN ('planned','blocked')", [[seeded.obligations.tom_class, aisha, ben], "not needed now: being paid from the saved demo wallet"]);
   await db.query("INSERT INTO settings (key, value) VALUES ('demo_keys', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [JSON.stringify({ owner: seeded.ownerKey, staff: seeded.staffKey })]);
   return { ...seeded, samples: { aisha, ben, ivyCall } };
 }

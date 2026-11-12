@@ -795,6 +795,7 @@
  "not made: {0}": "tidak dilakukan: {0}",
  "Not measured": "Belum diukur",
  "Not measured: accuracy with real people's eyes. Webcam gaze is usually far looser than the low rows above; if your calibration says more than about 120 px, the head pointer or keyboard scan will be easier.": "Belum diukur: akurasi dengan mata manusia asli. Tatapan melalui webcam biasanya jauh kurang presisi daripada baris dengan nilai rendah di atas; jika hasil kalibrasi Anda lebih dari sekitar 120 px, penunjuk kepala atau pemindaian keyboard akan lebih mudah.",
+ "not needed now: being paid from the saved demo wallet": "tidak diperlukan sekarang: sedang dibayar dari dompet demo yang tersimpan",
  "not needed: money is held on it and charged if they attend": "tidak perlu: dana ditahan pada kartu dan ditagih jika pelanggan hadir",
  "not needed: nothing left to collect": "tidak perlu: tidak ada lagi yang perlu ditagih",
  "Not readable": "Tidak dapat dibaca",

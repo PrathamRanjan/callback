@@ -795,6 +795,7 @@
  "not made: {0}": "não realizados: {0}",
  "Not measured": "Não medido",
  "Not measured: accuracy with real people's eyes. Webcam gaze is usually far looser than the low rows above; if your calibration says more than about 120 px, the head pointer or keyboard scan will be easier.": "Não medida: a precisão com olhos de pessoas reais. O rastreamento do olhar por webcam costuma ser bem menos preciso que as linhas de baixa oscilação acima; se sua calibração indicar mais de cerca de 120 px, será mais fácil usar o ponteiro por movimento da cabeça ou a varredura por teclado.",
+ "not needed now: being paid from the saved demo wallet": "não é necessário agora: o pagamento está sendo feito pela carteira de demonstração salva",
  "not needed: money is held on it and charged if they attend": "não é necessário: o valor fica em pré-autorização e é cobrado se o cliente comparecer",
  "not needed: nothing left to collect": "não é necessário: não há mais nada a cobrar",
  "Not readable": "Não foi possível consultar",
