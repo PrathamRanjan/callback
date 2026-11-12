@@ -451,6 +451,26 @@ The key works only on that demo workspace and a demo reset issues a new one. Pus
 - A caller who switched language mid-call got the pay-link text and PayPal's page in their *record's* language (English). The call's detected language now reaches the money step. `test/flows.test.ts` covers it, and the test fails without the fix.
 - Payment and consent confirm prompts and the Approve button were still in English. The language check now fails on English in any prop people see or hear.
 
+**Found after merge, on the live site, and fixed (core flow, 12 Nov evening):**
+- **A call could ring someone about money already paid.** A new demo pays three sample items from the saved wallet just after it opens, but the call plan was written first. One planned call was for a deposit already paid, and the agent rang to say $0.00 was owed. This had been the case since Wave 1. Now:
+  - the planner retires a planned call whose item is paid or has money held on it, with the reason;
+  - starting a call on a paid item is refused in code;
+  - the seed skips calls on the items it is paying and re-plans afterwards (eec08e6, c5a2137).
+- **Code-written lines on a call were English-only.** When a tool step failed on a Portuguese call, code said "I couldn't do that just now". Every line code says on a call now exists in all four languages: held, refused, failed, PayPal error, dispute, safety correction and the next-step question (138cdbc).
+- **/agents briefly said "not a demo workspace"** while the key was loading. It now says Loading (c589e85).
+- **The first CI runs on GitHub failed:** the language check found the root TypeScript 7, which has no compiler API. CI now installs the web packages first and passes (dbd77a5).
+
+### Live checks on https://pph-callback.onrender.com (12 Nov 2026)
+
+| Check | Commit | Result |
+|---|---|---|
+| Wave 1 acceptance (`scripts/live-acceptance.mjs`): private demos, seed payments, wallet payment, model call turn, policy reading | c5a2137 | 12/12 |
+| Wave 2 acceptance (`scripts/live-acceptance-w2.mjs`): all three /judge paths tick themselves, scam check, Ask with PayPal's MCP, public pages | c5a2137 | 17/18. The one failure: `/proof` still shows the 11 Nov eval run. It refreshes only when the nightly AI eval runs, which waits for the owner's `OPENAI_API_KEY` secret and `AI_EVAL_NIGHTLY` variable |
+| Languages, /agents and hands-free (`scripts/live-smoke-lang-hf.mjs`, one demo) | c5a2137 | 5/5: `?lang=pt-BR`; Today in Portuguese with 0 untranslated strings; demo key masked, and a real MCP call shown in the log; confirm card on simulated gaze, with Cancel leaving the call unstarted; the 30 s recording served |
+| Calls in Hindi and Indonesian (`scripts/live-voice-lang.mjs`) | 138cdbc | 12/12 |
+| Calls in Portuguese, and the English voice check (`scripts/live-voice-check.mjs`) | c5a2137 code on a local server with the production settings | Portuguese 6/6, English 19/19. On the live site, this address hit the demo's own limit of 10 live voice calls a day. Earlier today the English check passed 19/19 live on b2d0bb2 |
+| GitHub CI (language check, then unit tests) | c5a2137 | passing |
+
 ### Not verified
 
 - **No real person has used hands-free.** Gaze was tested with simulated input and with real MediaPipe on a fake camera, but not with real eyes, a real webcam, or a real microphone.
