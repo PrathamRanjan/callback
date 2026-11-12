@@ -18,7 +18,21 @@ if (deployed) {
     process.exit(1);
   }
 }
-const db = await getDb();
+// The database can be briefly away at start (a restart, "in recovery mode"): wait for it rather than exiting,
+// so a deploy doesn't fail on a passing database blip. Gives up after about three minutes.
+async function dbWhenReady() {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await getDb();
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (attempt >= 18 || !/recovery mode|starting up|ECONNRESET|ECONNREFUSED|terminated|timeout|57P03|shutting down/i.test(msg + ((e as any).code ?? ""))) throw e;
+      console.error(`[boot] database not ready (${msg.slice(0, 120)}), trying again in 10 s (${attempt}/18)`);
+      await new Promise((r) => setTimeout(r, 10_000));
+    }
+  }
+}
+const db = await dbWhenReady();
 await syncThresholds(db);
 // Private demos made by an earlier build get any new tables (the schema only adds, IF NOT EXISTS).
 if (config.workspaces.enabled) {
