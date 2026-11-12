@@ -372,6 +372,13 @@ The first two GitHub runs were refused a demo with "This address has started 5 d
 
 These are extras. The core flow (plan → call → gate → PayPal → proof) is unchanged, and its tests run first in English.
 
+**In short, in four languages** (the three non-English summaries are machine-assisted):
+
+- **English.** Callback makes a small business's payment calls. The AI talks; code and the owner's rules decide every amount; PayPal moves the money. The app, the calls and the texts work in English, Hindi, Indonesian and Brazilian Portuguese. It can be used hands-free with eyes, head or voice.
+- **हिन्दी.** Callback छोटे व्यवसायों के लिए भुगतान से जुड़ी कॉल करता है। बात AI करता है; हर रकम कोड और मालिक के नियम तय करते हैं; पैसा PayPal से जाता है। ऐप, कॉल और मैसेज अंग्रेज़ी, हिन्दी, इंडोनेशियाई और ब्राज़ीलियाई पुर्तगाली में चलते हैं, और इसे आँखों, सिर या आवाज़ से बिना हाथ लगाए चलाया जा सकता है।
+- **Bahasa Indonesia.** Callback melakukan panggilan soal pembayaran untuk usaha kecil. AI yang berbicara; setiap jumlah ditentukan oleh kode dan aturan pemilik; uang dipindahkan lewat PayPal. Aplikasi, panggilan, dan pesan tersedia dalam bahasa Inggris, Hindi, Indonesia, dan Portugis Brasil, dan bisa dipakai tanpa tangan dengan mata, kepala, atau suara.
+- **Português (Brasil).** O Callback faz as ligações de cobrança de pequenos negócios. A IA conversa; o código e as regras do dono decidem cada valor; o PayPal movimenta o dinheiro. O app, as ligações e as mensagens funcionam em inglês, hindi, indonésio e português do Brasil, e dá para usar sem as mãos, com os olhos, a cabeça ou a voz.
+
 ### In four languages
 
 - **English · हिन्दी · Bahasa Indonesia · Português (Brasil).** The picker sits on the first screen and in every header. `?lang=hi-IN` works on any link. The choice is remembered on the device and, once signed in, for the user.
