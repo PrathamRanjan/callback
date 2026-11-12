@@ -24,6 +24,7 @@ import { resumeRun, Run, startRun } from "../trace.js";
 import { markStep } from "./wsrefs.js";
 import { applyDiscount, createInvoice, createPlan, optionsFor, sendPayLink, settleCancelledClass, type Ctx } from "./money.js";
 import { actionFor, markSignalsNotRun, readTurn, recordSignals } from "../voice/signals.js";
+import { detectLang, line, normLang, type Lang } from "../lib/lang.js";
 
 const first = (name: string) => name.split(/\s+/)[0].replace(/[(),]/g, "");
 
@@ -95,7 +96,14 @@ async function brainContext(q: Queryable, call: Call, customer: Customer, turn: 
     },
     transcript: transcript.filter((t) => t.who !== "system").map((t) => ({ who: t.who as "agent" | "customer", text: t.text })),
     last_customer_line: [...transcript].reverse().find((t) => t.who === "customer")?.text ?? null,
+    lang: callLang(call, customer, transcript),
   };
+}
+
+/** The call's language: what the customer is speaking once code can tell, else the language on their record (spec item 5.1). */
+export function callLang(call: Pick<Call, "lang">, customer: Pick<Customer, "lang">, transcript: Turn[] = []): Lang {
+  const heard = transcript.filter((t) => t.who === "customer").slice(0, 3).map((t) => t.text).join(" ");
+  return detectLang(heard) ?? normLang(call.lang) ?? normLang(customer.lang) ?? "en";
 }
 
 export interface TurnResult {
@@ -142,8 +150,11 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
   }
   const signalled = actionFor(((await callById(q, call.id)).state as any).signals?.fired ?? {});
   const ctx = { ...(await brainContext(q, call, customer, turn, transcript)), steer: signalled.steer };
+  // The call's language, from the customer's first words (spec item 5.1). Kept on the call for the owner's translation.
+  if (ctx.lang && ctx.lang !== call.lang) await q.query("UPDATE calls SET lang = $2 WHERE id = $1", [call.id, ctx.lang]);
+  const endLine = (o: string) => line(o === "do_not_call" ? "stop" : o === "wrong_person" ? "wrong_person" : "abuse", ctx.lang);
   const d: Decision = signalled.end
-      ? { say: signalled.end.say, tool: "end_call", option_id: null, outcome: signalled.end.outcome, reason: `transcript decision: ${signalled.end.outcome}`, brain: "code", quarantined: qn.quarantined }
+      ? { say: endLine(signalled.end.outcome), tool: "end_call", option_id: null, outcome: signalled.end.outcome, reason: `transcript decision: ${signalled.end.outcome}`, brain: "code", quarantined: qn.quarantined }
       : await decide(ctx, run.id);
   // A disputed item: code refuses every collection tool, whatever the brain picked.
   if (signalled.stopCollection && ["send_pay_link", "hold_deposit", "create_invoice", "apply_discount", "create_plan"].includes(d.tool)) {
@@ -181,7 +192,7 @@ export async function customerSays(q: Queryable, callId: string, rawText: string
         state.hold_sent = true;
         toolResult = `Hold link for $${(r.cents / 100).toFixed(2)} texted (charged only if they attend)`;
         // Code decides money: the spoken line about the hold names the amount from the record, never the brain's.
-        say = `Done. I've texted you a PayPal link to hold $${(r.cents / 100).toFixed(2)} for ${o.title}. It's charged only if you attend, and released if you cancel in time.`;
+        say = line("hold_sent", ctx.lang, { amount: `$${(r.cents / 100).toFixed(2)}`, item: o.title });
       }
       gate = "allowed";
       outcome = outcome ?? "hold_sent";

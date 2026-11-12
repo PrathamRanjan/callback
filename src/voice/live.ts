@@ -18,6 +18,7 @@ import { callById, customerById, obligationById, bizById } from "../store.js";
 import { actionFor, recordSignals, SIGNAL_QUESTIONS } from "./signals.js";
 import { recordVoiceEvent } from "./telephony.js";
 import { liveHooks } from "../services/approvals.js";
+import { amountsSpoken, detectLang, LANG_NAME, line as langLine, normLang, type Lang } from "../lib/lang.js";
 
 /** Live voice needs the OpenAI key. (The deployed app refuses to boot without it and without AI_PROVIDER=openai.) */
 export const liveReady = () => Boolean(config.ai.openaiKey) && config.ai.provider !== "none";
@@ -36,7 +37,8 @@ liveHooks.isLive = (id) => live.has(id);
 liveHooks.announce = (id, text) => live.get(id)?.announce(text);
 
 /** The voice model's instructions. No amounts or offers are in them: those come back from the server per turn. */
-export function liveInstructions(ctx: { business: string; firstName: string; purpose: string; item: string }): string {
+export function liveInstructions(ctx: { business: string; firstName: string; purpose: string; item: string; lang?: Lang }): string {
+  const lang = ctx.lang ?? "en";
   return [
     `You are the phone assistant for ${ctx.business}, a small studio, speaking with the customer ${ctx.firstName} about "${ctx.item}" (${ctx.purpose.replace(/_/g, " ")}). This is a demo call and you are an AI; say so if asked. Speak warmly, briefly, at an unhurried pace.`,
     "Backchannel policy: Use few backchannels.",
@@ -52,6 +54,8 @@ export function liveInstructions(ctx: { business: string; firstName: string; pur
     "Generate <|SpawnThinking|> before giving any answer about money, the account, identity or what happens next.",
     "Never state an amount, date, link, discount or plan yourself, and never guess a result while waiting. When the result arrives, say it in your own voice without changing any number, and then wait.",
     "Never ask for card numbers, codes or passwords.",
+    // Spec item 5.1: the whole call runs in the caller's language.
+    `Language policy: the customer's language on record is ${LANG_NAME[lang]}. Greet in ${LANG_NAME[lang]}. You speak English, Hindi, Indonesian and Brazilian Portuguese: if the customer answers in one of them, continue the rest of the call in that language. Results from the studio account may come back in English; say them in the language of the conversation, keeping every amount, date, name and code exactly. Amounts are US dollars.`,
   ].join("\n");
 }
 
@@ -74,11 +78,11 @@ export async function instructionsForCall(callId: string): Promise<string> {
   const cu = await customerById(db, call.customer_id);
   const biz = await bizById(db, call.business_id);
   const o = call.obligation_id ? await obligationById(db, call.obligation_id) : null;
-  return liveInstructions({ business: biz.name, firstName: cu.name.split(" ")[0], purpose: call.purpose, item: o?.title ?? "their account" });
+  return liveInstructions({ business: biz.name, firstName: cu.name.split(" ")[0], purpose: call.purpose, item: o?.title ?? "their account", lang: normLang(call.lang) ?? normLang(cu.lang) ?? "en" });
 }
 
-const MONEY = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)|\b(\d[\d,]*(?:\.\d{1,2})?)\s?(?:dollars|bucks)\b/gi;
-const amountsIn = (s: string) => [...s.matchAll(MONEY)].map((m) => Number((m[1] ?? m[2]).replace(/,/g, "")).toFixed(2));
+// Amounts in any of the four languages ("$420", "420 dollars", "420 डॉलर", "US$ 420,00", "420 dólares"): the guard must not depend on English.
+const amountsIn = (s: string) => amountsSpoken(s);
 const sayMs = (s: string) => Math.min(20_000, 1500 + (s.split(/\s+/).length / 2.6) * 1000);
 
 export interface LiveOpts {
@@ -114,6 +118,8 @@ export class LiveCall {
   private lastAudioAt = 0;
   private started = false;
   private failedToStart: string | null = null;
+  /** The call's language: the customer's record, then what they speak (spec item 5.1). */
+  private lang: Lang = "en";
 
   constructor(o: LiveOpts) {
     this.o = o;
@@ -125,7 +131,7 @@ export class LiveCall {
     o.link.on("message", (d) => void this.onEvent(JSON.parse(d.toString())).catch((e) => console.error(`[live ${this.callId}]`, (e as Error).message)));
     o.link.on("close", () => void this.finish("the voice session closed"));
     o.link.on("error", (e) => console.error(`[live ${this.callId}] socket`, e.message));
-    this.cap = setTimeout(() => void this.speakThenClose("We've reached the time limit for this demo call, so I'll stop here. Thank you. Goodbye."), config.voice.liveCapSeconds * 1000);
+    this.cap = setTimeout(() => void this.speakThenClose(langLine("time_cap", detectLang(this.heard) ?? this.lang)), config.voice.liveCapSeconds * 1000);
     publish({ call: this.callId, kind: "status", text: `Live voice connected (${o.transport}, ${config.ai.models.live})` });
     // An attached sideband belongs to a session that has already started (the browser holds it): greet once attached.
     if (o.role === "sideband") {
@@ -149,14 +155,16 @@ export class LiveCall {
   private sayLine(text: string, delegationId: string | null) {
     const line = speakable(text);
     for (const a of amountsIn(line)) this.allowed.add(a);
-    this.send({ type: "session.commentary.append", delegation_id: delegationId, content: `Say this to the customer, keeping every number exactly, then wait: ${line}` });
+    const lang = detectLang(this.heard) ?? this.lang;
+    this.send({ type: "session.commentary.append", delegation_id: delegationId, content: `Say this to the customer${lang !== "en" ? ` in ${LANG_NAME[lang]}` : ""}, keeping every number exactly, then wait: ${line}` });
   }
 
   /** The greeting: the call's opening line (with its verify code), with the AI and demo disclosure first. */
   async greet() {
     if (this.greeted) return;
     this.greeted = true;
-    const call = await this.inWs(async () => callById(await getDb(), this.callId));
+    const { call, cu } = await this.inWs(async () => { const db = await getDb(); const c = await callById(db, this.callId); return { call: c, cu: await customerById(db, c.customer_id) }; });
+    this.lang = normLang(call.lang) ?? normLang(cu.lang) ?? "en";
     const opening = call.transcript.find((t) => t.who === "agent")?.text ?? "";
     for (const t of call.transcript) for (const a of amountsIn(t.text)) this.allowed.add(a);
     this.sayLine(`This is a demo call from an AI assistant. ${opening}`, null);
@@ -260,7 +268,8 @@ export class LiveCall {
     if (!out.newly.length) return;
     const act = actionFor(out.state.fired);
     if (act.end) {
-      const end = act.end;
+      const lang = detectLang(this.heard) ?? this.lang;
+      const end = { ...act.end, say: langLine(act.end.outcome === "do_not_call" ? "stop" : act.end.outcome === "wrong_person" ? "wrong_person" : "abuse", lang) };
       await this.inWs(async () => {
         const db = await getDb();
         const call = await callById(db, this.callId);

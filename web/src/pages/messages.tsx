@@ -6,15 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ActButton, Empty, ErrorState, PageHead, Panel, Rows, Section, StateChip } from "@/components/app/bits";
 import { act } from "@/lib/api";
-import { when } from "@/lib/format";
+import { when, plural } from "@/lib/format";
 import { useData, useSession, useTitle } from "@/lib/hooks";
 
+import { t } from "@/i18n";
 interface Msg { id: string; channel: string; direction: "in" | "out"; address: string; body: string; status: string; at: string }
 interface MessagesData { owner_address: string; telegram_linked: number; recent: Msg[]; thread: { direction: string; body: string; channel: string; status: string; at: string }[]; address: string | null }
 const who = (a: string) => (a.startsWith("owner:") ? "You (owner)" : a.startsWith("customer:") ? `Customer ${a.slice(9, 15)}…` : a);
 
 export default function MessagesPage() {
-  useTitle("Messages");
+  useTitle(t("Messages"));
   const { session } = useSession();
   const [addr, setAddr] = useState<string | null>(null);
   const { data: d, error, loading, reload } = useData<MessagesData>(`/api/app/messages${addr ? `?address=${encodeURIComponent(addr)}` : ""}`, { poll: 15000 });
@@ -33,19 +34,19 @@ export default function MessagesPage() {
   return (
     <>
       <PageHead
-        title="Messages"
-        happened={`${d.recent.length} recent message${d.recent.length === 1 ? "" : "s"} across ${threads.length} conversation${threads.length === 1 ? "" : "s"}.`}
-        next={d.telegram_linked ? "Holds reach you on Telegram with Approve and Decline buttons." : "Connect Telegram so holds reach your phone and the customer isn't left waiting."}
+        title={t("Messages")}
+        happened={t("{messages} across {threads}.", { messages: plural(d.recent.length, "recent message"), threads: plural(threads.length, "conversation") })}
+        next={d.telegram_linked ? t("Holds reach you on Telegram with Approve and Decline buttons.") : t("Connect Telegram so holds reach your phone and the customer isn't left waiting.")}
       />
-      <Section id="alerts" title="Alerts on your phone">
+      <Section id="alerts" title={t("Alerts on your phone")}>
         <Panel className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
-          <StateChip s={d.telegram_linked ? "done" : "idle"}>{d.telegram_linked ? "Telegram connected" : "Telegram not connected"}</StateChip>
-          <p className="flex-1 text-sm text-ink-2">Opens Telegram with a one-time code that expires in 15 minutes. Text messages {i?.sms ? "go out through Twilio" : "are shown here as previews (no SMS number connected)"}.</p>
-          <ActButton path="/connect/telegram" icon={<BellRing />}>{d.telegram_linked ? "Connect another chat" : "Connect Telegram"}</ActButton>
+          <StateChip s={d.telegram_linked ? "done" : "idle"}>{d.telegram_linked ? t("Telegram connected") : t("Telegram not connected")}</StateChip>
+          <p className="flex-1 text-sm text-ink-2">{t("Opens Telegram with a one-time code that expires in 15 minutes. Text messages")}{" "}{i?.sms ? t("go out through Twilio") : t("are shown here as previews (no SMS number connected)")}.</p>
+          <ActButton path="/connect/telegram" icon={<BellRing />}>{d.telegram_linked ? t("Connect another chat") : t("Connect Telegram")}</ActButton>
         </Panel>
         {i?.push ? (
           <Panel className="mt-3 flex flex-col gap-3 p-4 md:flex-row md:items-center">
-            <p className="flex-1 text-sm text-ink-2">Or get a pop-up on this phone or computer when Callback holds a decision for you. No app to install.</p>
+            <p className="flex-1 text-sm text-ink-2">{t("Or get a pop-up on this phone or computer when Callback holds a decision for you. No app to install.")}</p>
             <Button
               type="button"
               variant="outline"
@@ -62,13 +63,13 @@ export default function MessagesPage() {
                 }
               }}
             >
-              <Bell /> Alerts on this device
+              <Bell />{" "}{t("Alerts on this device")}
             </Button>
           </Panel>
         ) : null}
       </Section>
       <div className="grid gap-6 lg:grid-cols-[300px_1fr] [&>*]:min-w-0">
-        <Section id="threads" title="Conversations">
+        <Section id="threads" title={t("Conversations")}>
           {threads.length ? (
             <ul className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
               {[{ address: d.owner_address } as Msg, ...threads.filter((t) => t.address !== d.owner_address)].map((t) => (
@@ -80,9 +81,9 @@ export default function MessagesPage() {
                 </li>
               ))}
             </ul>
-          ) : <Empty title="No messages yet" />}
+          ) : <Empty title={t("No messages yet")} />}
         </Section>
-        <Section id="thread" title={who(current)} hint="Simulator: send a message as this person, the way it would arrive by Telegram or SMS. Type approve:<id> to decide a hold as the owner.">
+        <Section id="thread" title={who(current)} hint={t("Simulator: send a message as this person, the way it would arrive by Telegram or SMS. Type approve:<id> to decide a hold as the owner.")}>
           <Panel className="p-4">
             {d.thread.length ? (
               <ol className="mb-4 max-h-[420px] space-y-2 overflow-y-auto">
@@ -93,7 +94,7 @@ export default function MessagesPage() {
                   </li>
                 ))}
               </ol>
-            ) : <p className="mb-4 text-sm text-ink-2">Nothing in this conversation yet.</p>}
+            ) : <p className="mb-4 text-sm text-ink-2">{t("Nothing in this conversation yet.")}</p>}
             <form
               className="flex flex-col gap-2 sm:flex-row sm:items-end"
               onSubmit={async (e) => {
@@ -101,7 +102,7 @@ export default function MessagesPage() {
                 setBusy(true);
                 try {
                   const r = await act("/ops/channels/reply", { address: current, text });
-                  toast.success(r.message || "Received.");
+                  toast.success(r.message || t("Received."));
                   setText("");
                   await reload();
                 } catch (x) {
@@ -111,8 +112,8 @@ export default function MessagesPage() {
                 }
               }}
             >
-              <div className="grid flex-1 gap-1.5"><Label htmlFor="msg">Message from {who(current)}</Label><Input id="msg" value={text} onChange={(e) => setText(e.target.value)} required className="h-11" placeholder="Can you call me tomorrow?" /></div>
-              <Button type="submit" disabled={busy || !text.trim()}><Send /> Send inbound</Button>
+              <div className="grid flex-1 gap-1.5"><Label htmlFor="msg">{t("Message from")}{" "}{who(current)}</Label><Input id="msg" value={text} onChange={(e) => setText(e.target.value)} required className="h-11" placeholder={t("Can you call me tomorrow?")} /></div>
+              <Button type="submit" disabled={busy || !text.trim()}><Send />{" "}{t("Send inbound")}</Button>
             </form>
           </Panel>
         </Section>

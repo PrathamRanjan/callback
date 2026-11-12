@@ -12,10 +12,12 @@ import { cn } from "@/lib/utils";
 import { DisplayHelp } from "./display-help";
 import { ThemeMenu, Wordmark } from "./public-shell";
 import { OfflineBar } from "./bits";
+import { LangMenu } from "./lang-menu";
 import { TOUR_PAGE } from "@/tour/tours";
 
+import { t, tlist } from "@/i18n";
 interface NavItem { to: string; label: string; icon: typeof Inbox; owner?: boolean; tour?: string }
-export const NAV: NavItem[] = [
+export const NAV: NavItem[] = tlist([
   { to: "/today", label: "Today", icon: LayoutDashboard, tour: "nav-today" },
   { to: "/calls", label: "Calls", icon: PhoneCall, tour: "nav-calls" },
   { to: "/ask", label: "Ask", icon: Sparkles, owner: true, tour: "nav-ask" },
@@ -27,7 +29,7 @@ export const NAV: NavItem[] = [
   { to: "/messages", label: "Messages", icon: MessagesSquare, owner: true },
   { to: "/evidence", label: "Evidence", icon: BadgeCheck, tour: "nav-proof" },
   { to: "/demo", label: "Demo controls", icon: FlaskConical },
-];
+], ["label"]);
 
 /** Small, honest, always visible in demo mode: which parts are real sandbox calls and which are simulated. */
 export function DemoRibbon() {
@@ -35,20 +37,20 @@ export function DemoRibbon() {
   const nav = useNavigate();
   if (!session?.demo) return null;
   const i = session.integrations;
-  const live = [i.paypal ? `PayPal ${i.paypal}` : null, i.brain === "model" ? "AI model" : null].filter(Boolean).join(" · ");
+  const live = [i.paypal ? `PayPal ${i.paypal}` : null, i.brain === "model" ? t("AI model") : null].filter(Boolean).join(" · ");
   // Demo numbers are fictional, so calls and texts to them stay in the simulator even when Twilio is connected.
-  const sim = [i.phone ? "calls to demo numbers" : "phone calls", i.sms ? "texts to demo numbers" : "SMS"];
+  const sim = [i.phone ? t("calls to demo numbers") : t("phone calls"), i.sms ? t("texts to demo numbers") : "SMS"];
   return (
-    <div className="border-b border-line bg-surface-2 text-[0.8rem] text-ink" role="note" aria-label="Demo status">
+    <div className="border-b border-line bg-surface-2 text-[0.8rem] text-ink" role="note" aria-label={t("Demo status")}>
       <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
-        <span className="font-semibold">{session.workspace ? "Your private demo" : "Demo studio"}</span>
+        <span className="font-semibold">{session.workspace ? t("Your private demo") : t("Demo studio")}</span>
         {session.workspace?.seed_note ? <span className="text-ink-2" role="status">{session.workspace.seed_note}</span> : null}
-        <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="live" aria-hidden="true" />Live: {live || "nothing external"}</span>
-        <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="idle" aria-hidden="true" />Simulated: {sim.join(", ")}{session.business?.pinned ? ", the clock" : ""}</span>
-        {session.business ? <span className="num text-ink-2">Studio time {session.business.clock_local}</span> : null}
+        <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="live" aria-hidden="true" />{t("Live:")}{" "}{live || t("nothing external")}</span>
+        <span className="inline-flex items-center gap-1.5"><span className="lamp scale-75" data-s="idle" aria-hidden="true" />{t("Simulated:")}{" "}{sim.join(", ")}{session.business?.pinned ? t(", the clock") : ""}</span>
+        {session.business ? <span className="num text-ink-2">{t("Studio time")}{" "}{session.business.clock_local}</span> : null}
         <span className="ml-auto flex items-center gap-1">
           <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-[0.8rem]">
-            <Link to="/judge"><Compass /> For judges</Link>
+            <Link to="/judge"><Compass />{" "}{t("For judges")}</Link>
           </Button>
           {session.me?.role === "owner" ? (
             <Button
@@ -56,10 +58,10 @@ export function DemoRibbon() {
               size="sm"
               className="h-8 px-2 text-[0.8rem]"
               onClick={async () => {
-                if (!window.confirm("Rebuild your demo from scratch? Only your private demo changes; nobody else's.")) return;
+                if (!window.confirm(t("Rebuild your demo from scratch? Only your private demo changes; nobody else's."))) return;
                 try {
                   const r = await act("/demo/reset", { pin: "1" });
-                  toast.success(r.message || "Demo reset.");
+                  toast.success(r.message || t("Demo reset."));
                   await reload();
                   nav("/today");
                 } catch (e) {
@@ -67,7 +69,7 @@ export function DemoRibbon() {
                 }
               }}
             >
-              <RotateCcw /> Reset
+              <RotateCcw />{" "}{t("Reset")}
             </Button>
           ) : null}
         </span>
@@ -95,7 +97,7 @@ function SideLink({ item, pending, onClick }: { item: NavItem; pending: number; 
         <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-hold-soft px-2 text-xs font-semibold text-ink num">
           <span className="lamp scale-75" data-s="hold" aria-hidden="true" />
           {pending}
-          <span className="sr-only">waiting</span>
+          <span className="sr-only">{t("waiting")}</span>
         </span>
       ) : null}
     </NavLink>
@@ -105,18 +107,18 @@ function SideLink({ item, pending, onClick }: { item: NavItem; pending: number; 
 function Palette({ open, setOpen, items }: { open: boolean; setOpen: (b: boolean) => void; items: NavItem[] }) {
   const nav = useNavigate();
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Go to" description="Jump to a page">
-      <CommandInput placeholder="Go to a page…" />
+    <CommandDialog open={open} onOpenChange={setOpen} title={t("Go to")} description={t("Jump to a page")}>
+      <CommandInput placeholder={t("Go to a page…")} />
       <CommandList>
-        <CommandEmpty>No page by that name.</CommandEmpty>
-        <CommandGroup heading="Pages">
+        <CommandEmpty>{t("No page by that name.")}</CommandEmpty>
+        <CommandGroup heading={t("Pages")}>
           {items.map((i) => (
             <CommandItem key={i.to} onSelect={() => { setOpen(false); nav(i.to); }}>
               <i.icon /> {i.label}
             </CommandItem>
           ))}
           <CommandItem onSelect={() => { setOpen(false); nav("/judge"); }}>
-            <Compass /> For judges
+            <Compass />{" "}{t("For judges")}
           </CommandItem>
         </CommandGroup>
       </CommandList>
@@ -168,14 +170,14 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh bg-paper text-ink">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">{t("Skip to content")}</a>
       <OfflineBar />
       <DemoRibbon />
       <div className="mx-auto flex max-w-[1240px]">
-        <aside className="sticky top-0 hidden h-dvh w-[232px] flex-none flex-col gap-1 border-r border-line px-3 py-4 lg:flex" aria-label="Main">
+        <aside className="sticky top-0 hidden h-dvh w-[232px] flex-none flex-col gap-1 border-r border-line px-3 py-4 lg:flex" aria-label={t("Main")}>
           <Link to="/today" className="mb-4 px-2"><Wordmark /></Link>
           <button type="button" onClick={() => setPal(true)} className="mb-3 flex h-10 items-center gap-2 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink-2 hover:text-ink">
-            <Search className="size-4" /> Go to… <kbd className="ml-auto font-mono text-xs">⌘K</kbd>
+            <Search className="size-4" />{" "}{t("Go to…")}{" "}<kbd className="ml-auto font-mono text-xs">⌘K</kbd>
           </button>
           <nav className="flex flex-col gap-0.5">
             {items.map((i) => <SideLink key={i.to} item={i} pending={pending} />)}
@@ -183,23 +185,25 @@ export function AppShell() {
           <div className="mt-auto space-y-2 border-t border-line pt-3 text-sm">
             <div className="px-2">
               <div className="font-medium">{session?.me?.name}</div>
-              <div className="text-ink-2">{session?.me?.role === "owner" ? "Owner" : "Front desk"} · {session?.me?.business}</div>
+              <div className="text-ink-2">{session?.me?.role === "owner" ? t("Owner") : t("Front desk")} · {session?.me?.business}</div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              <LangMenu />
               <ThemeMenu />
-              <Button variant="ghost" size="icon" aria-label="Display and help" onClick={() => setHelp(true)} data-tour="display-help"><Accessibility /></Button>
-              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour"><BookOpenCheck /></Button>
-              <Button variant="ghost" size="icon" aria-label="Sign out" onClick={signOut}><LogOut /></Button>
+              <Button variant="ghost" size="icon" aria-label={t("Display and help")} onClick={() => setHelp(true)} data-tour="display-help"><Accessibility /></Button>
+              <Button variant="ghost" size="icon" aria-label={t("Take the tour")} onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour"><BookOpenCheck /></Button>
+              <Button variant="ghost" size="icon" aria-label={t("Sign out")} onClick={signOut}><LogOut /></Button>
             </div>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex min-h-14 flex-wrap items-center gap-x-2 border-b border-line bg-paper/95 px-4 py-1 backdrop-blur lg:hidden">
-            <Link to="/today" aria-label="Callback, Today"><Wordmark /></Link>
+            <Link to="/today" aria-label={t("Callback, Today")}><Wordmark /></Link>
             <span className="ml-auto flex items-center">
-              <Button variant="ghost" size="icon" aria-label="Take the tour" onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour-m"><BookOpenCheck /></Button>
-              <Button variant="ghost" size="icon" aria-label="Display and help" onClick={() => setHelp(true)}><Accessibility /></Button>
+              <Button variant="ghost" size="icon" aria-label={t("Take the tour")} onClick={() => { const k = role === "owner" ? "owner" : "staff"; nav(TOUR_PAGE[k], { state: { tour: k } }); }} data-tour="take-tour-m"><BookOpenCheck /></Button>
+              <Button variant="ghost" size="icon" aria-label={t("Display and help")} onClick={() => setHelp(true)}><Accessibility /></Button>
+              <LangMenu />
               <ThemeMenu />
             </span>
           </header>
@@ -209,7 +213,7 @@ export function AppShell() {
         </div>
       </div>
 
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/97 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <nav aria-label={t("Main")} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/97 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <ul className="mx-auto grid max-w-[560px] grid-cols-5">
           {bottom.map((i) => (
             <li key={i.to}>
@@ -218,7 +222,7 @@ export function AppShell() {
                   <>
                     <span className={cn("flex h-7 w-12 items-center justify-center rounded-full", isActive && "bg-brand-soft")}><i.icon className="size-5" aria-hidden="true" /></span>
                     {i.label}
-                    {i.to === "/approvals" && pending > 0 ? <span className="absolute right-[18%] top-2 rounded-full bg-hold px-1.5 text-[0.65rem] font-bold text-white num" aria-label={`${pending} waiting`}>{pending}</span> : null}
+                    {i.to === "/approvals" && pending > 0 ? <span className="absolute right-[18%] top-2 rounded-full bg-hold px-1.5 text-[0.65rem] font-bold text-white num" aria-label={t("{0} waiting", [pending])}>{pending}</span> : null}
                   </>
                 )}
               </NavLink>
@@ -228,7 +232,7 @@ export function AppShell() {
           <li>
             <button type="button" onClick={() => setMore(true)} className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[0.7rem] font-medium text-ink-2" data-tour="nav-more-m">
               <span className="flex h-7 w-12 items-center justify-center rounded-full"><Menu className="size-5" aria-hidden="true" /></span>
-              More
+              {t("More")}
             </button>
           </li>
         </ul>
@@ -237,13 +241,13 @@ export function AppShell() {
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-[14px] bg-surface">
           <SheetHeader>
-            <SheetTitle>More</SheetTitle>
-            <SheetDescription>{session?.me?.name} · {session?.me?.role === "owner" ? "Owner" : "Front desk"}</SheetDescription>
+            <SheetTitle>{t("More")}</SheetTitle>
+            <SheetDescription>{session?.me?.name} · {session?.me?.role === "owner" ? t("Owner") : t("Front desk")}</SheetDescription>
           </SheetHeader>
           <nav className="grid gap-0.5 px-4 pb-6">
             {items.filter((i) => !bottom.includes(i)).map((i) => <SideLink key={i.to} item={i} pending={pending} onClick={() => setMore(false)} />)}
-            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); setHelp(true); }}><Accessibility className="size-[18px]" />Display and help</button>
-            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); void signOut(); }}><LogOut className="size-[18px]" />Sign out</button>
+            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); setHelp(true); }}><Accessibility className="size-[18px]" />{t("Display and help")}</button>
+            <button type="button" className="flex min-h-11 items-center gap-3 rounded-[8px] px-3 text-[0.95rem] font-medium text-ink-2" onClick={() => { setMore(false); void signOut(); }}><LogOut className="size-[18px]" />{t("Sign out")}</button>
           </nav>
         </SheetContent>
       </Sheet>

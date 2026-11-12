@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { act } from "@/lib/api";
 
+import { t } from "@/i18n";
 /** A dialog form that posts to an action route. Errors from the server stay in the dialog, next to the fields. */
 export function ActionDialog({ trigger, title, description, path, submit, children, onDone, follow = false, transform }: {
   trigger: ReactNode; title: string; description?: string; path: string; submit: string; children: ReactNode; onDone?: () => void; follow?: boolean;
@@ -26,7 +27,7 @@ export function ActionDialog({ trigger, title, description, path, submit, childr
     setErr(null);
     try {
       const r = await act(path, transform ? transform(fields) : fields);
-      toast.success(r.message || "Saved.");
+      toast.success(r.message || t("Saved."));
       setOpen(false);
       onDone?.();
       if (follow && r.to) nav(r.to.split("?")[0]);
@@ -48,7 +49,7 @@ export function ActionDialog({ trigger, title, description, path, submit, childr
           {children}
           {err ? <p role="alert" className="rounded-[8px] bg-off-soft px-3 py-2 text-sm">{err}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t("Cancel")}</Button>
             <Button type="submit" disabled={busy} aria-busy={busy}>{busy ? <Loader2 className="animate-spin" /> : null}{submit}</Button>
           </DialogFooter>
         </form>

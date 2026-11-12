@@ -86,7 +86,7 @@ export class PayPalClient implements PayPalApi {
       {
         intent: input.intent ?? "CAPTURE",
         purchase_units: [{ reference_id: input.customId, custom_id: input.customId, description: input.description.slice(0, 127), amount: { currency_code: input.currency, value: toValue(input.amountCents) } }],
-        payment_source: { paypal: { experience_context: { brand_name: (input.brand ?? "Callback").slice(0, 127), user_action: "PAY_NOW", shipping_preference: "NO_SHIPPING", return_url: input.returnUrl, cancel_url: input.cancelUrl } } },
+        payment_source: { paypal: { experience_context: { brand_name: (input.brand ?? "Callback").slice(0, 127), ...(input.locale ? { locale: input.locale } : {}), user_action: "PAY_NOW", shipping_preference: "NO_SHIPPING", return_url: input.returnUrl, cancel_url: input.cancelUrl } } },
       },
       { requestId, prefer: "return=representation" },
     );

@@ -14,6 +14,7 @@ import { applyDisplay } from "@/components/app/display-help";
 import { getJson } from "@/lib/api";
 import { SessionCtx, type Session } from "@/lib/hooks";
 import { applyTheme } from "@/lib/theme";
+import { initLang, useLang } from "@/i18n";
 import Landing from "@/pages/landing";
 import Try from "@/pages/try";
 
@@ -98,7 +99,8 @@ function Tours() {
 
 const Fallback = () => <div className="mx-auto max-w-[900px] p-6"><Rows n={4} /></div>;
 
-function App() {
+// The language lives at the root: changing it re-renders every page in place (no remount, so typed text survives).
+function App(_: { lang: string }) {
   return (
     <BrowserRouter>
       <SessionProvider>
@@ -153,8 +155,13 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(
+function Root() {
+  const lang = useLang();
+  return <App lang={lang} />;
+}
+
+void initLang().finally(() => createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <Root />
   </StrictMode>,
-);
+));

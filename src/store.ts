@@ -19,6 +19,8 @@ export interface Person {
   business_id: string;
   name: string;
   role: "owner" | "staff";
+  /** The page language this person picked (spec B1.2). */
+  lang?: string;
 }
 export interface Customer {
   id: string;
@@ -31,6 +33,8 @@ export interface Customer {
   consent: Consent | null;
   dnc: boolean;
   notes: string;
+  /** The language the customer is called and texted in: en, hi-IN, id-ID or pt-BR. */
+  lang: string;
 }
 export type ObligationKind = "deposit" | "invoice" | "class_cancel";
 export type ObligationStatus = "open" | "link_sent" | "invoiced" | "planned" | "paid" | "credited" | "refunded" | "void";
@@ -103,6 +107,10 @@ export interface Call {
   hours_ok: boolean | null;
   provider_call_id: string | null;
   created_at: Date;
+  /** The language the call was spoken in, detected from the customer's first words (null until known). */
+  lang: string | null;
+  /** Machine translations of the transcript for the owner, by language. */
+  translations: Record<string, { lines: { at: string; who: string; text: string }[]; model: string; at: string; from: string }>;
 }
 
 const j = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -127,11 +135,11 @@ export async function nowOf(q: Queryable, businessId: string): Promise<Date> {
 }
 
 export async function personById(q: Queryable, id: string): Promise<(Person & { business_name: string }) | null> {
-  const r = (await q.query<Person & { business_name: string }>("SELECT p.id, p.business_id, p.name, p.role, b.name AS business_name FROM people p JOIN businesses b ON b.id = p.business_id WHERE p.id = $1", [id])).rows[0];
+  const r = (await q.query<Person & { business_name: string }>("SELECT p.id, p.business_id, p.name, p.role, p.lang, b.name AS business_name FROM people p JOIN businesses b ON b.id = p.business_id WHERE p.id = $1", [id])).rows[0];
   return r ?? null;
 }
 
-const cust = (r: any): Customer => ({ ...r, consent: j(r.consent) ?? null });
+const cust = (r: any): Customer => ({ ...r, consent: j(r.consent) ?? null, lang: r.lang ?? "en" });
 export async function customerById(q: Queryable, id: string, businessId?: string): Promise<Customer> {
   const r = (await q.query<any>("SELECT * FROM customers WHERE id = $1", [id])).rows[0];
   if (!r || (businessId && r.business_id !== businessId)) throw new GtError("No such customer", "not_found", 404);
@@ -161,7 +169,7 @@ export const balanceOf = (o: Obligation) => Math.max(0, o.amount_cents - o.disco
 /** A cancelled class the customer already paid for: what the business owes back until it is refunded or credited. */
 export const owedToCustomer = (o: Obligation) => (o.kind === "class_cancel" && !["refunded", "credited", "void"].includes(o.status) ? o.settled_cents : 0);
 
-const call = (r: any): Call => ({ ...r, transcript: j(r.transcript) ?? [], state: j(r.state) ?? {}, attempts: Number(r.attempts), collected_cents: Number(r.collected_cents), discount_cents: Number(r.discount_cents), breaches: Number(r.breaches) });
+const call = (r: any): Call => ({ ...r, lang: r.lang ?? null, translations: j(r.translations) ?? {}, transcript: j(r.transcript) ?? [], state: j(r.state) ?? {}, attempts: Number(r.attempts), collected_cents: Number(r.collected_cents), discount_cents: Number(r.discount_cents), breaches: Number(r.breaches) });
 export async function callById(q: Queryable, id: string, businessId?: string): Promise<Call> {
   const r = (await q.query<any>("SELECT * FROM calls WHERE id = $1", [id])).rows[0];
   if (!r || (businessId && r.business_id !== businessId)) throw new GtError("No such call", "not_found", 404);

@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { store } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
+import { LangButtons } from "./lang-menu";
 
+import { t } from "@/i18n";
 /** "Display and help": the accessibility kit. Settings stay on this device; each one is a class on <html>. */
 export interface Display { text: "normal" | "large" | "xl"; contrast: boolean; readable: boolean; calm: boolean; targets: boolean }
 const KEY = "cb-display";
@@ -75,51 +77,55 @@ export function DisplayHelp({ open, onOpenChange }: { open: boolean; onOpenChang
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" closeLabel="Close display and help" className="w-full overflow-y-auto bg-surface sm:max-w-[420px]">
+      <SheetContent side="right" closeLabel={t("Close display and help")} className="w-full overflow-y-auto bg-surface sm:max-w-[420px]">
         <SheetHeader>
-          <SheetTitle>Display and help</SheetTitle>
-          <SheetDescription>These settings stay on this device. Nothing is sent anywhere.</SheetDescription>
+          <SheetTitle>{t("Display and help")}</SheetTitle>
+          <SheetDescription>{t("These settings stay on this device. Nothing is sent anywhere.")}</SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-8">
           <fieldset className="py-3">
-            <legend className="mb-2 text-[0.95rem] font-medium">Text size</legend>
+            <legend className="mb-2 text-[0.95rem] font-medium">{t("Language")}</legend>
+            <LangButtons />
+          </fieldset>
+          <fieldset className="py-3">
+            <legend className="mb-2 text-[0.95rem] font-medium">{t("Text size")}</legend>
             <div className="grid grid-cols-3 gap-2" role="radiogroup">
-              {(["normal", "large", "xl"] as const).map((t) => (
+              {(["normal", "large", "xl"] as const).map((sz) => (
                 <button
-                  key={t}
+                  key={sz}
                   type="button"
                   role="radio"
-                  aria-checked={d.text === t}
-                  onClick={() => set("text", t)}
-                  className={cn("h-12 rounded-[8px] border border-line bg-paper font-medium", d.text === t && "border-brand bg-brand-soft")}
-                  style={{ fontSize: t === "normal" ? "0.95rem" : t === "large" ? "1.1rem" : "1.25rem" }}
+                  aria-checked={d.text === sz}
+                  onClick={() => set("text", sz)}
+                  className={cn("h-12 rounded-[8px] border border-line bg-paper font-medium", d.text === sz && "border-brand bg-brand-soft")}
+                  style={{ fontSize: sz === "normal" ? "0.95rem" : sz === "large" ? "1.1rem" : "1.25rem" }}
                 >
-                  {t === "normal" ? "Normal" : t === "large" ? "Large" : "Largest"}
+                  {sz === "normal" ? t("Normal") : sz === "large" ? t("Large") : t("Largest")}
                 </button>
               ))}
             </div>
           </fieldset>
           <div className="divide-y divide-line">
-            <Toggle id="a-contrast" label="Stronger contrast" hint="Darker secondary text and borders." on={d.contrast} set={(v) => set("contrast", v)} />
-            <Toggle id="a-readable" label="Easier-to-read letters" hint="Switches to Atkinson Hyperlegible, made for low vision." on={d.readable} set={(v) => set("readable", v)} />
-            <Toggle id="a-calm" label="No movement" hint="Stops the pulsing lamps and every animation." on={d.calm} set={(v) => set("calm", v)} />
-            <Toggle id="a-targets" label="Bigger buttons" hint="Every button and field at least 48 pixels tall." on={d.targets} set={(v) => set("targets", v)} />
+            <Toggle id="a-contrast" label={t("Stronger contrast")} hint={t("Darker secondary text and borders.")} on={d.contrast} set={(v) => set("contrast", v)} />
+            <Toggle id="a-readable" label={t("Easier-to-read letters")} hint={t("Switches to Atkinson Hyperlegible, made for low vision.")} on={d.readable} set={(v) => set("readable", v)} />
+            <Toggle id="a-calm" label={t("No movement")} hint={t("Stops the pulsing lamps and every animation.")} on={d.calm} set={(v) => set("calm", v)} />
+            <Toggle id="a-targets" label={t("Bigger buttons")} hint={t("Every button and field at least 48 pixels tall.")} on={d.targets} set={(v) => set("targets", v)} />
           </div>
           {canSpeak ? (
             <Button variant="outline" className="mt-4 w-full" onClick={read} aria-pressed={speaking}>
-              {speaking ? <VolumeX /> : <Volume2 />} {speaking ? "Stop reading" : "Read this page aloud"}
+              {speaking ? <VolumeX /> : <Volume2 />} {speaking ? t("Stop reading") : t("Read this page aloud")}
             </Button>
           ) : null}
           <div className="mt-6 rounded-[10px] bg-paper p-4 text-sm text-ink-2">
-            <p className="mb-2 font-medium text-ink">Reading the lamps</p>
+            <p className="mb-2 font-medium text-ink">{t("Reading the lamps")}</p>
             <ul className="space-y-1.5">
-              <li className="flex items-center gap-2"><span className="lamp" data-s="ready" aria-hidden="true" />Ready: a call is planned and allowed.</li>
-              <li className="flex items-center gap-2"><span className="lamp" data-s="live" aria-hidden="true" />On the line: a call is happening.</li>
-              <li className="flex items-center gap-2"><span className="lamp" data-s="hold" aria-hidden="true" />Needs you: held for your yes or no.</li>
-              <li className="flex items-center gap-2"><span className="lamp" data-s="done" aria-hidden="true" />Settled: paid, credited or agreed.</li>
-              <li className="flex items-center gap-2"><span className="lamp" data-s="off" aria-hidden="true" />Not calling: a rule says no.</li>
+              <li className="flex items-center gap-2"><span className="lamp" data-s="ready" aria-hidden="true" />{t("Ready: a call is planned and allowed.")}</li>
+              <li className="flex items-center gap-2"><span className="lamp" data-s="live" aria-hidden="true" />{t("On the line: a call is happening.")}</li>
+              <li className="flex items-center gap-2"><span className="lamp" data-s="hold" aria-hidden="true" />{t("Needs you: held for your yes or no.")}</li>
+              <li className="flex items-center gap-2"><span className="lamp" data-s="done" aria-hidden="true" />{t("Settled: paid, credited or agreed.")}</li>
+              <li className="flex items-center gap-2"><span className="lamp" data-s="off" aria-hidden="true" />{t("Not calling: a rule says no.")}</li>
             </ul>
-            <p className="mt-2">Every lamp also has a word next to it, so colour is never the only signal.</p>
+            <p className="mt-2">{t("Every lamp also has a word next to it, so colour is never the only signal.")}</p>
           </div>
         </div>
       </SheetContent>

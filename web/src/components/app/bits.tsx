@@ -9,6 +9,7 @@ import { LAMP_LABEL, money, type LampState } from "@/lib/format";
 import { useOnline } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
+import { t } from "@/i18n";
 /** A switchboard lamp. Always paired with a text label (visible or for screen readers): never colour alone. */
 export function Lamp({ s, label, showLabel = false, className }: { s: LampState; label?: string; showLabel?: boolean; className?: string }) {
   const text = label ?? LAMP_LABEL[s];
@@ -41,9 +42,9 @@ export function PageHead({ title, kicker, happened, needs, next, actions }: { ti
         <h1 className="text-[1.75rem] font-[750] md:text-h1">{title}</h1>
         {happened || needs || next ? (
           <dl className="mt-3 grid gap-1 text-[0.95rem] text-ink-2 sm:grid-cols-[auto_1fr] sm:gap-x-3">
-            {happened ? (<><dt className="font-medium text-ink">What happened</dt><dd>{happened}</dd></>) : null}
-            {needs ? (<><dt className="font-medium text-ink">Needs you</dt><dd>{needs}</dd></>) : null}
-            {next ? (<><dt className="font-medium text-ink">Next</dt><dd>{next}</dd></>) : null}
+            {happened ? (<><dt className="font-medium text-ink">{t("What happened")}</dt><dd>{happened}</dd></>) : null}
+            {needs ? (<><dt className="font-medium text-ink">{t("Needs you")}</dt><dd>{needs}</dd></>) : null}
+            {next ? (<><dt className="font-medium text-ink">{t("Next")}</dt><dd>{next}</dd></>) : null}
           </dl>
         ) : null}
       </div>
@@ -93,12 +94,12 @@ export function ErrorState({ error, retry }: { error: ApiError | Error; retry?: 
     <Panel role="alert" className="flex flex-col items-start gap-3 border-off/40 bg-off-soft p-5">
       <div className="flex items-center gap-2 font-medium">
         {offline ? <WifiOff className="size-4" /> : <AlertTriangle className="size-4" />}
-        {offline ? "You're offline" : "This didn't load"}
+        {offline ? t("You're offline") : t("This didn't load")}
       </div>
-      <p className="text-sm">{error.message} Nothing was changed.</p>
+      <p className="text-sm">{error.message}{" "}{t("Nothing was changed.")}</p>
       {retry ? (
         <Button variant="outline" size="sm" onClick={retry}>
-          <RefreshCw /> Try again
+          <RefreshCw />{" "}{t("Try again")}
         </Button>
       ) : null}
     </Panel>
@@ -107,7 +108,7 @@ export function ErrorState({ error, retry }: { error: ApiError | Error; retry?: 
 
 export function Rows({ n = 4 }: { n?: number }) {
   return (
-    <div className="space-y-2" aria-busy="true" aria-label="Loading">
+    <div className="space-y-2" aria-busy="true" aria-label={t("Loading")}>
       {Array.from({ length: n }, (_, i) => (
         <Skeleton key={i} className="h-16 w-full rounded-[10px] bg-surface-2" />
       ))}
@@ -120,7 +121,7 @@ export function OfflineBar() {
   if (on) return null;
   return (
     <div role="status" className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-hold px-4 py-2 text-sm font-medium text-white">
-      <WifiOff className="size-4" /> You're offline. You can read what's here; nothing will be sent until you're back.
+      <WifiOff className="size-4" />{" "}{t("You're offline. You can read what's here; nothing will be sent until you're back.")}
     </div>
   );
 }
@@ -178,12 +179,12 @@ export function ActButton({ path, fields, children, onDone, follow = false, vari
 
 export function Kpi({ label, value, hint, s }: { label: string; value: ReactNode; hint?: ReactNode; s?: LampState }) {
   return (
-    <Panel className="flex flex-col gap-1 p-4">
+    <Panel className="flex min-w-0 flex-col gap-1 p-4">
       <div className="flex items-center gap-2 text-sm text-ink-2">
         {s ? <span className="lamp scale-75" data-s={s} aria-hidden="true" /> : null}
         {label}
       </div>
-      <div className="font-display text-[1.75rem] font-[750] leading-none num">{value}</div>
+      <div className="kpi-value font-display text-[1.75rem] font-[750] leading-none num">{value}</div>
       {hint ? <div className="text-xs text-ink-2">{hint}</div> : null}
     </Panel>
   );

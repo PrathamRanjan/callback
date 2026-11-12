@@ -30,6 +30,8 @@ export interface OrderInput {
   customId: string;
   description: string;
   brand?: string;
+  /** PayPal checkout page language (BCP 47, e.g. "pt-BR"). Left out for English, so English orders are unchanged. */
+  locale?: string;
   /** CAPTURE (default): paid now. AUTHORIZE: a hold on the payer's funds, captured or voided later (spec B2 item 3). */
   intent?: "CAPTURE" | "AUTHORIZE";
 }

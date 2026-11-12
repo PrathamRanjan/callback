@@ -9,6 +9,7 @@
 import { quarantine } from "./grounding.js";
 import { config } from "../config.js";
 import { hasOpenAI, rulesArm, structured } from "./provider.js";
+import { amountsSpoken, LANG_NAME, type Lang } from "../lib/lang.js";
 
 export const TOOLS = ["none", "send_pay_link", "hold_deposit", "create_invoice", "apply_discount", "create_plan", "settle_credit", "settle_refund", "schedule_callback", "end_call"] as const;
 export type Tool = (typeof TOOLS)[number];
@@ -38,6 +39,8 @@ export interface BrainContext {
   last_customer_line: string | null;
   /** What the transcript decisions told code to steer towards (hardship, a dispute, someone listening). */
   steer?: string[];
+  /** The language the call is in (spec item 5.1). Missing or "en": English. */
+  lang?: Lang;
 }
 export interface Decision {
   say: string;
@@ -195,6 +198,7 @@ async function modelTurn(ctx: BrainContext, said: string, runId: string | null |
       "For a deposit, you may offer a hold next to paying now (\"I can hold it instead: charged only if you attend\"); use hold_deposit only when they choose the hold.",
       "If code_says is present, follow it: it comes from checks code ran on the transcript.",
       "Return exactly one tool per turn or none.",
+      ...(ctx.lang && ctx.lang !== "en" ? [`Speak ${LANG_NAME[ctx.lang]} (${ctx.lang}): the customer is speaking it. Say the balance text and option labels exactly as given (amounts stay in US dollars, written with $). If the customer switches to English, Hindi, Indonesian or Brazilian Portuguese, answer in that language.`] : []),
       ...(feedback ? [`Your previous line was rejected because ${feedback}. Use only the amounts and option ids you are given.`] : []),
     ].join("\n"),
     parts: [{ type: "text", text: JSON.stringify({ purpose: ctx.purpose, item: ctx.item, balance_text: ctx.balance_text, due_text: ctx.due_text, turn: ctx.turn, done: ctx.done, options: ctx.options, transcript: ctx.transcript.slice(-8), customer_said: said || null, ...(ctx.steer?.length ? { code_says: ctx.steer } : {}) }) }],
@@ -222,6 +226,8 @@ export function inventedAmounts(say: string, ctx: BrainContext): string[] {
   for (const x of ctx.options.discounts) for (const m of x.label.matchAll(/(\d{1,3})\s?%/g)) pctAllowed.add(m[1]);
   const out: string[] = [];
   for (const m of say.matchAll(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g)) if (!allowed.has(norm(m[0]))) out.push(m[0]);
-  for (const m of say.matchAll(/(\d{1,3})\s?(?:%|percent)/gi)) if (!pctAllowed.has(m[1])) out.push(m[0]);
+  // Amounts said in words in any of the four languages ("420 dólares", "420 डॉलर"): the same check (spec B: the guard must not depend on English).
+  for (const a of amountsSpoken(say.replace(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g, ""))) if (!allowed.has(a)) out.push(a);
+  for (const m of say.matchAll(/(\d{1,3})\s?(?:%|percent|por cento|persen|प्रतिशत|फ़ीसदी)/gi)) if (!pctAllowed.has(m[1])) out.push(m[0]);
   return out;
 }

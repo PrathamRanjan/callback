@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { ApiError, getJson } from "./api";
 
@@ -31,7 +32,7 @@ export function useData<T>(path: string | null, opts: { poll?: number } = {}): L
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
       if (e instanceof ApiError && (e.status === 401 || e.status === 403)) refused.current = true;
-      setError(e instanceof ApiError ? e : new ApiError((e as Error).message || "Could not load.", 0));
+      setError(e instanceof ApiError ? e : new ApiError((e as Error).message || t("Could not load."), 0));
     } finally {
       if (ctl.current === c) setLoading(false);
     }

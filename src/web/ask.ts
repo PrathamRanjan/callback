@@ -10,6 +10,7 @@ import { GtError } from "../lib/util.js";
 import { markStep } from "../services/workspaces.js";
 import { me, type Me } from "./auth.js";
 import { json } from "./common.js";
+import { langOf } from "../lib/lang.js";
 
 async function owner(req: Request): Promise<Me> {
   const p = await me(req);
@@ -47,7 +48,7 @@ export function askRouter() {
     if (!q) throw new GtError("Type a question first.", "bad_request", 400);
     if (brainKind() !== "model") throw new GtError("The AI model isn't available here, so Ask can't run. Nothing was changed.", "ai_unavailable", 503);
     if (!allowAsk(`${currentWs() ?? "base"}:${p.business_id}`)) throw new GtError("That's 20 questions this hour. Try again later.", "rate_limited", 429);
-    const { runId, done } = await startAsk(p.business_id, q, p.id);
+    const { runId, done } = await startAsk(p.business_id, q, p.id, langOf(req));
     void done.then(() => markStep("asked_the_agent").catch(() => undefined));
     return { run_id: runId };
   }));

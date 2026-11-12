@@ -38,6 +38,7 @@ import { markStep } from "../services/workspaces.js";
 import { DEMO_IMPERSONATION } from "./safety.js";
 import { json } from "./common.js";
 import { GtError } from "../lib/util.js";
+import { LANG_NAME, langOf, normLang } from "../lib/lang.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SCOPES = ["global", "calls", "agents", "action:charge", "action:invoice", "action:plan", "action:discount", "action:refund", "purpose:confirm_deposit", "purpose:chase_invoice", "purpose:cancel_class"];
@@ -111,7 +112,7 @@ export function apiRouter(): Router {
     const now = biz ? await nowOf(db, biz.id) : new Date();
     const pending = p?.role === "owner" ? (await pendingApprovals(p.business_id)).filter((a) => a.status === "pending").length : 0;
     return {
-      me: p ? { name: p.name, role: p.role, business: p.business_name } : null,
+      me: p ? { name: p.name, role: p.role, business: p.business_name, lang: (p as { lang?: string }).lang ?? "en" } : null,
       business: biz ? { name: biz.name, tz: biz.tz, clock: now.toISOString(), clock_local: fmtLocal(now, biz.tz), pinned: Boolean(biz.sim_now) } : null,
       pending,
       demo: config.demoMode,
@@ -174,6 +175,15 @@ export function apiRouter(): Router {
     return calls.map((c) => callRow(c, custs, obls));
   }));
 
+  /** A machine translation of the call's transcript for the reader (spec item 5.2). The original stays as spoken. */
+  r.post("/api/app/calls/:id/translate", json(async (req) => {
+    const p = await who(req);
+    const lang = normLang(req.body?.lang) ?? langOf(req);
+    const db = await getDb();
+    const { translateCall } = await import("../services/translate.js");
+    return { ok: true, lang, translation: await translateCall(db, req.params.id, p.business_id, lang) };
+  }));
+
   r.get("/api/app/calls/:id", json(async (req) => {
     const p = await who(req);
     const db = await getDb();
@@ -193,7 +203,7 @@ export function apiRouter(): Router {
     const holds = o ? (await db.query<any>("SELECT id, amount_cents, paypal_order_id, authorization_id, approve_url, status, via, created_at FROM holds WHERE obligation_id = $1 AND status NOT IN ('creating') ORDER BY created_at", [o.id])).rows : [];
     const approvals = (await pendingApprovals(p.business_id)).filter((a) => a.payload?.agentScope === `agent:${c.id}` || (o && a.payload?.entityId === o.id));
     return {
-      call: { id: c.id, status: c.status, purpose: c.purpose, outcome: c.outcome, reason: c.reason, mode: c.mode, transcript: c.transcript, state: c.state, consent_ok: c.consent_ok, hours_ok: c.hours_ok, breaches: c.breaches, collected_cents: c.collected_cents, started_at: c.started_at, ended_at: c.ended_at, run_id: c.run_id, verify_code: (c.state as any)?.verify_code ?? null, is_sample: Boolean((c as any).is_sample) },
+      call: { id: c.id, status: c.status, purpose: c.purpose, outcome: c.outcome, reason: c.reason, mode: c.mode, transcript: c.transcript, state: c.state, consent_ok: c.consent_ok, hours_ok: c.hours_ok, breaches: c.breaches, collected_cents: c.collected_cents, started_at: c.started_at, ended_at: c.ended_at, run_id: c.run_id, verify_code: (c.state as any)?.verify_code ?? null, is_sample: Boolean((c as any).is_sample), lang: c.lang ?? null, translations: c.translations ?? {} },
       customer: { id: cu.id, name: cu.name, tz: cu.tz, dnc: cu.dnc, consent: cu.consent, token: p.role === "owner" ? cu.token : null, phone_live: telephonyReady() && mayContactForReal(cu.phone) },
       item: o ? { id: o.id, title: o.title, kind: o.kind, note: o.note, amount_cents: o.amount_cents, discount_cents: o.discount_cents, settled_cents: o.settled_cents, balance_cents: balanceOf(o), owed_to_customer_cents: owedToCustomer(o), status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, cu.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, cu.tz) : null, captured: Boolean(o.capture_id), paypal_order_id: o.paypal_order_id, paypal_invoice_id: o.paypal_invoice_id, subscription_id: o.subscription_id } : null,
       offers: opts ? { discounts: opts.discounts.map((d) => ({ id: d.id, label: d.label, pct: d.pct })), plans: opts.plans.map((x) => ({ id: x.id, label: x.label })), slots: callbackSlots(now, cu.tz, pol.rules).map((s) => ({ id: s.id, label: s.label })) } : null,
@@ -229,7 +239,7 @@ export function apiRouter(): Router {
     const calls = await callsOf(db, p.business_id, { customerId: c.id, limit: 30 });
     const events = await eventsOf(db, p.business_id, { customerId: c.id }, 40);
     return {
-      customer: { id: c.id, name: c.name, phone: c.phone, email: c.email, tz: c.tz, notes: c.notes, dnc: c.dnc, consent: c.consent, link: p.role === "owner" ? `/c/${c.token}` : null },
+      customer: { id: c.id, name: c.name, phone: c.phone, email: c.email, tz: c.tz, lang: c.lang, notes: c.notes, dnc: c.dnc, consent: c.consent, link: p.role === "owner" ? `/c/${c.token}` : null },
       items: obls.map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.note, amount_cents: o.amount_cents, discount_cents: o.discount_cents, settled_cents: o.settled_cents, balance_cents: balanceOf(o), owed_to_customer_cents: owedToCustomer(o), status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, captured: Boolean(o.capture_id), can_cancel: o.kind === "deposit" && o.status === "paid" && o.settled_cents > 0 && !cancelled.has(o.id) })),
       calls: calls.map((x) => ({ id: x.id, status: x.status, purpose: x.purpose, outcome: x.outcome, reason: x.reason, created_at: x.created_at })),
       events: events.map((e: any) => ({ at: e.at, type: e.type, summary: e.summary, actor: e.actor })),
@@ -374,6 +384,36 @@ export function apiRouter(): Router {
     };
   }));
 
+  /**
+   * Languages (spec B1.2): the page language is remembered per person (people.lang) as well as on the device. A visitor
+   * who isn't signed in keeps it on the device only. A customer's choice on their own page is the language Callback
+   * calls and texts them in.
+   */
+  r.post("/api/app/me/lang", json(async (req) => {
+    const lang = normLang(req.body?.lang);
+    if (!lang) throw new GtError("Pick English, Hindi, Indonesian or Brazilian Portuguese.", "bad_request", 400);
+    const p = await me(req);
+    if (p) await (await getDb()).query("UPDATE people SET lang = $2 WHERE id = $1", [p.id, lang]);
+    return { ok: true, lang, saved_for: p ? "person" : "device" };
+  }));
+  r.post("/api/app/c/:token/lang", json(async (req) => {
+    const lang = normLang(req.body?.lang);
+    if (!lang) throw new GtError("Pick English, Hindi, Indonesian or Brazilian Portuguese.", "bad_request", 400);
+    const db = await getDb();
+    const c = await customerByToken(db, req.params.token);
+    await db.query("UPDATE customers SET lang = $2 WHERE id = $1", [c.id, lang]);
+    return { ok: true, lang };
+  }));
+  r.post("/api/app/customers/:id/lang", json(async (req) => {
+    const p = await who(req);
+    const lang = normLang(req.body?.lang);
+    if (!lang) throw new GtError("Pick English, Hindi, Indonesian or Brazilian Portuguese.", "bad_request", 400);
+    const db = await getDb();
+    const c = await customerById(db, req.params.id, p.business_id);
+    await db.query("UPDATE customers SET lang = $2 WHERE id = $1", [c.id, lang]);
+    return { ok: true, lang, message: `${c.name} is now called and texted in ${LANG_NAME[lang]}.` };
+  }));
+
   /** The customer's own page, by their private token. Never exposes other customers or the owner's notes. */
   r.get("/api/app/c/:token", json(async (req) => {
     const db = await getDb();
@@ -389,7 +429,7 @@ export function apiRouter(): Router {
     const holdBy = new Map<string, any>();
     for (const h of (await db.query<any>("SELECT obligation_id, status, amount_cents, authorization_id, expires_at FROM holds WHERE business_id = $1 AND status IN ('link_sent','authorized','captured','voided') ORDER BY created_at", [c.business_id])).rows) holdBy.set(h.obligation_id, h);
     return {
-      business: { name: biz.name }, first_name: c.name.split(" ")[0], tz: c.tz,
+      business: { name: biz.name }, first_name: c.name.split(" ")[0], tz: c.tz, lang: c.lang,
       verify_code: (lastCall?.state as any)?.verify_code ?? null, last_call_at: lastCall?.started_at ?? null,
       open: obls.filter(OPEN).map((o) => ({ id: o.id, kind: o.kind, title: o.title, note: o.kind === "class_cancel" ? o.note : "", balance_cents: balanceOf(o), owed_to_you_cents: owedToCustomer(o), discount_cents: o.discount_cents, status: o.status, due_local: o.due_at ? fmtLocal(o.due_at, c.tz) : null, appointment_local: o.appointment_at ? fmtLocal(o.appointment_at, c.tz) : null, paid_by_paypal: Boolean(o.capture_id), plans: plans.get(o.id) ?? [], hold: holdBy.get(o.id) ? { status: holdBy.get(o.id).status, cents: Number(holdBy.get(o.id).amount_cents), authorization_id: holdBy.get(o.id).authorization_id, expires_at: holdBy.get(o.id).expires_at } : null })),
       settled: await Promise.all(obls.filter((o) => !OPEN(o)).map(async (o) => ({ id: o.id, title: o.title, status: o.status, cents: o.settled_cents, capture_id: o.capture_id, via_wallet: o.paypal_order_id ? (await db.query("SELECT 1 FROM pay_links WHERE paypal_order_id = $1 AND via = 'demo_wallet'", [o.paypal_order_id])).rows.length > 0 : false }))),

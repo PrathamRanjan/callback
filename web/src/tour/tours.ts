@@ -1,5 +1,6 @@
 import { driver, type Driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import { t as tr, tk } from "@/i18n";
 
 /**
  * Tours (spec A3.3). A tour starts only from a button, runs on one page, never calls the router, and ends on any
@@ -13,22 +14,22 @@ interface Step { el?: string; title: string; body: string; side?: "top" | "botto
 export const TOUR_PAGE: Record<TourKind, string> = { owner: "/today", staff: "/calls" };
 const TOURS: Record<TourKind, Step[]> = {
   owner: [
-    { title: "This is your switchboard", body: "Callback makes the awkward money calls for you: deposits before bookings, overdue invoices, refunds for classes you had to cancel. Each lamp is one customer." },
-    { el: "today-kpis", title: "What's owed, at a glance", body: "Money still owed, what came in today, and how many calls are ready. The numbers come straight from your records, never from the AI." },
-    { el: "today-needs", title: "Anything that needs you", body: "If a call wants to move more money than your limits allow, it stops here. You see what moves, to whom and why, and you say yes or no." },
-    { el: "today-ready", title: "Who gets called, and why", body: "Ready calls passed every rule: consent, calling hours in the customer's own time zone, one attempt a day. Blocked ones say which rule stopped them." },
-    { el: "nav-calls", title: "Every call, word for word", body: "Open a call to hear the agent, see each check it passed, and every PayPal step it took." },
-    { el: "nav-money", title: "Money, from PayPal itself", body: "Pay links, invoices, plans and refunds, read back from PayPal so the status here matches what PayPal says." },
-    { el: "display-help", title: "Make it easier to use", body: "Bigger text, stronger contrast, no movement, read aloud. Settings stay on this device." },
-    { el: "take-tour", title: "Come back any time", body: "This button replays the tour. That's it: you're ready." },
+    { title: tk("This is your switchboard"), body: tk("Callback makes the awkward money calls for you: deposits before bookings, overdue invoices, refunds for classes you had to cancel. Each lamp is one customer.") },
+    { el: "today-kpis", title: tk("What's owed, at a glance"), body: tk("Money still owed, what came in today, and how many calls are ready. The numbers come straight from your records, never from the AI.") },
+    { el: "today-needs", title: tk("Anything that needs you"), body: tk("If a call wants to move more money than your limits allow, it stops here. You see what moves, to whom and why, and you say yes or no.") },
+    { el: "today-ready", title: tk("Who gets called, and why"), body: tk("Ready calls passed every rule: consent, calling hours in the customer's own time zone, one attempt a day. Blocked ones say which rule stopped them.") },
+    { el: "nav-calls", title: tk("Every call, word for word"), body: tk("Open a call to hear the agent, see each check it passed, and every PayPal step it took.") },
+    { el: "nav-money", title: tk("Money, from PayPal itself"), body: tk("Pay links, invoices, plans and refunds, read back from PayPal so the status here matches what PayPal says.") },
+    { el: "display-help", title: tk("Make it easier to use"), body: tk("Bigger text, stronger contrast, no movement, read aloud. Settings stay on this device.") },
+    { el: "take-tour", title: tk("Come back any time"), body: tk("This button replays the tour. That's it: you're ready.") },
   ],
   staff: [
-    { title: "Hi, front desk", body: "You can see every call and run them from the simulator. Moving money and changing rules stay with the owner." },
-    { el: "calls-list", title: "Today's calls", body: "Each row is one customer. The lamp shows its state and the words say why." },
-    { el: "nav-today", title: "Today", body: "The day's picture: who is ready, who is blocked, and what was settled." },
-    { el: "nav-proof", title: "Proof", body: "How the agent did in tests, and the record of every step it took." },
-    { el: "display-help", title: "Make it easier to use", body: "Text size, contrast, calmer motion and read aloud." },
-    { el: "take-tour", title: "Replay any time", body: "This button starts the tour again." },
+    { title: tk("Hi, front desk"), body: tk("You can see every call and run them from the simulator. Moving money and changing rules stay with the owner.") },
+    { el: "calls-list", title: tk("Today's calls"), body: tk("Each row is one customer. The lamp shows its state and the words say why.") },
+    { el: "nav-today", title: tk("Today"), body: tk("The day's picture: who is ready, who is blocked, and what was settled.") },
+    { el: "nav-proof", title: tk("Proof"), body: tk("How the agent did in tests, and the record of every step it took.") },
+    { el: "display-help", title: tk("Make it easier to use"), body: tk("Text size, contrast, calmer motion and read aloud.") },
+    { el: "take-tour", title: tk("Replay any time"), body: tk("This button starts the tour again.") },
   ],
 };
 
@@ -74,17 +75,17 @@ async function show(kind: TourKind, i: number, t: number) {
     stagePadding: 6,
     stageRadius: 10,
     showProgress: true,
-    progressText: `${i + 1} of ${steps.length}`,
+    progressText: tr("{0} of {1}", [i + 1, steps.length]),
     showButtons: ["next", "previous", "close"],
     disableButtons: i === 0 ? ["previous"] : [],
-    nextBtnText: "Next",
-    prevBtnText: "Back",
-    doneBtnText: last ? "Finish" : "Next",
+    nextBtnText: tr("Next"),
+    prevBtnText: tr("Back"),
+    doneBtnText: last ? tr("Finish") : tr("Next"),
     onNextClick: () => void show(kind, i + 1, t),
     onPrevClick: () => void show(kind, i - 1, t),
     onCloseClick: () => endTour(),
     onDestroyStarted: () => endTour(),
-    steps: [{ element: el ?? undefined, popover: { title: s.title, description: s.body, side: s.side ?? "bottom", align: "start" } }],
+    steps: [{ element: el ?? undefined, popover: { title: tr(s.title), description: tr(s.body), side: s.side ?? "bottom", align: "start" } }],
   });
   drv.drive();
   if (el) (el as HTMLElement).scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });

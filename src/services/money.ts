@@ -16,6 +16,7 @@ import { paypal, toValue, UnknownOutcomeError } from "../paypal/index.js";
 import { balanceOf, logEvent, obligationById, type Customer, type Obligation } from "../store.js";
 import { noteRef, wsCustomId } from "./wsrefs.js";
 import type { Run } from "../trace.js";
+import { customerText, normLang, paypalLocale, usd as langUsd } from "../lib/lang.js";
 
 export interface Ctx {
   q: Queryable;
@@ -45,11 +46,13 @@ export async function sendPayLink(ctx: Ctx, o: Obligation, customer: Customer): 
   await ctx.q.query("INSERT INTO pay_links (id, business_id, obligation_id, call_id, amount_cents, status, request_id, run_id) VALUES ($1,$2,$3,$4,$5,'creating',$6,$7)", [id, ctx.businessId, o.id, ctx.callId, cents, requestId, ctx.run.id]);
   const pp = paypal();
   try {
-    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: o.title.slice(0, 120), brand: ctx.businessName, returnUrl: `${customerUrl(customer)}?paid=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
+    const order = await ctx.run.timed({ actor: "paypal", tool: "orders.create", args: { cents, customId: o.id }, pp_request_id: requestId }, () => pp.createOrder({ amountCents: cents, currency: config.currency, customId: wsCustomId(o.id), description: o.title.slice(0, 120), brand: ctx.businessName, locale: paypalLocale(customer.lang), returnUrl: `${customerUrl(customer)}?paid=1`, cancelUrl: customerUrl(customer) }, requestId), (r) => ({ id: r.id, status: r.status }));
     await noteRef("paypal.order", order.id);
     await ctx.q.query("UPDATE pay_links SET paypal_order_id = $2, approve_url = $3, status = 'sent' WHERE id = $1", [id, order.id, order.approveUrl]);
     await ctx.q.query("UPDATE obligations SET paypal_order_id = $2, status = CASE WHEN status IN ('open','link_sent') THEN 'link_sent' ELSE status END WHERE id = $1", [o.id, order.id]);
-    await textCustomer(customer, `${ctx.businessName}: here is your secure PayPal link for ${o.title} ($${toValue(cents)}): ${order.approveUrl ?? customerUrl(customer)}`, "obligation", o.id, ctx.q);
+    const url = order.approveUrl ?? customerUrl(customer);
+    const lang = normLang(customer.lang);
+    await textCustomer(customer, lang && lang !== "en" ? customerText("pay_link", lang, { business: ctx.businessName, amount: langUsd(cents, lang), item: o.title, url }) : `${ctx.businessName}: here is your secure PayPal link for ${o.title} ($${toValue(cents)}): ${url}`, "obligation", o.id, ctx.q);
     await logEvent(ctx.q, { businessId: ctx.businessId, customerId: customer.id, callId: ctx.callId, type: "paylink.sent", summary: `Pay link for $${toValue(cents)} sent to ${customer.name}`, actor: ctx.agentScope, data: { orderId: order.id } });
     await appendAudit("money.paylink", "obligation", o.id, { cents, orderId: order.id, by: ctx.agentScope }, ctx.q);
     return { payLinkId: id, approveUrl: order.approveUrl, cents };
@@ -177,7 +180,9 @@ export async function createPlan(ctx: Ctx, o: Obligation, customer: Customer, op
     await noteRef("paypal.subscription", sub.id);
     await ctx.q.query("UPDATE instalment_plans SET paypal_plan_id = $2, subscription_id = $3, approve_url = $4, status = 'awaiting_approval' WHERE id = $1", [id, plan.id, sub.id, sub.approveUrl]);
     await ctx.q.query("UPDATE obligations SET subscription_id = $2, status = 'planned' WHERE id = $1", [o.id, sub.id]);
-    await textCustomer(customer, `${ctx.businessName}: your payment plan (${option.label}) is ready to approve: ${sub.approveUrl ?? customerUrl(customer)}`, "obligation", o.id, ctx.q);
+    const planUrl = sub.approveUrl ?? customerUrl(customer);
+    const planLang = normLang(customer.lang);
+    await textCustomer(customer, planLang && planLang !== "en" ? customerText("plan_link", planLang, { business: ctx.businessName, plan: option.label, url: planUrl }) : `${ctx.businessName}: your payment plan (${option.label}) is ready to approve: ${planUrl}`, "obligation", o.id, ctx.q);
     await logEvent(ctx.q, { businessId: ctx.businessId, customerId: customer.id, callId: ctx.callId, type: "plan.sent", summary: `Instalment plan (${option.label}) sent to ${customer.name}`, actor: ctx.agentScope, data: { subscriptionId: sub.id } });
     await appendAudit("money.plan", "obligation", o.id, { option, subscriptionId: sub.id, by: ctx.agentScope }, ctx.q);
     return { planRowId: id, approveUrl: sub.approveUrl, option };

@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { postJson } from "./api";
 
@@ -18,7 +19,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
     pc.current?.close();
     pc.current = null;
     setState("off");
-    setNote("Live voice stopped.");
+    setNote(t("Live voice stopped."));
     onChange();
   };
   useEffect(() => () => pc.current?.close(), []);
@@ -26,9 +27,9 @@ export function useLiveVoice(callId: string, onChange: () => void) {
   const start = async () => {
     if (pc.current) return stop();
     setState("starting");
-    setNote("Asking for your microphone…");
+    setNote(t("Asking for your microphone…"));
     try {
-      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("This browser can't do live voice. Type instead, or use Call my phone.");
+      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error(t("This browser can't do live voice. Type instead, or use Call my phone."));
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       const conn = new RTCPeerConnection();
       pc.current = conn;
@@ -47,7 +48,7 @@ export function useLiveVoice(callId: string, onChange: () => void) {
         try {
           const m = JSON.parse(ev.data);
           if (m.type === "session.closed") {
-            setNote("The call ended.");
+            setNote(t("The call ended."));
             setTimeout(stop, 500);
           }
         } catch {
@@ -57,14 +58,14 @@ export function useLiveVoice(callId: string, onChange: () => void) {
       conn.onconnectionstatechange = () => {
         if (conn.connectionState === "connected") {
           setState("on");
-          setNote("Connected to gpt-live-1. Speak as the customer; the agent talks first.");
+          setNote(t("Connected to gpt-live-1. Speak as the customer; the agent talks first."));
           onChange();
         } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) {
           setState("error");
-          setNote("The voice connection dropped. The call record is kept; start a new call to try again.");
+          setNote(t("The voice connection dropped. The call record is kept; start a new call to try again."));
         }
       };
-      setNote("Connecting to the voice model…");
+      setNote(t("Connecting to the voice model…"));
       const offer = await conn.createOffer();
       await conn.setLocalDescription(offer);
       const r = await postJson<{ answer: string; model: string }>(`/api/app/calls/${callId}/live/webrtc`, { sdp: offer.sdp });
@@ -139,7 +140,7 @@ export function useDictation(onText: (text: string) => void) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const text = useRef("");
 
-  const stop = (why = "Voice input stopped. Check the words, then press Ask.") => {
+  const stop = (why = t("Voice input stopped. Check the words, then press Ask.")) => {
     if (timer.current) clearTimeout(timer.current);
     pc.current?.getSenders().forEach((s) => s.track?.stop());
     pc.current?.close();
@@ -158,9 +159,9 @@ export function useDictation(onText: (text: string) => void) {
     setState("starting");
     setHeard("");
     text.current = "";
-    setNote("Asking for your microphone…");
+    setNote(t("Asking for your microphone…"));
     try {
-      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error("This browser can't do voice input. Type instead.");
+      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") throw new Error(t("This browser can't do voice input. Type instead."));
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       const conn = new RTCPeerConnection();
       pc.current = conn;
@@ -182,15 +183,15 @@ export function useDictation(onText: (text: string) => void) {
       conn.onconnectionstatechange = () => {
         if (conn.connectionState === "connected") {
           setState("on");
-          setNote("Listening (gpt-live-1). Speak your question; press again to stop.");
-        } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) stop("The voice connection dropped. Type instead, or try again.");
+          setNote(t("Listening (gpt-live-1). Speak your question; press again to stop."));
+        } else if (["failed", "disconnected"].includes(conn.connectionState) && pc.current === conn) stop(t("The voice connection dropped. Type instead, or try again."));
       };
-      setNote("Connecting to the voice model…");
+      setNote(t("Connecting to the voice model…"));
       const offer = await conn.createOffer();
       await conn.setLocalDescription(offer);
       const r = await postJson<{ answer: string; max_seconds: number }>("/api/app/voice/dictate", { sdp: offer.sdp });
       await conn.setRemoteDescription({ type: "answer", sdp: r.answer });
-      timer.current = setTimeout(() => stop("Voice input stops after a minute. Check the words, then press Ask."), (r.max_seconds ?? 60) * 1000);
+      timer.current = setTimeout(() => stop(t("Voice input stops after a minute. Check the words, then press Ask.")), (r.max_seconds ?? 60) * 1000);
     } catch (e) {
       pc.current?.getSenders().forEach((s) => s.track?.stop());
       pc.current?.close();

@@ -1,0 +1,23 @@
+# On every push and pull request: every interface string has a Hindi, Indonesian and Brazilian Portuguese
+# translation with matching placeholders, no text is hard-coded outside t(), and the unit tests pass.
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Translations (spec B4)
+        run: npm run i18n:check
+      - name: Unit and journey tests
+        run: npx vitest run

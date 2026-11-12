@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 /** Talks to the Express app. Reads: /api/app/*. Actions: the existing form routes, answered as JSON (X-Callback-App). */
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly to?: string) {
@@ -27,7 +28,7 @@ export async function act(path: string, fields: Record<string, string | number |
   try {
     r = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json", "x-callback-app": "1" }, body });
   } catch {
-    throw new ApiError("You look offline. Nothing was sent; try again when you have signal.", 0);
+    throw new ApiError(t("You look offline. Nothing was sent; try again when you have signal."), 0);
   }
   const out = (await r.json().catch(() => null)) as (ActResult & { error?: string }) | null;
   if (!r.ok || !out || out.ok === false) throw new ApiError(out?.message ?? `That did not work (${r.status}).`, r.status, out?.to);

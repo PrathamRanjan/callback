@@ -18,6 +18,7 @@ import { callPayPalRead, paypalReadTools } from "../paypal/mcp.js";
 import { newId } from "../lib/ids.js";
 import { bizById, callById, nowOf } from "../store.js";
 import { startRun } from "../trace.js";
+import { answerIn, type Lang } from "../lib/lang.js";
 
 /** Tool names that change something. None may ever be handed to the agent. */
 export const WRITE_TOOLS = ["place_call", "skip_call", "decide_approval", "draft_policy"];
@@ -113,7 +114,7 @@ export const ASK_PRESETS = [
 ];
 
 /** Start an Ask run. Returns at once with the run id; the loop keeps writing steps in the background. */
-export async function startAsk(businessId: string, question: string, by: string): Promise<{ runId: string; done: Promise<void> }> {
+export async function startAsk(businessId: string, question: string, by: string, lang: Lang = "en"): Promise<{ runId: string; done: Promise<void> }> {
   const db = await getDb();
   const run = await startRun({ actor: "agent", agentId: "ask", subject: question.slice(0, 200), entity: "ask", entityId: businessId }, db);
   await run.step({ actor: "owner", tool: "ask.question", args: { question: question.slice(0, 2000), by } });
@@ -126,7 +127,7 @@ export async function startAsk(businessId: string, question: string, by: string)
       close = t.close;
       for (const n of t.notes) await run.step({ actor: "system", tool: "ask.note", result: { note: n } });
       await run.step({ actor: "system", tool: "ask.tools", result: { tools: t.tools.map((x) => ({ name: x.name, source: x.source })) } });
-      const system = `You are Callback's assistant for the owner of ${biz.name}, a studio that uses Callback to make its money calls (deposits, overdue invoices, cancelled classes). The studio's clock reads ${now.toISOString()} (time zone ${biz.tz}). Amounts in Callback's tools are in dollars.`;
+      const system = `You are Callback's assistant for the owner of ${biz.name}, a studio that uses Callback to make its money calls (deposits, overdue invoices, cancelled classes). The studio's clock reads ${now.toISOString()} (time zone ${biz.tz}). Amounts in Callback's tools are in dollars.${lang !== "en" ? ` The owner may ask in English, Hindi, Indonesian or Brazilian Portuguese, or mix them. ${answerIn(lang)}` : ""}`;
       const onEvent = async (e: LoopEvent) => {
         if (e.kind === "model") await run.step({ actor: "model", tool: "ask.model", result: e, duration_ms: e.ms });
         else if (e.kind === "tool") await run.step({ actor: e.source === "paypal" ? "paypal" : e.source === "propose" ? "agent" : "code", tool: `ask.tool`, args: { name: e.name, args: e.args }, result: { fact: e.fact, name: e.name, source: e.source, ok: e.ok, args_summary: maskEmails(e.args_summary), summary: maskEmails(e.summary), output: maskEmails(e.output.slice(0, 1800)) }, duration_ms: e.ms });

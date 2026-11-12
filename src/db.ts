@@ -283,6 +283,12 @@ ALTER TABLE obligations ADD COLUMN IF NOT EXISTS source_id TEXT;
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS is_sample BOOLEAN NOT NULL DEFAULT false;
 -- How a payment was made: a link the customer approves on PayPal, or the demo's saved sandbox wallet.
 ALTER TABLE pay_links ADD COLUMN IF NOT EXISTS via TEXT NOT NULL DEFAULT 'link';
+-- Languages (spec B): the page language a person picked, the language a customer is called and texted in, the language
+-- a call was actually spoken in (detected from the first words), and machine translations of its transcript by language.
+ALTER TABLE people ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'en';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'en';
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS lang TEXT;
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS translations JSONB NOT NULL DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS obligations_biz ON obligations(business_id, created_at);
 CREATE INDEX IF NOT EXISTS customers_biz ON customers(business_id, name);
 CREATE INDEX IF NOT EXISTS events_biz ON events(business_id, at DESC);

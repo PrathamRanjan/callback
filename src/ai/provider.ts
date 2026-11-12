@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { getDb } from "../db.js";
 
-export type Purpose = "turn" | "policy" | "persona" | "summary" | "eval" | "scam_check" | "agent" | "signals" | "voice";
+export type Purpose = "turn" | "policy" | "persona" | "summary" | "eval" | "scam_check" | "agent" | "signals" | "voice" | "translate";
 
 export interface TextPart {
   type: "text";

@@ -266,6 +266,25 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     const first = new TextDecoder().decode((await ev.body!.getReader().read()).value);
     expect(first).toContain("No live voice on this call yet");
     ac.abort();
+    // Languages (spec B): a person's choice is kept on their row; a bad code is refused; a customer picks theirs.
+    expect((await judge.postJson("/api/app/me/lang", { lang: "pt-BR" })).json).toMatchObject({ ok: true, lang: "pt-BR", saved_for: "person" });
+    expect((await world.db.query<{ lang: string }>("SELECT lang FROM people WHERE role = 'owner'")).rows.map((x) => x.lang)).toContain("pt-BR");
+    expect((await judge.get("/api/app/session")).json.me.lang).toBe("pt-BR");
+    expect((await judge.postJson("/api/app/me/lang", { lang: "fr" })).status).toBe(400);
+    expect((await anon.postJson("/api/app/me/lang", { lang: "hi" })).json).toMatchObject({ lang: "hi-IN", saved_for: "device" });
+    expect((await judge.postJson("/api/app/me/lang", { lang: "en" })).json.lang).toBe("en");
+    // An earlier step reset the demo, which issues new customer links, so read the current one.
+    const priyaTok = (await world.db.query<{ token: string }>("SELECT token FROM customers WHERE name = 'Priya Natarajan'")).rows[0].token;
+    expect((await anon.postJson(`/api/app/c/${priyaTok}/lang`, { lang: "id" })).json.lang).toBe("id-ID");
+    expect((await anon.get(`/api/app/c/${priyaTok}`, { accept: "application/json" })).json.lang).toBe("id-ID");
+    expect((await anon.postJson(`/api/app/c/${priyaTok}/lang`, { lang: "en" })).json.lang).toBe("en");
+    expect((await anon.postJson("/api/app/customers/nobody/lang", { lang: "en" })).status).toBe(401);
+    const priyaId = (await world.db.query<{ id: string }>("SELECT id FROM customers WHERE token = $1", [priyaTok])).rows[0].id;
+    expect((await judge.postJson(`/api/app/customers/${priyaId}/lang`, { lang: "pt-BR" })).json.message).toMatch(/Brazilian Portuguese/);
+    expect((await judge.postJson(`/api/app/customers/${priyaId}/lang`, { lang: "en" })).json.lang).toBe("en");
+    // Translating a call: signed in only; without an AI model it says so (503) and the original stays.
+    expect((await anon.postJson(`/api/app/calls/${id}/translate`, { lang: "hi-IN" })).status).toBe(401);
+    expect([409, 503]).toContain((await judge.postJson(`/api/app/calls/${id}/translate`, { lang: "hi-IN" })).status);
     const dep = world.seeded.obligations.priya_deposit;
     const r = await anon.post(`/c/${world.seeded.customers.priya.token}/hold/${dep}`);
     // Earlier steps in this journey moved Priya's item on, so this is refused one way or another; never a 5xx.
