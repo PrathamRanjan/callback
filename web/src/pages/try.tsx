@@ -23,7 +23,8 @@ export default function Try() {
   const { data } = useData<DemoInfo>("/api/app/demo");
   const [busy, setBusy] = useState<string | null>(null);
   const [key, setKey] = useState("");
-  const owner = data?.people.find((p) => p.role === "owner")?.name ?? t("the owner");
+  // The seed's names, used while the demo info loads (or if it can't), so the card never reads "the owner, the owner".
+  const owner = data?.people.find((p) => p.role === "owner")?.name ?? "Maya Chen";
   const staff = data?.people.find((p) => p.role === "staff")?.name ?? t("the front desk");
 
   // There is no "skip": owner and customer always start with who you are and the walkthrough (tour/story.ts).
@@ -64,7 +65,7 @@ export default function Try() {
       <div className="mx-auto max-w-[720px] px-4 py-10">
         <h1 className="font-display text-h1 font-[800]" style={{ fontStretch: "115%" }}>{t("Who do you want to be?")}</h1>
         <p className="mt-2 text-lead text-ink-2">{t("Pick a role. We'll tell you who you are, then walk you through what your day looks like with Callback.")}</p>
-        <p className="mt-2 text-ink-2">{data?.business?.name ?? t("The demo studio")}{" "}{t("is a demo studio in Sydney. Your first tap builds your own private copy of it (a few seconds): nobody else sees what you do, and it is removed after two days without a visit. Payments go through the real PayPal sandbox; nothing real is charged.")}</p>
+        <p className="mt-2 text-ink-2">{data?.business?.name ?? "Brightside Physio & Pilates"}{" "}{t("is a demo studio in Sydney. Your first tap builds your own private copy of it (a few seconds): nobody else sees what you do, and it is removed after two days without a visit. Payments go through the real PayPal sandbox; nothing real is charged.")}</p>
         {data && !data.demo ? <p className="mt-3 rounded-[8px] bg-hold-soft p-3 text-sm">{t("Demo mode is off on this server. Sign in with your access key below.")}</p> : null}
         <ul className="mt-6 grid gap-3">
           {people.map((p) => (
