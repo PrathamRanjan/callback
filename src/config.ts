@@ -70,6 +70,8 @@ export const config = {
     twilioToken: process.env.TWILIO_AUTH_TOKEN || "",
     twilioFrom: process.env.TWILIO_FROM_NUMBER || "",
     webhookSecret: process.env.VOICE_WEBHOOK_SECRET || "",
+    /** Live voice starts (browser or phone) per internet address per day; each call is capped at a few minutes. */
+    liveStartsPerIpDay: Math.max(1, Number(process.env.CB_LIVE_STARTS_PER_IP_DAY || 30)),
     /** "Call my phone" (spec B2): ISO country codes it may dial, e.g. "AU,US". Empty = off (the owner decides). */
     callMyPhoneCountries: (process.env.CB_CALL_MY_PHONE_COUNTRIES || "").split(",").map((x) => x.trim().toUpperCase()).filter(Boolean),
     /** A live call is cut at this many seconds (spec B2: 4 minutes), by Twilio's TimeLimit and by our own timer. */

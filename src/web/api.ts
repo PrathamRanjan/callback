@@ -34,7 +34,7 @@ import { liveCallFor, liveReady } from "../voice/live.js";
 import { telephonyReady } from "../voice/telephony.js";
 import { me, type Me } from "./auth.js";
 import { workspaceOf } from "./workspace.js";
-import { markStep } from "../services/workspaces.js";
+import { markStep, readyForStory } from "../services/workspaces.js";
 import { DEMO_IMPERSONATION } from "./safety.js";
 import { json } from "./common.js";
 import { GtError } from "../lib/util.js";
@@ -398,6 +398,12 @@ export function apiRouter(): Router {
    * who isn't signed in keeps it on the device only. A customer's choice on their own page is the language Callback
    * calls and texts them in.
    */
+  /** The guided walkthrough calls this first, so a reused demo still has Priya's call to take and a hold to decide. */
+  r.post("/api/app/demo/story-ready", json(async (req) => {
+    if (!config.demoMode) throw new GtError("Demo mode is off.", "forbidden", 403);
+    const p = await owner(req);
+    return readyForStory(await getDb(), p.business_id);
+  }));
   r.post("/api/app/me/lang", json(async (req) => {
     const lang = normLang(req.body?.lang);
     if (!lang) throw new GtError("Pick English, Hindi, Indonesian or Brazilian Portuguese.", "bad_request", 400);

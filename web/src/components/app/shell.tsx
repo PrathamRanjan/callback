@@ -37,6 +37,18 @@ export const NAV: NavItem[] = tlist([
 export function DemoRibbon() {
   const { session, reload } = useSession();
   const nav = useNavigate();
+  // The seed's sample payments finish a few seconds after the page opens; re-read until the note stops saying "…".
+  const note = session?.workspace?.seed_note ?? "";
+  const pending = note.endsWith("…");
+  useEffect(() => {
+    if (!pending) return;
+    let n = 0;
+    const id = setInterval(() => {
+      if (++n > 20) clearInterval(id);
+      void reload();
+    }, 3000);
+    return () => clearInterval(id);
+  }, [pending, reload]);
   if (!session?.demo) return null;
   const i = session.integrations;
   const live = [i.paypal ? `PayPal ${i.paypal}` : null, i.brain === "model" ? t("AI model") : null].filter(Boolean).join(" · ");

@@ -9,7 +9,9 @@ test("agents: a stranger is offered a demo; the owner gets a hidden demo key, a 
 
   await page.addInitScript(() => { localStorage.setItem("cb-tour-seen-owner", "1"); localStorage.setItem("cb-tour-seen-staff", "1"); });
   await page.goto("/try");
-  await page.getByRole("button", { name: "Skip the walkthrough" }).click();
+  // The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+  await page.request.post("/demo/signin-as", { form: { role: "owner" } });
+  await page.goto("/today");
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
   await page.goto("/agents");
   const panel = page.getByTestId("connect-assistant");

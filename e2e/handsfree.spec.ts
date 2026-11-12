@@ -16,7 +16,9 @@ async function owner(page: Page) {
     localStorage.setItem("cb-hf", JSON.stringify({ mode: "gaze", dwellMs: 700, voice: "off" }));
   });
   await page.goto("/try");
-  await page.getByRole("button", { name: "Skip the walkthrough" }).click();
+  // The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+  await page.request.post("/demo/signin-as", { form: { role: "owner" } });
+  await page.goto("/today");
   await page.waitForURL((u) => !u.pathname.startsWith("/try"));
 }
 async function lookAt(page: Page, name: string | RegExp) {

@@ -202,6 +202,63 @@ async function seedWorkspace(db: Db, id: string | null): Promise<WorkspaceSeed> 
   return { ...seeded, samples: { aisha, ben, ivyCall } };
 }
 
+/**
+ * Gets a demo that has been used before ready for the guided walkthrough (web/src/tour/story.ts), so each scene shows
+ * what it describes: Priya's deposit call can be taken now, and one charge over the limit waits on Approvals. A fresh
+ * demo already starts like this; a reused one may have paid Priya, moved the clock to a weekend, or decided the
+ * hold. Only Priya's calls and Ivy's held charge are touched; every other record stays as the visitor left it.
+ */
+export async function readyForStory(db: Db, bizId: string): Promise<{ call: string | null; hold: boolean; notes: string[] }> {
+  const notes: string[] = [];
+  const biz = await bizById(db, bizId);
+  let clock = biz.sim_now ? new Date(biz.sim_now) : new Date();
+  const lp = localParts(clock, biz.tz);
+  if (lp.weekday === 0 || lp.weekday === 6 || lp.hour < 9 || lp.hour >= 17) {
+    clock = demoClock(new Date(), biz.tz);
+    await db.query("UPDATE businesses SET sim_now = $2 WHERE id = $1", [bizId, clock.toISOString()]);
+    notes.push("studio clock back to a weekday morning");
+  }
+  const cust = async (name: string) => (await db.query<{ id: string }>("SELECT id FROM customers WHERE business_id = $1 AND name LIKE $2 ORDER BY created_at LIMIT 1", [bizId, `${name}%`])).rows[0]?.id ?? null;
+  const fresh = async (customer: string, kind: "deposit" | "invoice", title: string, cents: number, due: Date, appt: Date | null) => {
+    const id = newId("obl");
+    await db.query("INSERT INTO obligations (id, business_id, customer_id, kind, title, amount_cents, due_at, appointment_at, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'open')", [id, bizId, customer, kind, title, cents, due.toISOString(), appt?.toISOString() ?? null]);
+    return id;
+  };
+  let call: string | null = null;
+  const priya = await cust("Priya");
+  if (priya) {
+    const open = (await db.query<{ id: string; appointment_at: string | null }>("SELECT id, appointment_at FROM obligations WHERE customer_id = $1 AND kind = 'deposit' AND status IN ('open','link_sent') ORDER BY created_at DESC", [priya])).rows;
+    const soon = open.find((o) => o.appointment_at && new Date(o.appointment_at).getTime() - clock.getTime() > 2 * 3600_000 && new Date(o.appointment_at).getTime() - clock.getTime() < 36 * 3600_000);
+    if (!soon) {
+      await fresh(priya, "deposit", "Deposit for initial physio assessment", 6000, addHours(clock, 20), addHours(clock, 26));
+      notes.push("a new deposit for Priya's appointment tomorrow");
+    }
+    // As "call again" on /demo: today's attempt limit would otherwise stop a second walkthrough.
+    await db.query("UPDATE calls SET status = 'ended', outcome = COALESCE(outcome, 'left for the walkthrough'), ended_at = now() WHERE customer_id = $1 AND status IN ('ringing','in_progress')", [priya]);
+    await db.query("DELETE FROM callbacks WHERE customer_id = $1", [priya]);
+    await db.query("DELETE FROM calls WHERE customer_id = $1 AND NOT is_sample", [priya]);
+  }
+  await planCalls(db, bizId, "demo", clock);
+  if (priya) call = (await db.query<{ id: string }>("SELECT id FROM calls WHERE customer_id = $1 AND purpose = 'confirm_deposit' AND status = 'planned' ORDER BY created_at DESC LIMIT 1", [priya])).rows[0]?.id ?? null;
+  let hold = (await db.query("SELECT 1 FROM approvals WHERE status = 'pending' LIMIT 1")).rows.length > 0;
+  const ivy = await cust("Ivy");
+  if (!hold && ivy) {
+    // The same move the seed holds: a $360 pay link, over the studio's $300 limit, so the real gate holds it.
+    const obl = await fresh(ivy, "invoice", "Invoice #1061: 10-class reformer pack", 36000, addDays(clock, -8), null);
+    const ivyCall = (await db.query<{ id: string }>("SELECT id FROM calls WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1", [ivy])).rows[0]?.id ?? null;
+    const run = await startRun({ actor: "agent", subject: "Walkthrough: Ivy Park asked for her pay link", entity: "call", entityId: ivyCall ?? obl }, db);
+    try {
+      await sendPayLink({ q: db, run, businessId: bizId, businessName: biz.name, callId: ivyCall, agentScope: `agent:${ivyCall ?? "walkthrough"}` }, await obligationById(db, obl), await customerById(db, ivy));
+    } catch (e) {
+      if (!(e instanceof HeldForApproval)) throw e;
+    }
+    await run.end("done");
+    hold = (await db.query("SELECT 1 FROM approvals WHERE status = 'pending' LIMIT 1")).rows.length > 0;
+    if (hold) notes.push("a new $360 charge for Ivy, held over your $300 limit");
+  }
+  return { call, hold, notes };
+}
+
 /** The seed's real money: Tom's class booking and the two deposits paid on the sample calls, from the saved wallet. */
 async function seedPayments(db: Db, id: string | null, seeded: WorkspaceSeed) {
   if (!config.paypal.demoVaultToken) return;

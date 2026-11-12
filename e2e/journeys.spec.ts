@@ -4,13 +4,16 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function be(page: Page, who: "owner" | "front desk" | "customer") {
   await page.goto("/try");
-  // The owner and customer cards start the guided walkthrough (tour/story.ts); tests that aren't about it skip or close it.
-  if (who === "owner") await page.getByRole("button", { name: "Skip the walkthrough" }).click();
+  // The owner and customer cards start the guided walkthrough (tour/story.ts); tests that aren't about it sign in directly or press Escape.
+  if (who === "owner") {
+    await page.request.post("/demo/signin-as", { form: { role: "owner" } });
+    await page.goto("/today");
+  }
   else if (who === "front desk") await page.getByRole("button", { name: "Be the front desk" }).click();
   else {
     await page.getByRole("button", { name: "Start as the customer" }).click();
     await page.waitForURL(/\/c\//);
-    await page.locator(".driver-popover-close-btn").click();
+    await page.keyboard.press("Escape"); // there is no close button: Escape ends the walkthrough
     await expect(page.locator(".driver-popover")).toHaveCount(0);
   }
   // Wait for the sign-in to land: on the live site a goto right after the click raced the cookie back to /try.

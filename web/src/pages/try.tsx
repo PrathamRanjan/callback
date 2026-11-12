@@ -26,8 +26,9 @@ export default function Try() {
   const owner = data?.people.find((p) => p.role === "owner")?.name ?? t("the owner");
   const staff = data?.people.find((p) => p.role === "staff")?.name ?? t("the front desk");
 
-  const go = async (who: "owner" | "staff" | "customer", guided = true) => {
-    setBusy(who + (guided ? "" : "-own"));
+  // There is no "skip": owner and customer always start with who you are and the walkthrough (tour/story.ts).
+  const go = async (who: "owner" | "staff" | "customer") => {
+    setBusy(who);
     try {
       const info = data ?? (await getJson<DemoInfo>("/api/app/demo")); // a fast click can beat the first load
       void info;
@@ -37,11 +38,10 @@ export default function Try() {
       if (who === "customer") {
         const ctx = await storyContext();
         if (!ctx.token) throw new Error(t("No customer page to show yet. Reset the demo from Demo controls."));
-        if (guided) startStory("customer", ctx);
-        else nav(`/c/${ctx.token}`);
+        startStory("customer", ctx);
         return;
       }
-      if (who === "owner" && guided && !next) {
+      if (who === "owner" && !next) {
         startStory("owner", await storyContext());
         return;
       }
@@ -54,9 +54,9 @@ export default function Try() {
   };
 
   const people = [
-    { id: "owner" as const, icon: Store, t: t("{0}, the owner", [owner]), badge: t("Guided, about 3 minutes"), d: t("Live one day of the studio: your agent calls a customer about a deposit, a charge over your limit waits for you, and PayPal settles it."), cta: t("Start as the owner"), own: true },
-    { id: "customer" as const, icon: Smartphone, t: t("A customer"), badge: t("Guided, about 1 minute"), d: t("Open the studio's text, pay on PayPal and check a suspicious message before you pay."), cta: t("Start as the customer"), own: false },
-    { id: "staff" as const, icon: UserRound, t: t("{0}, front desk", [staff]), badge: t("On your own"), d: t("Runs calls and sees customers. Can't move money or change rules."), cta: t("Be the front desk"), own: false },
+    { id: "owner" as const, icon: Store, t: t("{0}, the owner", [owner]), badge: t("Guided, about 5 minutes"), d: t("Live one day of the studio: your agent calls a customer about a deposit, a charge over your limit waits for you, and PayPal settles it."), cta: t("Start as the owner") },
+    { id: "customer" as const, icon: Smartphone, t: t("A customer"), badge: t("Guided, about 1 minute"), d: t("Open the studio's text, pay on PayPal and check a suspicious message before you pay."), cta: t("Start as the customer") },
+    { id: "staff" as const, icon: UserRound, t: t("{0}, front desk", [staff]), badge: t("On your own"), d: t("Runs calls and sees customers. Can't move money or change rules."), cta: t("Be the front desk") },
   ];
 
   return (
@@ -81,12 +81,6 @@ export default function Try() {
                     {busy === p.id ? <Loader2 className="animate-spin" /> : null}
                     {p.cta} <ArrowRight />
                   </Button>
-                  {p.own ? (
-                    <Button variant="link" size="sm" className="h-auto min-h-11 px-0" onClick={() => go(p.id, false)} disabled={busy !== null || (data ? !data.demo : false)}>
-                      {busy === `${p.id}-own` ? <Loader2 className="animate-spin" /> : null}
-                      {t("Skip the walkthrough")}
-                    </Button>
-                  ) : null}
                 </div>
               </Panel>
             </li>

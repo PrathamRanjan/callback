@@ -213,6 +213,26 @@
 .driver-popover.cb-tour.cb-story-card { max-width: min(520px, calc(100vw - 32px)); padding: 24px; }
 .driver-popover.cb-tour.cb-story-card .driver-popover-title { font-size: 1.5rem; line-height: 1.2; }
 .driver-popover.cb-tour.cb-story-card .driver-popover-description { font-size: 1.02rem; }
+/* Every walkthrough card is the same width, so the criteria note at the bottom never changes its size. */
+.driver-popover.cb-tour.cb-story { width: min(400px, calc(100vw - 32px)); max-width: min(400px, calc(100vw - 32px)); }
+.driver-popover.cb-tour.cb-story.cb-story-card { width: min(520px, calc(100vw - 32px)); }
+.cb-story .cb-story-body { display: block; }
+/* The note on what this step shows against the judging criteria (technology, impact, innovation). */
+.cb-story .cb-story-why { display: grid; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 0.8125rem; line-height: 1.4; color: var(--ink-2); }
+.cb-story .cb-why-row { display: flex; gap: 8px; align-items: baseline; }
+.cb-story .cb-why-tag { flex: none; border-radius: 999px; padding: 1px 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--brand-soft); color: var(--brand); }
+.cb-story .cb-why-tag[data-c="impact"] { background: var(--hold-soft); color: var(--ink); }
+.cb-story .cb-why-tag[data-c="innovation"] { background: var(--surface-2); color: var(--ink); }
+/* A role change: who you were, an arrow, who you are now. */
+.cb-story .cb-story-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.cb-story .cb-role { border-radius: 999px; padding: 4px 12px; font-size: 0.875rem; font-weight: 600; border: 1px solid var(--line); }
+.cb-story .cb-role-from { color: var(--ink-2); text-decoration: line-through; text-decoration-color: var(--line); }
+.cb-story .cb-role-to { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.cb-story .cb-role-arrow { color: var(--ink-2); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.a11y-calm) .cb-story-switchcard .cb-role-to { animation: cb-role-in 420ms cubic-bezier(.2,.8,.2,1) both; }
+}
+@keyframes cb-role-in { from { opacity: 0; transform: translateX(-8px) scale(.96); } to { opacity: 1; transform: none; } }
 /* The corner button that carries a story on while the visitor uses the page. */
 .cb-story-pill {
   position: fixed; right: 16px; bottom: 16px; z-index: 1000000;
@@ -221,7 +241,6 @@
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); font: 500 0.875rem var(--font-sans);
 }
 .cb-story-pill .cb-story-next { background: var(--brand); color: var(--brand-ink); border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 600; }
-.cb-story-pill .cb-story-close { color: var(--ink-2); width: 40px; height: 40px; border-radius: 999px; font-size: 1.25rem; }
 .cb-story-pill button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 @media (max-width: 640px) { .cb-story-pill { left: 16px; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); justify-content: space-between; } }
 

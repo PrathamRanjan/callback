@@ -29,7 +29,9 @@ for (const L of LANGS) {
     await page.screenshot({ path: `docs/screenshots/lang/${L.code}-landing.png` });
 
     await page.goto("/try");
-    await page.getByRole("button", { name: T("Skip the walkthrough") }).click();
+    // The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+  await page.request.post("/demo/signin-as", { form: { role: "owner" } });
+  await page.goto("/today");
     await page.waitForURL((u) => !u.pathname.startsWith("/try"));
     await page.goto("/today");
     await expect(page.locator("main h1").first()).toBeVisible();

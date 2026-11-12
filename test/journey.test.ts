@@ -212,6 +212,11 @@ describe("journey: owner, staff, customer, demo, voice webhooks", () => {
     expect((await judge.post("/demo/reset", { admin_key: "test-admin-key" })).location).toMatch(/ok=Showcase/);
     (config as any).adminKey = "";
     expect((await judge.post("/demo/signin-as", { role: "owner" })).location).toBe("/today");
+    // The walkthrough's setup: Priya has a call to take and a held charge waits, even in a reused demo.
+    const ready = (await judge.postJson("/api/app/demo/story-ready", {})).json;
+    expect(ready.call).toMatch(/^call_/);
+    expect(ready.hold).toBe(true);
+    expect((await anon.postJson("/api/app/demo/story-ready", {})).status).toBeGreaterThanOrEqual(400);
     const after = await judge.get("/demo");
     expect(after.text).toContain("Access keys (owner only");
     expect((await anon.get("/demo")).text).not.toContain("Access keys (owner only");

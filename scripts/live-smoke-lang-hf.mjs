@@ -35,7 +35,9 @@ await step("?lang=pt-BR on the first screen switches the page, with no sign-in",
 
 await step("one tap starts a private demo, and the owner's Today page is in Portuguese", async () => {
   await p.goto(`${BASE}/try`);
-  await p.getByRole("button", { name: T("Skip the walkthrough") }).click();
+  // The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+  await p.request.post(`${BASE}/demo/signin-as`, { form: { role: "owner" } });
+  await p.goto(`${BASE}/today`);
   await p.waitForURL((u) => !u.pathname.startsWith("/try"), { timeout: 60000 });
   const err = new URL(p.url()).searchParams.get("err");
   if (err) throw new Error(`no demo: ${err}`);

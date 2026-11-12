@@ -73,7 +73,7 @@ export function ConnectAssistant() {
     }
   };
   return (
-    <div className="grid min-w-0 gap-3 rounded-[12px] border border-line bg-surface p-4 text-sm [&>*]:min-w-0" data-testid="connect-assistant">
+    <div className="grid min-w-0 gap-3 rounded-[12px] border border-line bg-surface p-4 text-sm [&>*]:min-w-0" data-testid="connect-assistant" data-tour="agents">
       <h2 className="flex items-center gap-2 text-h2 font-semibold"><Plug className="size-5" aria-hidden="true" />{t("Connect your assistant")}</h2>
       <p>{t("Your demo workspace's owner key. It works only on this workspace, gets the same gate and limits as you, and a demo reset issues a new one.")}</p>
       <div className="grid gap-2">

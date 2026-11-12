@@ -49,7 +49,8 @@ async function count(key: string, window: string): Promise<number> {
 /** Checks the limits for one live start and records it. `number` only for "call my phone". */
 export async function takeLiveStart(transport: "phone" | "browser" | "test-line", ip: string, number: string | null = null) {
   const ipKey = hash("ip", ip || "unknown");
-  if ((await count(ipKey, "1 day")) >= 10) throw new GtError("This address has started ten live voice calls today, the most the demo allows. Type instead, or come back tomorrow.", "rate_limited", 429);
+  const perDay = config.voice.liveStartsPerIpDay;
+  if ((await count(ipKey, "1 day")) >= perDay) throw new GtError(`This address has started ${perDay} live voice calls today, the most the demo allows. Type the call instead (same agent, same checks), or come back tomorrow.`, "rate_limited", 429);
   let numKey: string | null = null;
   let phoneIpKey: string | null = null;
   if (transport === "phone") {

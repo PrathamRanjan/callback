@@ -75,7 +75,14 @@ export function TakeTheCall({ callId, voice, onChange, typeButton }: { callId: s
             <>
               <p className="mb-2 text-sm text-ink-2">{t("Uses your microphone. The agent says first that it is an AI and a demo.")}</p>
               <Button type="button" variant="outline" onClick={() => void browser.start()} disabled={browser.state === "starting"} aria-pressed={browser.state === "on"}>{browser.state === "on" ? <MicOff /> : <Mic />}{browser.state === "on" ? t("Stop") : t("Start talking")}</Button>
-              {browser.note ? <p role="status" className="mt-2 text-sm text-ink-2">{browser.note}</p> : null}
+              {browser.state === "error" && browser.note ? (
+                // A refusal (daily limit, microphone blocked) must be impossible to miss: it says why and what to do.
+                <div role="alert" className="mt-2 rounded-[8px] border border-hold bg-hold-soft p-2.5 text-sm">
+                  <p className="font-medium">{t("Live voice didn't start")}</p>
+                  <p>{browser.note}</p>
+                  <p className="mt-1 text-ink-2">{t("You can still take this call: press Start typing, the same agent and checks by text.")}</p>
+                </div>
+              ) : browser.note ? <p role="status" className="mt-2 text-sm text-ink-2">{browser.note}</p> : null}
             </>
           ) : <p className="text-sm text-ink-2">{t("Off: no voice model key on this deployment.")}</p>}
         </div>

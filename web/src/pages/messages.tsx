@@ -40,7 +40,7 @@ export default function MessagesPage() {
         next={d.telegram_linked ? t("Holds reach you on Telegram with Approve and Decline buttons.") : t("Connect Telegram so holds reach your phone and the customer isn't left waiting.")}
       />
       <Section id="alerts" title={t("Alerts on your phone")}>
-        <Panel className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
+        <Panel className="flex flex-col gap-3 p-4 md:flex-row md:items-center" data-tour="messages">
           <StateChip s={d.telegram_linked ? "done" : "idle"}>{d.telegram_linked ? t("Telegram connected") : t("Telegram not connected")}</StateChip>
           <p className="flex-1 text-sm text-ink-2">{t("Opens Telegram with a one-time code that expires in 15 minutes. Text messages")}{" "}{i?.sms ? t("go out through Twilio") : t("are shown here as previews (no SMS number connected)")}.</p>
           <ActButton path="/connect/telegram" icon={<BellRing />}>{d.telegram_linked ? t("Connect another chat") : t("Connect Telegram")}</ActButton>

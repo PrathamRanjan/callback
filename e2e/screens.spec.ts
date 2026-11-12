@@ -16,7 +16,9 @@ test("capture", async ({ browser }) => {
   await prep.addInitScript(() => localStorage.setItem("cb-tour-seen-owner", "1"));
   const p = await prep.newPage();
   await p.goto("/try");
-  await p.getByRole("button", { name: "Skip the walkthrough" }).click();
+  // The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+  await p.request.post("/demo/signin-as", { form: { role: "owner" } });
+  await p.goto("/today");
   await expect(p.locator("[data-tour=today-kpis]")).toBeVisible();
   await p.getByRole("link", { name: /Priya Natarajan/ }).first().click();
   await p.getByRole("button", { name: "Start in simulator" }).click();

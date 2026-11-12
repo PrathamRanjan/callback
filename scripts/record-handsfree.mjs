@@ -19,7 +19,9 @@ const setup = await b.newContext({ viewport: { width: 1100, height: 700 } });
 await setup.addInitScript(init);
 const s0 = await setup.newPage();
 await s0.goto(`${base}/try`);
-await s0.getByRole("button", { name: "Skip the walkthrough" }).click();
+// The Try page always starts the walkthrough; tests that aren't about it sign in as the owner directly.
+await s0.request.post(`${base}/demo/signin-as`, { form: { role: "owner" } });
+await s0.goto(`${base}/today`);
 await s0.waitForURL((u) => !u.pathname.startsWith("/try"));
 await s0.goto(`${base}/calls`);
 await s0.locator("main a[href^='/calls/']").first().waitFor();
